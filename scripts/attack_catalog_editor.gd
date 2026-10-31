@@ -134,7 +134,7 @@ func _select_row(index: int) -> void:
 		form.remove_child(node)
 		node.queue_free()
 	var groups: Array = [
-		["Identity", ["name", "type"]],
+		["Identity", ["codex_online_name", "name", "type"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
 		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "base_weight"]],
 		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
@@ -150,7 +150,7 @@ func _select_row(index: int) -> void:
 		grid.columns = 2 if group[0] == "Reference" else 4
 		grid.add_theme_constant_override("h_separation", 12)
 		form.add_child(grid)
-		var keep: Array = _applicable(_rows()[index]) + ["name", "type", "base_weight"] if not ranges else []
+		var keep: Array = _applicable(_rows()[index]) + ["codex_online_name", "name", "type", "base_weight"] if not ranges else []
 		for column in group[1]:
 			if _rows()[index].has(column) and (ranges or column in keep):  # only the values that mean something for this attack
 				_add_field(grid, column, index)
@@ -177,22 +177,35 @@ func _select_row(index: int) -> void:
 	_wrap_tips(form)
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
-	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
+	var labels := {"codex_online_name": "Name", "name": "ID", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.custom_minimum_size.x = 150  # the same in every section, so the boxes line up
 	label.tooltip_text = _help(column)
 	grid.add_child(label)
+	if column == "type" and not ranges:  # a choice, not free text
+		var pick := OptionButton.new()
+		for t in catalog.TYPES:
+			pick.add_item(t)
+		pick.select(catalog.TYPES.find(str(_rows()[index].get("type", ""))))
+		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pick.disabled = not writable
+		pick.tooltip_text = _help("type")
+		pick.item_selected.connect(func(i):
+			_change("type", catalog.TYPES[i])
+			_select_row(index))  # its type's boxes
+		grid.add_child(pick)
+		return
 	var edit := LineEdit.new()
 	edit.text = catalog.format_cell(column, str(_rows()[index].get(column, "")))
 	edit.custom_minimum_size.x = 125
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	edit.editable = writable and column not in ["score", "name", "type", "status"]
+	var in_code: bool = catalog.EXECUTABLE.values().any(func(list): return str(_rows()[index].get("name", "")) in list)
+	edit.editable = writable and column not in ["score", "type", "status"] and not (column == "name" and (in_code or ranges))
 	if column == "animation_s" and _rows()[index].get("type", "") in ["ranged", "movement"]:  # a projectile / the move sets the time
 		edit.editable = false
-	if column == "coverage_area_units2" and catalog.uses_body(_rows()[index]):  # body / movement attacks: the enemy's own body
-		edit.text = "body"
-		edit.editable = false
+	if column == "coverage_area_units2" and catalog.uses_body(_rows()[index]):  # empty = the enemy's own body
+		edit.placeholder_text = "body"
 	edit.tooltip_text = _help(column)
 	if column == "animation_s" and _rows()[index].get("type", "") == "ranged":
 		edit.tooltip_text = "Ranged attacks spawn a projectile that then flies by itself: there's no execution animation to time."
@@ -211,6 +224,15 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 			_change(column, formatted))
 
 func _change(column: String, value: String) -> void:
+	if column == "name" and not ranges:  # renaming an attack: every enemy and follow-up that uses it follows
+		var old: String = str(_rows()[selected].get("name", ""))
+		for b in catalog.assignments:
+			if b.attack_name == old: b.attack_name = value
+		for a in catalog.attacks:
+			if str(a.get("follow_up", "")) == old: a.follow_up = value
+		table.set_item_text(selected, "%s · %s" % [value, _rows()[selected].get("type", "")])
+	if column == "type" and not ranges:
+		table.set_item_text(selected, "%s · %s" % [_rows()[selected].get("name", ""), value])
 	_rows()[selected][column] = value
 	dirty = true
 	dirty_changed.emit()
@@ -487,21 +509,24 @@ func _select_enemy(i: int) -> void:
 const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
 	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal speed",
 	"vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
-const NEEDS := {"body": ["windup_s", "animation_s", "recovery_s", "initial_speed_units_s"], "melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
-	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"], "movement": ["windup_s", "recovery_s"],
-	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]}
 
-func _applicable(attack: Dictionary) -> Array:  # the values that mean something for this attack
-	var type: String = attack.get("type", "")
-	var need: Array = NEEDS.get(type, [])
-	var shots := type == "ranged" or int(str(attack.get("multishot", "1")) if str(attack.get("multishot", "")) != "" else "1") > 1
+
+# The boxes each attack type shows (the same for every attack of that type).
+const TYPE_FIELDS := {
+	"body": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s"],
+	"melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
+	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
+	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg",
+		"flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"],
+	"movement": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "flight_time_s", "horizontal_speed_units_s",
+		"vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]}
+
+func _applicable(attack: Dictionary) -> Array:  # its type's boxes (Enemies tab: plus its follow-up, once it has one)
+	var mine: Array = TYPE_FIELDS.get(attack.get("type", ""), [])
 	return TAGS.keys().filter(func(c):
-		if c == "base_weight": return false  # edited in the Attacks tab
-		if c in ["follow_up", "follow_up_count", "follow_up_gap_s"]:  # all three once it has a follow-up (Enemies tab)
+		if c in ["follow_up", "follow_up_count", "follow_up_gap_s"]:
 			return str(attack.get("follow_up", "")) != "" or str(attack.get("follow_up_count", "")) != ""
-		if c == "animation_s" and type in ["ranged", "movement"]: return false  # not used: the shot / the move sets the time
-		if c in ["multishot", "aimed_shot", "spread_deg"] and not shots: return false
-		return c in need or str(attack.get(c, "")) != "")
+		return c in mine)
 
 func _small_edit(editable: bool) -> LineEdit:
 	var edit := LineEdit.new()
@@ -519,9 +544,8 @@ func _compact_field(parent: Control, attack: Dictionary, column: String, score: 
 	edit.tooltip_text = _help(column) + " · shared by every enemy with this attack"
 	if column == "animation_s" and attack.get("type", "") in ["ranged", "movement"]:
 		edit.editable = false
-	if column == "coverage_area_units2" and catalog.uses_body(attack):
-		edit.text = "body"
-		edit.editable = false
+	if column == "coverage_area_units2" and catalog.uses_body(attack):  # empty = the enemy's own body
+		edit.placeholder_text = "body"
 	if catalog.error_at.table == "attacks" and catalog.attacks.find(attack) == catalog.error_at.index and catalog.error_at.field == column:
 		edit.add_theme_color_override("font_color", Color("ff7070"))
 	edit.text_changed.connect(func(v):
@@ -788,8 +812,9 @@ func _score_text(e: Array) -> String:
 
 func _help(field: String) -> String:
 	match field:
-		"type": return "Implemented attack classification; changing it requires matching gameplay behavior."
-		"name": return "Stable runtime ID. Renaming requires implementing and migrating the attack."
+		"type": return "What kind of attack it is: it decides which values it has and how it's scored (body, melee, ranged, area, movement). What the game does is still up to the enemy's code."
+		"name": return "The attack's ID. The game code refers to some attacks by ID: those can't be renamed. Renaming another one updates every enemy and follow-up that uses it."
+		"codex_online_name": return "The attack's name, as shown in the Enemies tab."
 		"score": return "Derived reference score; recalculated when saved. Not editable."
 		"windup_s": return "Warning before execution, in seconds. Longer warning reduces score."
 		"animation_s": return "Execution duration; area/melee scoring uses this. Projectiles use 20-unit reference travel time."

@@ -206,6 +206,32 @@ func _ready() -> void:
 				f.call(c, f)
 		findp.call(editor.form, findp)
 		check(not adds.is_empty() and not picks.is_empty(), "Enemies tab: '+ Then…' adds a follow-up with an attack picker")
+		editor._show_table(false)
+		var boxes := func(id: String) -> Array:
+			editor._select_row(catalog.attacks.find(catalog.attack(id)))
+			var k: Array = editor.fields.keys()
+			k.sort()
+			return k
+		check(boxes.call("charge") == boxes.call("cragjaw_leap") and boxes.call("shoot") == boxes.call("lob") and boxes.call("charge") != boxes.call("shoot"),
+			"Attacks of the same type show the same boxes")
+		var temp: String = editor._new_attack()
+		editor._add_binding(editor.ENEMIES[0], temp)
+		editor._show_table(false)
+		editor._select_row(catalog.attacks.find(catalog.attack(temp)))
+		var id_box: LineEdit = editor.fields.name
+		var id_open: bool = id_box.editable
+		editor._change("name", "test_renamed")
+		var followed: bool = catalog.assignments.any(func(b): return b.attack_name == "test_renamed")
+		editor._change("type", "ranged")
+		editor._select_row(catalog.attacks.find(catalog.attack("test_renamed")))
+		var now_ranged: bool = editor.fields.has("multishot")
+		editor._select_row(catalog.attacks.find(catalog.attack("charge")))
+		var charge_locked: bool = not editor.fields.name.editable
+		catalog.attacks = catalog.attacks.filter(func(x): return x.name != "test_renamed")
+		catalog.assignments = catalog.assignments.filter(func(b): return b.attack_name != "test_renamed")
+		check(id_open and followed and now_ranged and charge_locked and catalog.validate().is_empty(),
+			"An attack's ID can be renamed (its uses follow) unless the code uses it; its type can be changed")
+		editor._show_enemies()
 		for x in catalog.attacks:  # undo: drop the half-made follow-up again
 			if str(x.get("follow_up", "")) == "": x.merge({"follow_up_count": "", "follow_up_gap_s": ""}, true)
 		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
