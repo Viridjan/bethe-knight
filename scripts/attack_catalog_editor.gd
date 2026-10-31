@@ -117,6 +117,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	label.custom_minimum_size.x = 150  # the same in every section, so the boxes line up
 	label.tooltip_text = _help(column)
 	grid.add_child(label)
 	var edit := LineEdit.new()
