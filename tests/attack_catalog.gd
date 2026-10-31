@@ -162,7 +162,7 @@ func _ready() -> void:
 		editor._show_table(true)
 		check(editor.table.item_count == catalog.assignments.size(), "Monsters CSV editor lists range assignments")
 		editor._show_enemies()
-		check(editor.table.item_count == editor.ENEMIES.size() and editor.form.get_children().any(func(n): return n.get("ent") != null),
+		check(editor.table.item_count == editor.ENEMIES.size() and editor.ENEMIES.size() > 30 and editor.form.get_children().any(func(n): return n.get("ent") != null),
 			"Enemies tab lists the enemies and shows the selected one's sprite")
 		var first: String = catalog.ordered_attacks("enemy_monster", "default")[0].attack_name
 		editor._move(catalog.ordered_attacks("enemy_monster", "default")[0], 1)
@@ -186,6 +186,9 @@ func _ready() -> void:
 		check(top.windup_s == "0.65" and editor.dirty and not name_box.is_empty() and name_box[0].tooltip_text.replace("\n", " ").contains(top.notes),
 			"Enemies tab: each attack's values and name are editable right under it; its notes are in the name's tooltip")
 		top.windup_s = "0.50"
+		for k in editor.ENEMIES.size():  # every enemy in the game opens (code-driven ones read-only)
+			editor._select_enemy(k)
+		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("written in the game code")), "Enemies tab lists the code-driven enemies too, read-only")
 		editor._select_enemy(2)
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Repertoire score")),

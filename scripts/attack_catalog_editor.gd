@@ -17,7 +17,20 @@ var loaded_texts: Array = []
 var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy's attacks, ranges and scores)
 var enemy_index := 0
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
-const ENEMIES := [["enemy_monster", "default", "Library monster"], ["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"]]
+const CSV_ENEMIES := [["enemy_monster", "default", "Library monster"], ["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"]]
+# Every enemy in the game: the CSV-driven ones first (their attacks are edited here), then all the others, whose
+# attacks live in scripts/entities.gd ([type id, "" , name]).
+var ENEMIES: Array = []
+
+func _all_enemies() -> Array:
+	var out: Array = CSV_ENEMIES.duplicate()
+	var types: Dictionary = load("res://scripts/entities.gd").TYPES
+	for t in types:
+		if t.begins_with("enemy_") and t != "enemy_monster":
+			out.append([t, "", str(types[t][0])])
+	out.append(["ape_chase", "", "Ape (Sand Cave chase)"])
+	out.append(["boss_guardian", "", "Guardian (boss)"])
+	return out
 signal dirty_changed
 
 func _ready() -> void:
@@ -26,6 +39,7 @@ func _ready() -> void:
 		catalog.reload()
 	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
 	writable = OS.has_feature("editor") and not OS.has_feature("web")
+	ENEMIES = _all_enemies()
 	theme = _soft_theme(theme)
 	add_theme_constant_override("separation", 8)
 	var bar := HBoxContainer.new()
@@ -260,7 +274,9 @@ func _show_enemies() -> void:
 	ranges = true
 	table.clear()
 	for e in ENEMIES:
-		table.add_item(e[2])
+		table.add_item(e[2] if e[1] != "" else "   " + e[2])  # indented: attacks in the game code, read-only
+		if e[1] == "":
+			table.set_item_custom_fg_color(table.item_count - 1, Color("8d92a3"))
 	table.select(enemy_index)
 	_select_enemy(enemy_index)
 	_update_feedback()
@@ -304,16 +320,21 @@ func _select_enemy(i: int) -> void:
 	var preview := SpritePreview.new()
 	preview.custom_minimum_size = Vector2(0, 170)
 	var data: Dictionary = _sample_monster() if e[0] == "enemy_monster" else {"t": e[0]}
+	if e[0] == "boss_guardian":
+		data.merge({"w": 96, "h": 64})
 	data.x = 0
 	data.y = 0
 	preview.ent = load("res://scripts/entities.gd").make(null, data)
 	form.add_child(preview)
-	var own: Array = _look_frames(str(data.get("look", ""))) if e[0] == "enemy_monster" else _ape_frames(["idle", "run", "crouch", "air"])
+	var own: Array = _look_frames(str(data.get("look", ""))) if e[0] == "enemy_monster" else (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
 	if not own.is_empty():
 		var own_row := HBoxContainer.new()
 		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		own_row.add_child(_frame_strip(own, 2.0))
 		form.add_child(own_row)
+	if e[1] == "":  # attacks in the game code: what it is and does, read-only
+		_code_enemy_info(e, preview.ent)
+		return
 	var head := Game.label("Attacks in priority order: the first one in range, eligible and not skipped is used", 14)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	head.modulate = Color("a8c6e6")
@@ -597,6 +618,31 @@ func _add_binding(e: Array, attack_name: String) -> void:  # added last (lowest 
 	dirty_changed.emit()
 	_select_enemy(enemy_index)
 	_update_feedback()
+
+func _code_enemy_info(e: Array, ent) -> void:
+	var lines := PackedStringArray()
+	var label: String = e[2]
+	lines.append(label.get_slice(" · ", 0) + ("  ·  " + label.get_slice(" · ", 1) if label.contains(" · ") else ""))
+	if ent != null and "hp" in ent:
+		lines.append("Hit points: %d" % ent.hp)
+	if ent != null and "variant" in ent and str(ent.variant) != "":
+		lines.append("Variant: " + str(ent.variant))
+	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
+	var rooms := PackedStringArray()
+	var count := 0
+	for room in world.get("rooms", {}):
+		var n: int = world.rooms[room].level.entities.filter(func(d): return d.t == e[0]).size()
+		if n > 0:
+			count += n
+			rooms.append(room)
+	lines.append("In the story: %d%s" % [count, " (" + ", ".join(rooms) + ")" if count > 0 else ""])
+	lines.append("")
+	lines.append("Its attacks are written in the game code (scripts/entities.gd), not in the attack CSV, so they can't be edited here.")
+	var info := Game.label("\n".join(lines), 14)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	form.add_child(info)
+	summary.text = ""
 
 # Scores for the selected enemy: each saved library-monster build, or the Ape phase's repertoire.
 func _score_text(e: Array) -> String:
