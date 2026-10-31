@@ -124,10 +124,14 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	edit.custom_minimum_size.x = 125
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edit.editable = writable and column not in ["score", "name", "type", "status"]
+	if column == "animation_s" and _rows()[index].get("type", "") == "ranged":  # it spawns a projectile: no animation of its own
+		edit.editable = false
 	if column == "coverage_area_units2" and _rows()[index].get("type", "") == "body":  # body attacks: the enemy's own body
 		edit.text = "body"
 		edit.editable = false
 	edit.tooltip_text = _help(column)
+	if column == "animation_s" and _rows()[index].get("type", "") == "ranged":
+		edit.tooltip_text = "Ranged attacks spawn a projectile that then flies by itself: there's no execution animation to time."
 	if catalog.error_at.table == ("ranges" if ranges else "attacks") and catalog.error_at.index == index and catalog.error_at.field == column:
 		edit.add_theme_color_override("font_color", Color("ff7070"))  # the value the validation stopped at
 	grid.add_child(edit)
