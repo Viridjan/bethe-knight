@@ -205,6 +205,8 @@ def explore(W, m, abilities, starts, goal=None, good=None, room=None, exits=None
                     push((nx, y - 1, "U" if k > 1 else "H", k - 1 if k > 1 else m["hover"], dash, nl, stam))
                 else:
                     push((nx, y, "H", 0, dash, nl, stam))
+            if k < m["jump"]:  # let go of jump early (variable jump height): a short hop starts falling here
+                push((x, y, "F", 0, dash, nl, stam))
         elif mode == "H":
             dxs = (lock // abs(lock),) if lock else (-1, 0, 1)
             nl = lock - (1 if lock > 0 else -1) if lock else 0

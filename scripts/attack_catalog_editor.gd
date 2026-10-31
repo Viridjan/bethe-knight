@@ -26,6 +26,7 @@ func _ready() -> void:
 		catalog.reload()
 	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
 	writable = OS.has_feature("editor") and not OS.has_feature("web")
+	theme = _soft_theme(theme)
 	add_theme_constant_override("separation", 8)
 	var bar := HBoxContainer.new()
 	add_child(bar)
@@ -64,6 +65,37 @@ func _ready() -> void:
 	feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(feedback)
 	_show_table(false)
+
+# Softer contrast than the game's pure white on dark: off-white text, dimmer labels, darker boxes with a thin border.
+static func _soft_theme(base: Theme) -> Theme:
+	var t: Theme = base.duplicate() if base != null else Game.theme.duplicate()
+	var text := Color("d4d7e0")
+	t.set_color("font_color", "Label", Color("b9bdca"))
+	t.set_color("font_color", "Button", text)
+	t.set_color("font_color", "ItemList", Color("b9bdca"))
+	t.set_color("font_selected_color", "ItemList", Color("eef0f5"))
+	t.set_color("font_color", "LineEdit", text)
+	t.set_color("font_uneditable_color", "LineEdit", Color("7c8193"))
+	t.set_color("font_placeholder_color", "LineEdit", Color("6c7183"))
+	t.set_color("font_color", "TextEdit", text)
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color("1f2230")
+	box.border_color = Color("343849")
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(3)
+	box.content_margin_left = 6
+	box.content_margin_right = 6
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	t.set_stylebox("normal", "LineEdit", box)
+	var focus: StyleBoxFlat = box.duplicate()
+	focus.border_color = Color("6f8fc4")
+	t.set_stylebox("focus", "LineEdit", focus)
+	var locked: StyleBoxFlat = box.duplicate()
+	locked.bg_color = Color("191b25")
+	locked.border_color = Color("262938")
+	t.set_stylebox("read_only", "LineEdit", locked)
+	return t
 
 func _rows() -> Array:
 	return catalog.assignments if ranges else catalog.attacks

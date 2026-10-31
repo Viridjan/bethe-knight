@@ -29,7 +29,11 @@ class Island(unittest.TestCase):
     def test_new_fragments_and_characters_are_reachable(self):
         # The jungle character is encountered before the one-way sand cave.
         # Start this check in the opening region, not at the later island raft.
-        _, discoveries = explore(self.W,MODELS["cautious"],set(),[self.W.spawn])
+        # Also from Cove Town: Cove Tunnel's bump under ceiling spikes needs a short, low hop that fits in the game
+        # (the player is 11 px tall) but not in the checker's 2-tile body.
+        ox, oy, town = self.W.rooms["t1_cove_town"]
+        starts = [self.W.spawn] + [(ox + int(e["x"]) // 8, oy + int(e["y"]) // 8) for e in town["entities"] if e["t"] in ("respawn", "spawn")]
+        _, discoveries = explore(self.W,MODELS["cautious"],set(),starts)
         wanted = {(e["t"],n,ox+int(e["x"])//8,oy+int(e["y"])//8)
                   for n,(ox,oy,level) in self.W.rooms.items() for e in level["entities"]
                   if e["t"] in ("energy_fragment","discovery_npc")}
