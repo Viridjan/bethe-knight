@@ -5,7 +5,7 @@ const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"]}
-const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
+const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
 var assignment_path := "res://data/enemy_attacks.csv"
@@ -79,8 +79,9 @@ func validate() -> String:
 		ids[id] = true
 		if row.get("type", "") not in TYPES: return _fail("attacks", i, "type", "Invalid type for " + id)
 		if row.get("status", "") == "implemented":
-			var required := ["windup_s", "animation_s", "base_weight", "multishot", "recovery_s"]
+			var required := ["windup_s", "base_weight", "multishot", "recovery_s"]
 			if row.type not in ["body", "movement"]: required.append("coverage_area_units2")  # body / movement attacks: the enemy's body
+			if row.type in ["body", "melee", "area"]: required.append("animation_s")  # ranged / movement: the shot or the move sets the time
 			if row.type in ["body", "ranged"]: required.append("initial_speed_units_s")
 			for field in required:
 				if str(row.get(field, "")).is_empty(): return _fail("attacks", i, field, "Implemented attack requires " + id + "." + field)
@@ -88,7 +89,7 @@ func validate() -> String:
 			var value := str(row.get(field, ""))
 			if not value.is_empty() and (not value.is_valid_float() or not is_finite(float(value)) or float(value) < 0):
 				return _fail("attacks", i, field, "Invalid nonnegative number: " + id + "." + field)
-		for field in ["animation_s", "initial_speed_units_s", "flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s"]:
+		for field in ["animation_s", "initial_speed_units_s", "flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "max_distance_units", "shockwave_s"]:
 			if str(row.get(field, "")) != "" and float(row[field]) <= 0: return _fail("attacks", i, field, "Must be positive: " + id + "." + field)
 		var shots := str(row.get("multishot", ""))
 		if shots != "" and (not shots.is_valid_int() or int(shots) < 1): return _fail("attacks", i, "multishot", "Multishot must be a whole number, 1 or more: " + id)
@@ -132,7 +133,8 @@ func value(id: String, field: String, fallback: float) -> float:
 
 func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0) -> Dictionary:
 	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if uses_body(row) else float(row.get("coverage_area_units2", "0")))
-	var time := float(row.get("animation_s", "0"))
+	var wave := str(row.get("shockwave_s", "")) if row.get("type", "") == "movement" else ""  # a landing shockwave: how long it hits
+	var time := float(wave if wave != "" else str(row.get("animation_s", "0")))
 	if row.get("type", "") in ["body", "ranged"] or (row.get("type", "") == "movement" and str(row.get("initial_speed_units_s", "")) != ""):
 		var speed := float(row.get("initial_speed_units_s", "0")) * speed_scale
 		if speed <= 0: return {"valid": false, "reason": "Missing positive reference speed"}

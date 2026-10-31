@@ -2219,6 +2219,24 @@ func check_monster_library() -> void:
 	check(dirs.size() == 3 and dirs[1].distance_to(aim) < 0.2 and dirs[0].y > dirs[1].y and dirs[2].y < dirs[1].y,
 		"multishot: 3 shots, shot 1 aimed at the player, shot 0 the lowest (%s)" % [dirs])
 	shoot_row.merge({"multishot": keep_shot[0], "aimed_shot": keep_shot[1], "spread_deg": keep_shot[2]}, true)
+	var charge_row: Dictionary = E.AttackCatalog.shared().attack("charge")
+	var keep_dist: String = charge_row.max_distance_units
+	charge_row.max_distance_units = "3"
+	make_world([{"t": "enemy_monster", "x": 200, "y": floor_y - 2, "move": "patrol", "attacks": ["charge"], "traits": [], "tier": 0, "look": "enemy_hornback", "facing": -1}])
+	Game.settings.invincible = true
+	var charger = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
+	var from_x := 0.0
+	var ran := -1.0
+	for k in 240:
+		step()
+		if charger.phase == "attack" and from_x == 0.0:
+			from_x = charger.center().x
+		elif from_x != 0.0 and charger.phase != "attack":
+			ran = absf(charger.center().x - from_x)
+			break
+	Game.settings.invincible = false
+	charge_row.max_distance_units = keep_dist
+	check(ran > 0 and ran <= 3 * 8 + 3, "a charge stops at its maximum distance (%.1f px of 24)" % ran)
 	make_world([{"t": "enemy_monster", "x": 300, "y": floor_y - 2, "move": "patrol", "attacks": ["charge"], "traits": ["armored", "brood"], "tier": 2, "look": "enemy_hornback"}])
 	var b = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
 	var hp0: int = b.hp

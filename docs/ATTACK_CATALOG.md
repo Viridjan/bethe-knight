@@ -37,7 +37,8 @@ adding an unknown attack binding to CSV is rejected.
 
 Attack types: body, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
 decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
-(its value is only a time limit / reference).
+(the move sets the time). Movement values instead: **Max distance** (tiles) for charge and dive, which stop sooner at a
+wall, a ledge or anything they hit; **Shockwave time** (seconds) for the landing slam. Leaps end on landing.
 
 Body and movement attacks (charge, leap, dive, the Ape's leap) hit with the enemy's own body: they have no area of their own
 (blank `coverage_area_units2`, shown as "body"); scores use the body's size (a 10x10 px library monster or the

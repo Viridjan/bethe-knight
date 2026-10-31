@@ -1220,6 +1220,7 @@ class ActionMonster extends CombatEnemy:
 	var attack := ""  # the attack under way
 	var attack_data: Dictionary = {}  # snapshot: edits do not change an attack already winding up
 	var hop_t := 0.0
+	var travelled := 0.0  # px moved by the current charge / dive
 	func describe() -> String:
 		return super.describe() + " - " + MonsterLib.describe(d)
 	func setup() -> void:
@@ -1326,7 +1327,7 @@ class ActionMonster extends CombatEnemy:
 		phase = "attack"
 		var to: Vector2 = w.player.center() - center()
 		match a:
-			"charge": timer = _param("animation_s", 1.2)
+			"charge": travelled = 0.0
 			"leap": velocity = Vector2(clampf(to.x / _param("flight_time_s", 0.6), -_param("horizontal_speed_units_s", 15) * T, _param("horizontal_speed_units_s", 15) * T), -_param("vertical_speed_units_s", 21.25) * T)
 			"shoot":
 				timer = _param("animation_s", 1.0 / 60.0)
@@ -1338,15 +1339,17 @@ class ActionMonster extends CombatEnemy:
 					bones.append([center(), v, 2.5, _param("gravity_units_s2", 30) * T])
 			"dive":
 				velocity = to.normalized() * _param("initial_speed_units_s", 18.75) * T * speed_multiplier
-				timer = _param("animation_s", 0.6)
+				travelled = 0.0
 	# Multishot: one launch velocity per shot, the aimed one being v; higher shot numbers turn upward.
 	func _fan(v: Vector2) -> Array:
 		var up := -1.0 if v.x >= 0 else 1.0  # a negative angle turns a rightward vector up (screen y points down)
 		return AttackCatalog.shot_angles(attack_data).map(func(a): return v.rotated(deg_to_rad(a) * up))
 	func _attack(dt: float) -> bool:  # true when the attack is over
 		match attack:
-			"charge":
-				return walk(_param("initial_speed_units_s", 13.75) * T * speed_multiplier * dt) or timer <= 0
+			"charge":  # until a wall or ledge, or its maximum distance
+				var px := _param("initial_speed_units_s", 13.75) * T * speed_multiplier * dt
+				travelled += px
+				return walk(px) or travelled >= _param("max_distance_units", 16.5) * T
 			"leap":
 				velocity.y += _param("gravity_units_s2", 56.25) * T * dt
 				move_enemy(Vector2(velocity.x * dt, 0))
@@ -1354,8 +1357,9 @@ class ActionMonster extends CombatEnemy:
 				if landed:
 					velocity = Vector2.ZERO
 				return landed
-			"dive":
-				return move_enemy(velocity * dt) or timer <= 0
+			"dive":  # until it hits something, or its maximum distance
+				travelled += velocity.length() * dt
+				return move_enemy(velocity * dt) or travelled >= _param("max_distance_units", 11.25) * T
 		return timer <= 0  # shot is out; finish its CSV execution interval
 	func vis_rect() -> Rect2i:
 		var area := body_rect()
@@ -2741,7 +2745,7 @@ class Ape extends Ent:
 		Game.play_sfx("impact")
 		vel = Vector2.ZERO
 		slam_snapshot = AttackCatalog.shared().attack("ape_slam").duplicate(true)
-		slam_t = float(slam_snapshot.get("animation_s", str(SLAM_TIME)))
+		slam_t = float(slam_snapshot.get("shockwave_s", str(SLAM_TIME)))
 		w.shake_dir(Vector2.DOWN, 0.2)
 		w.dust(Vector2(center().x, rect.end.y), Vector2.UP, 10)
 		var feet := Rect2i(rect.position.x, rect.end.y - 4, rect.size.x, 4)
@@ -2942,7 +2946,7 @@ class Ape extends Ent:
 		ci.draw_set_transform(Vector2.ZERO)
 		if slam_t > 0:  # textured impact stays inside the unchanged damage bounds
 			var sb := Rect2(slam_box())
-			var impact_frame := clampi(int((1.0 - slam_t / float(slam_snapshot.get("animation_s", str(SLAM_TIME)))) * 4.0), 0, 3)
+			var impact_frame := clampi(int((1.0 - slam_t / float(slam_snapshot.get("shockwave_s", str(SLAM_TIME)))) * 4.0), 0, 3)
 			ci.draw_texture_rect(art.impact_texture(int(sb.size.x), int(sb.size.y), impact_frame), sb, false)
 		if phase == "scream" and timer <= 0.0 and timer > -_ape_param("ape_scream", "animation_s", 0.35):  # the scream's reach
 			var c := center()

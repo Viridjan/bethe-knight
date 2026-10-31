@@ -89,7 +89,7 @@ func _select_row(index: int) -> void:
 		["Identity", ["name", "codex_online_name", "type", "status"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
 		["Scoring · tile units", ["score", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]],
-		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"]],
+		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]],
 		["Reference", ["notes"]]
 	]
 	if ranges:
@@ -114,7 +114,7 @@ func _select_row(index: int) -> void:
 	_update_summary()
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
-	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "min_range_units": "Minimum", "max_range_units": "Maximum"}
+	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.tooltip_text = _help(column)
@@ -399,6 +399,8 @@ func _help(field: String) -> String:
 		"animation_s": return "Execution duration; area/melee scoring uses this. Projectiles use 20-unit reference travel time."
 		"coverage_area_units2": return "Damage area in square tiles, not sprite size. Body attacks hit with the enemy's own body: its size is used (10x10 px reference here; each enemy's real size in Enemies)."
 		"initial_speed_units_s": return "Initial speed for reference scoring; charge, dive, and straight shots also use this at runtime. Aimed ballistic attacks use their component parameters."
+		"max_distance_units": return "Charge / dive: the farthest it goes, in tiles (it stops sooner at a wall, a ledge or anything it hits)."
+		"shockwave_s": return "Landing slam: how long the shockwave hits, in seconds."
 		"multishot": return "How many projectiles the attack fires at once (library monsters' shoot and lob fire them all)."
 		"aimed_shot": return "Which shot points at the player: 0 is the lowest one, numbers go upward."
 		"spread_deg": return "Degrees between neighbouring shots. 0 spaces them evenly around the full circle."
