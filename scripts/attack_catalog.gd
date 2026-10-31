@@ -4,7 +4,9 @@ extends RefCounted
 const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
-const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"]}
+const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"],
+	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["duskflit_swoop"], "enemy_skeleton": ["ossling_bone_throw"],
+	"enemy_hornback": ["hornback_charge"], "enemy_cragjaw": ["cragjaw_leap"], "enemy_murkspore": ["murkspore_spread"]}
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"

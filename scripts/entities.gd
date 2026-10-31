@@ -738,6 +738,24 @@ class CombatEnemy extends Ent:
 	func has_trait(t: String) -> bool:
 		return variant == t
 
+	# The family's attack in data/attacks.csv ("" = none: it only hurts on touch). Variants share their family's.
+	func attack_id() -> String:
+		return ""
+	var skip_cd := 0.0  # a skipped attack (its skip chance) waits this long before the next try
+	func atk(field: String, fallback: float) -> float:
+		return fallback if attack_id() == "" else AttackCatalog.shared().value(attack_id(), field, fallback)
+	func atk_range(fallback_px: float) -> float:  # its range binding's maximum, in px
+		var rules: Array = AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
+		return fallback_px if rules.is_empty() else AttackCatalog.max_range(rules[0]) * T
+	func atk_ready() -> bool:  # the skip chance: a skipped attack waits its recovery, then may try again
+		if skip_cd > 0: return false
+		var rules: Array = AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
+		var skip := str(rules[0].get("skip_chance", "")) if not rules.is_empty() else ""
+		if skip != "" and randf() * 100.0 < float(skip):
+			skip_cd = maxf(0.5, atk("recovery_s", 1.0))
+			return false
+		return true
+
 	# Return the base family ID so variants can share art and common metadata.
 	func family() -> String:
 		return d.t.trim_suffix("_" + variant) if variant != "" else d.t
@@ -745,6 +763,7 @@ class CombatEnemy extends Ent:
 	# Advance shared enemy timing and determine whether this living enemy should run its behavior.
 	func active(dt: float) -> bool:
 		clock += dt
+		skip_cd = maxf(0.0, skip_cd - dt)
 		flash = maxf(0, flash - dt)
 		var on: bool = collidable and w != null and w.player != null and not w.player.dead and center().distance_to(w.player.center()) < 320
 		if on and not seen and w.view_rect().intersects(Rect2(rect)):
@@ -970,27 +989,28 @@ class CombatEnemy extends Ent:
 # Ceiling ambusher: warn, dive, rest on impact and return toward its starting height.
 class SkreeEnemy extends CombatEnemy:
 	var vertical_speed := 0.0
+	func attack_id() -> String: return "dropwing_dive"
 	# Advance SkreeEnemy timers and behavior for dt seconds; this is called by World, not by Godot automatically.
 	func update(dt: float) -> void:
 		if not active(dt): return
 		match phase:
 			"idle":
 				var offset: Vector2 = w.player.center() - center()
-				if offset.y > 6 and absf(offset.x) < 28 and sees_player(112):
+				if offset.y > 6 and absf(offset.x) < 28 and sees_player(atk_range(112)) and atk_ready():
 					Game.play_sfx("enemy_alert")
 					phase = "windup"
-					timer = 0.35 * warning_multiplier
+					timer = atk("windup_s", 0.35) * warning_multiplier
 			"windup":
 				timer -= dt
 				if timer <= 0:
 					Game.play_sfx("enemy_attack")
 					phase = "dive"
-					vertical_speed = 50
+					vertical_speed = atk("initial_speed_units_s", 6.25) * T
 			"dive":
-				vertical_speed = minf(180 * speed_multiplier, vertical_speed + 360 * speed_multiplier * dt)
+				vertical_speed = minf(atk("vertical_speed_units_s", 22.5) * T * speed_multiplier, vertical_speed + atk("gravity_units_s2", 45) * T * speed_multiplier * dt)
 				if move_enemy(Vector2(0, vertical_speed * dt)):
 					phase = "rest"
-					timer = 0.8 * recovery_multiplier
+					timer = atk("recovery_s", 0.8) * recovery_multiplier
 			"rest":
 				timer -= dt
 				if timer <= 0: phase = "return"
@@ -1006,6 +1026,8 @@ class SkreeEnemy extends CombatEnemy:
 # Flying ambusher: aim one swoop toward the detected player, then fly back to its perch.
 class BatEnemy extends CombatEnemy:
 	var velocity := Vector2.ZERO
+	var swooped := 0.0  # px flown in the current swoop
+	func attack_id() -> String: return "duskflit_swoop"
 	# Initialize BatEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1014,21 +1036,21 @@ class BatEnemy extends CombatEnemy:
 	func update(dt: float) -> void:
 		if not active(dt): return
 		if phase == "idle":
-			if sees_player(96):
+			if sees_player(atk_range(96)) and atk_ready():
 				Game.play_sfx("enemy_alert")
 				phase = "windup"
-				timer = 0.4 * warning_multiplier
+				timer = atk("windup_s", 0.4) * warning_multiplier
 		elif phase == "windup":
 			timer -= dt
 			if timer <= 0:
-				velocity = (w.player.center() - center()).normalized() * 65 * speed_multiplier
+				velocity = (w.player.center() - center()).normalized() * atk("initial_speed_units_s", 8.125) * T * speed_multiplier
 				Game.play_sfx("enemy_attack")
 				phase = "swoop"
-				timer = 0.9 * recovery_multiplier
-		elif phase == "swoop":
+				swooped = 0.0
+		elif phase == "swoop":  # until it hits something or flies its maximum distance
 			facing = -1 if velocity.x < 0 else 1
-			timer -= dt
-			if move_enemy(velocity * dt) or timer <= 0:
+			swooped += velocity.length() * dt
+			if move_enemy(velocity * dt) or swooped >= atk("max_distance_units", 7.3125) * T * recovery_multiplier:
 				phase = "return"
 		elif phase == "return":
 			var delta := home - Vector2(rect.position)
@@ -1043,6 +1065,7 @@ class BatEnemy extends CombatEnemy:
 # Ground patrol that warns and throws bone projectiles toward a visible player.
 class SkeletonEnemy extends CombatEnemy:
 	var gravity_speed := 0.0
+	func attack_id() -> String: return "ossling_bone_throw"
 	var bones: Array = []  # owned projectiles (see update_shots)
 	# Initialize SkeletonEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
@@ -1062,17 +1085,17 @@ class SkeletonEnemy extends CombatEnemy:
 				var volley := 2 if variant == "armored" else 1
 				for arc in mini(volley, 3 - bones.size()):
 					Game.play_sfx("projectile")
-					bones.append([center() + Vector2(facing * 5, -2), Vector2(facing * 60 * speed_multiplier, -65 - arc * 25), 2.0])
+					bones.append([center() + Vector2(facing * 5, -2), Vector2(facing * atk("horizontal_speed_units_s", 7.5) * T * speed_multiplier, -atk("vertical_speed_units_s", 8.125) * T - arc * 25), 2.0])
 				phase = "idle"
-				timer = 1.7 * recovery_multiplier
+				timer = atk("recovery_s", 1.7) * recovery_multiplier
 			return
 		timer -= dt
-		if absf(offset.y) < 40 * scale and sees_player(104 * scale):
+		if absf(offset.y) < 40 * scale and sees_player(atk_range(104) * scale):
 			facing = -1 if offset.x < 0 else 1
-			if timer <= 0 and bones.size() < 3:
+			if timer <= 0 and bones.size() < 3 and atk_ready():
 				Game.play_sfx("enemy_alert")
 				phase = "windup"
-				timer = 0.45 * warning_multiplier
+				timer = atk("windup_s", 0.45) * warning_multiplier
 			return
 		var reach := clampf(float(d.get("patrol", 40)), 8, 96)
 		if not safe_step() or (absf(rect.position.x - home.x) >= reach and signf(rect.position.x - home.x) == facing):
@@ -1085,7 +1108,7 @@ class SkeletonEnemy extends CombatEnemy:
 		if not collidable: bones.clear()
 	# Advance the skeleton bone projectiles through the common projectile update helper.
 	func update_bones(dt: float) -> void:
-		update_shots(bones, dt, 150)
+		update_shots(bones, dt, atk("gravity_units_s2", 18.75) * T)
 	# Return conservative visible bounds including SkeletonEnemy effects so camera culling does not hide them.
 	func vis_rect() -> Rect2i:
 		return shots_rect(bones)
@@ -1172,6 +1195,8 @@ class ThornmiteEnemy extends CombatEnemy:
 class HornbackEnemy extends CombatEnemy:
 	# Walks its floor. A player at its height in sight gets a warning, then a fast charge that stops at walls and ledges.
 	var gravity_speed := 0.0
+	var charged := 0.0  # px run in the current charge
+	func attack_id() -> String: return "hornback_charge"
 	# Initialize HornbackEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1188,20 +1213,22 @@ class HornbackEnemy extends CombatEnemy:
 				if timer <= 0:
 					Game.play_sfx("enemy_attack")
 					phase = "charge"
-					timer = 1.2
-			"charge":
-				if walk(110 * speed_multiplier * dt) or timer <= 0:
+					charged = 0.0
+			"charge":  # until a wall or ledge, or its maximum distance
+				var px := atk("initial_speed_units_s", 13.75) * T * speed_multiplier * dt
+				charged += px
+				if walk(px) or charged >= atk("max_distance_units", 16.5) * T:
 					phase = "rest"
-					timer = 0.9 * recovery_multiplier
+					timer = atk("recovery_s", 0.9) * recovery_multiplier
 			"rest":
 				if timer <= 0: phase = "idle"
 			_:
 				var offset: Vector2 = w.player.center() - center()
-				if absf(offset.y) < 12 * scale and sees_player(120 * scale):
+				if absf(offset.y) < 12 * scale and sees_player(atk_range(120) * scale) and atk_ready():
 					facing = -1 if offset.x < 0 else 1
 					Game.play_sfx("enemy_alert")
 					phase = "windup"
-					timer = 0.5 * warning_multiplier
+					timer = atk("windup_s", 0.5) * warning_multiplier
 				elif not safe_step():
 					facing *= -1
 				elif walk(16 * speed_multiplier * dt):
@@ -1418,6 +1445,7 @@ class FuzzbobEnemy extends CombatEnemy:
 class CragjawEnemy extends CombatEnemy:
 	# Big brute: plods along its floor; a player in reach gets a warning, then a leap that slams down near them.
 	var velocity := Vector2.ZERO
+	func attack_id() -> String: return "cragjaw_leap"
 	# Initialize CragjawEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1426,12 +1454,12 @@ class CragjawEnemy extends CombatEnemy:
 	# Advance CragjawEnemy timers and behavior for dt seconds; this is called by World, not by Godot automatically.
 	func update(dt: float) -> void:
 		if not active(dt): return
-		velocity.y = minf(220, velocity.y + 400 * dt)
+		velocity.y = minf(220, velocity.y + (atk("gravity_units_s2", 50) * T if phase == "leap" else 400.0) * dt)
 		if move_enemy(Vector2(velocity.x * dt, 0)): velocity.x = 0
 		if move_enemy(Vector2(0, velocity.y * dt)):
 			if velocity.y > 0 and phase == "leap":
 				phase = "rest"
-				timer = 1.0 * recovery_multiplier
+				timer = atk("recovery_s", 1.0) * recovery_multiplier
 				velocity.x = 0
 				w.shake_dir(Vector2.DOWN, 0.15)
 			velocity.y = 0
@@ -1441,18 +1469,19 @@ class CragjawEnemy extends CombatEnemy:
 				if timer <= 0:
 					Game.play_sfx("enemy_attack")
 					phase = "leap"
-					velocity = Vector2(clampf((w.player.center().x - center().x) / 0.8, -110, 110) * speed_multiplier, -170)
+					var cap := atk("horizontal_speed_units_s", 13.75) * T
+					velocity = Vector2(clampf((w.player.center().x - center().x) / atk("flight_time_s", 0.8), -cap, cap) * speed_multiplier, -atk("vertical_speed_units_s", 21.25) * T)
 			"leap":
 				pass
 			"rest":
 				if timer <= 0: phase = "idle"
 			_:
 				var offset: Vector2 = w.player.center() - center()
-				if absf(offset.x) < 140 * scale and absf(offset.y) < 64 * scale and sees_player(150 * scale):
+				if absf(offset.x) < 140 * scale and absf(offset.y) < 64 * scale and sees_player(atk_range(150) * scale) and atk_ready():
 					facing = -1 if offset.x < 0 else 1
 					Game.play_sfx("enemy_alert")
 					phase = "windup"
-					timer = 0.6 * warning_multiplier
+					timer = atk("windup_s", 0.6) * warning_multiplier
 				elif not safe_step():
 					facing *= -1
 				elif walk(12 * speed_multiplier * dt):
@@ -1464,6 +1493,7 @@ class MurksporeEnemy extends CombatEnemy:
 	# Big hovering spore: keeps its distance, bobs, and spits a three-orb spread at a visible player.
 	var orbs: Array = []  # owned projectiles (see update_shots)
 	var bob := 0.0
+	func attack_id() -> String: return "murkspore_spread"
 	# Initialize MurksporeEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1476,7 +1506,7 @@ class MurksporeEnemy extends CombatEnemy:
 		update_orbs(dt)
 		bob += dt * 2.0
 		var to: Vector2 = w.player.center() - center()
-		var sees := sees_player(180)
+		var sees := sees_player(atk_range(180))
 		var goal: Vector2 = (to - to.normalized() * 80) if sees else (home - Vector2(rect.position))
 		var v: Vector2 = goal.limit_length(24 * speed_multiplier)
 		move_enemy(Vector2(v.x * dt, 0))
@@ -1486,15 +1516,17 @@ class MurksporeEnemy extends CombatEnemy:
 		timer -= dt
 		if phase == "windup":
 			if timer <= 0:
-				for a in [-0.3, 0.0, 0.3]:
+				var aim := to.normalized() * atk("initial_speed_units_s", 8.75) * T
+				var up := -1.0 if aim.x >= 0 else 1.0  # higher shot numbers turn upward
+				for a in AttackCatalog.shot_angles(AttackCatalog.shared().attack(attack_id())):
 					Game.play_sfx("projectile")
-					orbs.append([center(), to.normalized().rotated(a) * 70, 3.0])
+					orbs.append([center(), aim.rotated(deg_to_rad(a) * up), 3.0])
 				phase = "idle"
-				timer = 2.2 * recovery_multiplier
-		elif timer <= 0 and sees and orbs.is_empty():
+				timer = atk("recovery_s", 2.2) * recovery_multiplier
+		elif timer <= 0 and sees and orbs.is_empty() and atk_ready():
 			Game.play_sfx("enemy_alert")
 			phase = "windup"
-			timer = 0.5 * warning_multiplier
+			timer = atk("windup_s", 0.5) * warning_multiplier
 	# Advance this enemy orb projectiles through the shared projectile update helper.
 	func update_orbs(dt: float) -> void:
 		update_shots(orbs, dt, 0)

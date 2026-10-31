@@ -10,3 +10,9 @@ boss_ape,normal,ape_scream,0.00,5.50,10,0.00
 boss_ape,enraged,ape_throw,0.00,40.00,30,0.00
 boss_ape,enraged,ape_leap,0.00,40.00,20,0.00
 boss_ape,enraged,ape_scream,0.00,5.50,10,0.00
+enemy_skree,default,dropwing_dive,0.00,14.00,0,0.00
+enemy_bat,default,duskflit_swoop,0.00,12.00,0,0.00
+enemy_skeleton,default,ossling_bone_throw,0.00,13.00,0,0.00
+enemy_hornback,default,hornback_charge,0.00,15.00,0,0.00
+enemy_cragjaw,default,cragjaw_leap,0.00,18.75,0,0.00
+enemy_murkspore,default,murkspore_spread,0.00,22.50,0,0.00

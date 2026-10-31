@@ -2237,6 +2237,33 @@ func check_monster_library() -> void:
 	Game.settings.invincible = false
 	charge_row.max_distance_units = keep_dist
 	check(ran > 0 and ran <= 3 * 8 + 3, "a charge stops at its maximum distance (%.1f px of 24)" % ran)
+	var hb_row: Dictionary = E.AttackCatalog.shared().attack("hornback_charge")
+	var hb_bind: Dictionary = E.AttackCatalog.shared().ordered_attacks("enemy_hornback", "default")[0]
+	var keep_hb: String = hb_row.max_distance_units
+	hb_row.max_distance_units = "2"
+	make_world([{"t": "enemy_hornback", "x": 200, "y": floor_y - 2, "facing": -1}])
+	Game.settings.invincible = true
+	var horn = w.ents.filter(func(e): return e.d.t == "enemy_hornback")[0]
+	var hx := 0.0
+	var hran := -1.0
+	for k in 240:
+		step()
+		if horn.phase == "charge" and hx == 0.0:
+			hx = horn.center().x
+		elif hx != 0.0 and horn.phase != "charge":
+			hran = absf(horn.center().x - hx)
+			break
+	hb_bind.skip_chance = "100"
+	make_world([{"t": "enemy_hornback", "x": 200, "y": floor_y - 2, "facing": -1}])
+	var lazy = w.ents.filter(func(e): return e.d.t == "enemy_hornback")[0]
+	var charged_anyway := false
+	for k in 180:
+		step()
+		charged_anyway = charged_anyway or lazy.phase in ["windup", "charge"]
+	Game.settings.invincible = false
+	hb_bind.skip_chance = "0.00"
+	hb_row.max_distance_units = keep_hb
+	check(hran > 0 and hran <= 2 * 8 + 3 and not charged_anyway, "enemy families read their attack from the CSV: Hornback's charge distance (%.1f px of 16) and skip chance" % hran)
 	make_world([{"t": "enemy_monster", "x": 300, "y": floor_y - 2, "move": "patrol", "attacks": ["charge"], "traits": ["armored", "brood"], "tier": 2, "look": "enemy_hornback"}])
 	var b = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
 	var hp0: int = b.hp

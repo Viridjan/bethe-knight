@@ -17,7 +17,9 @@ var loaded_texts: Array = []
 var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy's attacks, ranges and scores)
 var enemy_index := 0
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
-const CSV_ENEMIES := [["enemy_monster", "default", "Library monster"], ["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"]]
+const CSV_ENEMIES := [["enemy_monster", "default", "Library monster"], ["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
+	["enemy_skree", "default", "Dropwing · ceiling dive"], ["enemy_bat", "default", "Duskflit · swoop"], ["enemy_skeleton", "default", "Ossling · bone throw"],
+	["enemy_hornback", "default", "Hornback · charge"], ["enemy_cragjaw", "default", "Cragjaw · leaping brute"], ["enemy_murkspore", "default", "Murkspore · spore spitter"]]
 # Every enemy in the game: the CSV-driven ones first (their attacks are edited here), then all the others, whose
 # attacks live in scripts/entities.gd ([type id, "" , name]).
 var ENEMIES: Array = []
@@ -26,7 +28,7 @@ func _all_enemies() -> Array:
 	var out: Array = CSV_ENEMIES.duplicate()
 	var types: Dictionary = load("res://scripts/entities.gd").TYPES
 	for t in types:
-		if t.begins_with("enemy_") and t != "enemy_monster":
+		if t.begins_with("enemy_") and t != "enemy_monster" and not CSV_ENEMIES.any(func(c): return c[0] == t):
 			out.append([t, "", str(types[t][0])])
 	out.append(["ape_chase", "", "Ape (Sand Cave chase)"])
 	out.append(["boss_guardian", "", "Guardian (boss)"])
@@ -575,11 +577,12 @@ func _attack_frames(e: Array, attack: Dictionary) -> Array:
 		var art = load("res://scripts/ape_art.gd")
 		return [[0, 1, 2, 3].map(func(f): return art.impact_texture(24, 8, f)), "shockwave"]
 	if attack.get("type", "") == "ranged":
-		var img := Image.create(5, 5, false, Image.FORMAT_RGBA8)
+		var img := Image.create(5, 5, false, Image.FORMAT_RGBA8)  # (a placeholder dot: projectiles are drawn in code)
 		img.fill_rect(Rect2i(1, 1, 3, 3), Color("e070b0") if e[0] == "enemy_monster" else Color("8a7a6a"))
 		return [[ImageTexture.create_from_image(img)], "projectile"]
-	if e[0] == "enemy_monster":
-		return [_look_frames(str(_sample_monster().get("look", "enemy_hornback"))), "walk frames (no attack art yet)"]
+	if e[0].begins_with("enemy_"):
+		var look: String = str(_sample_monster().get("look", "enemy_hornback")) if e[0] == "enemy_monster" else str(e[0])
+		return [_look_frames(look), "walk frames (no attack art yet)"]
 	return [[], ""]
 
 func _show_score(label: Label, attack: Dictionary) -> void:
@@ -637,7 +640,14 @@ func _code_enemy_info(e: Array, ent) -> void:
 			rooms.append(room)
 	lines.append("In the story: %d%s" % [count, " (" + ", ".join(rooms) + ")" if count > 0 else ""])
 	lines.append("")
-	lines.append("Its attacks are written in the game code (scripts/entities.gd), not in the attack CSV, so they can't be edited here.")
+	var fam: String = "enemy_" + str(e[0]).get_slice("_", 1)
+	var csv_family: Array = CSV_ENEMIES.filter(func(c): return c[0] == fam)
+	if not csv_family.is_empty() and fam != e[0]:
+		lines.append("A variant: it uses the attacks of %s (editable there), with its own speed, warning and recovery." % csv_family[0][2])
+	elif e[0] in ["enemy_thornmite", "enemy_fuzzbob", "enemy_mosstrot"] or fam in ["enemy_thornmite", "enemy_fuzzbob", "enemy_mosstrot"]:
+		lines.append("No attack of its own: it hurts on touch while it moves.")
+	else:
+		lines.append("Its attacks are written in the game code (scripts/entities.gd), not in the attack CSV, so they can't be edited here.")
 	var info := Game.label("\n".join(lines), 14)
 	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	info.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -664,6 +674,11 @@ func _score_text(e: Array) -> String:
 				var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
 				var result: Dictionary = catalog.enemy_score(enemy.d.attacks, area, enemy.speed_multiplier, enemy.warning_multiplier)
 				lines.append("  %s · %s" % [library.describe(enemy.d), "%.2f" % result.score if result.valid else "unavailable: " + result.reason])
+	elif e[0] != "boss_ape":  # an enemy family: its body once, then its attacks
+		var enemy = load("res://scripts/entities.gd").make(null, {"t": e[0], "x": 0, "y": 0})
+		var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
+		var result: Dictionary = catalog.enemy_score(catalog.ordered_attacks(e[0], e[1]).map(func(b): return b.attack_name), area)
+		lines.append("Score %s (body %.2f once, then each attack; its variants change speed, warning and recovery)" % ["%.2f" % result.score if result.valid else "unavailable: " + result.reason, area])
 	else:
 		var ids: Array = []
 		for binding in catalog.ordered_attacks(e[0], e[1]): ids.append(binding.attack_name)

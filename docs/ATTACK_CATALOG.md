@@ -40,6 +40,11 @@ of its package. Stable runtime IDs, implemented types, and derived scores cannot
 be edited in the form. New behavior still requires a gameplay implementation;
 adding an unknown attack binding to CSV is rejected.
 
+Enemy families in the CSV (their behaviour code reads the values; variants share the family's attack): Dropwing
+(`dropwing_dive`), Duskflit (`duskflit_swoop`), Ossling (`ossling_bone_throw`), Hornback (`hornback_charge`), Cragjaw
+(`cragjaw_leap`), Murkspore (`murkspore_spread`). Thornmite, Fuzzbob and Mosstrot have no attack (they hurt on touch).
+A skipped family attack waits its recovery before trying again.
+
 Attack types: body, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
 decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
 (the move sets the time). Movement values instead: **Max distance** (tiles) for charge and dive, which stop sooner at a

@@ -10,3 +10,9 @@ ape_throw,Ape stone throw,ranged,0.70,0.02,5.18,1.00,4.00,33.50,1,0,0.00,0.77,im
 ape_slam,Landing shockwave,movement,0.00,,37.50,1.00,7.50,,1,0,0.00,0.00,implemented,60 x 8 pixel landing damage rectangle; phase-two hops enlarge it.,,,,,,0.20
 ape_split,Split stone,ranged,0.00,0.02,2.19,1.00,1.00,21.87,2,0,0.00,0.00,implemented,One split stone; two created per impact. Score row represents the pair.,11.25,18.75,,50.00,,
 ape_log,Falling hazard,ranged,0.40,,,1.00,1.78,,1,0,0.00,0.00,reference_pending,"Starts at rest and accelerates, capped at 17.5 units/s. Initial-speed reference model cannot assign a finite travel-time score; deliberately unscored.",,,,25.00,,
+dropwing_dive,Dropwing ceiling dive,movement,0.35,,,1.00,,6.25,1,0,0.00,0.80,implemented,"Drops straight down from its perch, speeding up to Vertical speed; climbs back at 4.5 tiles/s.",,22.50,,45.00,,
+duskflit_swoop,Duskflit swoop,movement,0.40,,,1.00,,8.13,1,0,0.00,0.00,implemented,Flies straight at where the player was; returns to its perch at 3.75 tiles/s.,,,,,7.31,
+ossling_bone_throw,Ossling bone throw,ranged,0.45,,,1.00,0.14,11.06,1,0,0.00,1.70,implemented,Lobbed bone; the Armored variant throws two (the second higher). At most 3 bones in the air.,7.50,8.13,,18.75,,
+hornback_charge,Hornback charge,movement,0.50,,,1.00,,13.75,1,0,0.00,0.90,implemented,Charges along its floor at a player at its height; stops at walls and ledges.,,,,,16.50,
+cragjaw_leap,Cragjaw leap,movement,0.60,,,1.00,,25.30,1,0,0.00,1.00,implemented,Leaps at the player and slams down (screen shake).,13.75,21.25,0.80,50.00,,
+murkspore_spread,Murkspore spore spread,ranged,0.50,,,1.00,0.14,8.75,3,1,17.19,2.20,implemented,Three orbs in a fan; only shoots when its last orbs are gone. Keeps about 10 tiles away.,,,,,,

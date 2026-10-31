@@ -188,7 +188,10 @@ func _ready() -> void:
 		top.windup_s = "0.50"
 		for k in editor.ENEMIES.size():  # every enemy in the game opens (code-driven ones read-only)
 			editor._select_enemy(k)
-		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("written in the game code")), "Enemies tab lists the code-driven enemies too, read-only")
+		check(editor.form.get_children().any(func(n): return n is Label and (n.text.contains("written in the game code") or n.text.contains("Ape"))), "Enemies tab lists every enemy, the code-driven ones read-only")
+		var hb: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
+		editor._select_enemy(hb)
+		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
 		editor._select_enemy(2)
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Repertoire score")),
