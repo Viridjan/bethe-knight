@@ -451,24 +451,29 @@ func _select_enemy(i: int) -> void:
 				cap.modulate = Color(1, 1, 1, 0.5)
 				anim.add_child(cap)
 			inner.add_child(anim)
-		var mech := HFlowContainer.new()
-		mech.add_theme_constant_override("h_separation", 14)
-		mech.add_theme_constant_override("v_separation", 3)
+		# its values in a fixed grid (4 per row, same label and box sizes everywhere), the follow-up on its own row
+		var mech := GridContainer.new()
+		mech.columns = 8
+		mech.add_theme_constant_override("h_separation", 6)
+		mech.add_theme_constant_override("v_separation", 4)
 		inner.add_child(mech)
-		for column in _applicable(attack):
-			var pair := HBoxContainer.new()  # tag and box wrap together
-			pair.add_theme_constant_override("separation", 3)
-			var tag := Game.label(TAGS.get(column, column), 12)
-			tag.modulate = Color(1, 1, 1, 0.6)
-			tag.tooltip_text = _help(column)
-			pair.add_child(tag)
-			if column == "follow_up":
-				pair.add_child(_follow_up_picker(attack))
-			else:
-				_compact_field(pair, attack, column, score)
-			mech.add_child(pair)
-		if writable and not ("follow_up" in _applicable(attack)):  # no follow-up yet: one click adds one
-			mech.add_child(Game.button("+ Then…", func():
+		var values: Array = _applicable(attack).filter(func(c): return not c.begins_with("follow_up"))
+		for column in values:
+			mech.add_child(_value_tag(column))
+			_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
+		var follow := HBoxContainer.new()
+		follow.add_theme_constant_override("separation", 6)
+		inner.add_child(follow)
+		if "follow_up" in _applicable(attack):
+			follow.add_child(_value_tag("follow_up"))
+			var picker := _follow_up_picker(attack)
+			picker.custom_minimum_size.x = BOX_W * 2 + 6 + TAG_W
+			follow.add_child(picker)
+			for column in ["follow_up_count", "follow_up_gap_s"]:
+				follow.add_child(_value_tag(column))
+				_compact_field(follow, attack, column, score).custom_minimum_size.x = BOX_W
+		elif writable:  # no follow-up yet: one click adds one
+			follow.add_child(Game.button("+ Then…", func():
 				attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
 				dirty = true
 				dirty_changed.emit()
@@ -491,16 +496,37 @@ func _select_enemy(i: int) -> void:
 			_add_binding(e, chosen if chosen != "" else _new_attack())))
 		form.add_child(add_row)
 	var score_lines: PackedStringArray = _score_text(e).split("\n")
-	if e[0] == "enemy_monster":  # one line pinned below; the per-build list stays in the page
+	if e[0] == "enemy_monster":  # the monsters placed in the story: each a random build of this recipe (tools/populate.gd)
+		var rows_t: Array = Array(score_lines).filter(func(l): return l.contains("\t"))
 		var nums: Array = []
-		for line in score_lines:
-			var tail := line.get_slice(" · ", line.get_slice_count(" · ") - 1)
-			if tail.is_valid_float(): nums.append(float(tail))
-		summary.text = "Saved builds: %d · scores %.2f to %.2f (list above)" % [nums.size(), nums.min(), nums.max()] if not nums.is_empty() else score_lines[0]
-		var scores := Game.label("\n".join(score_lines), 13)
-		scores.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		scores.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		form.add_child(scores)
+		var placed := 0
+		for line in rows_t:
+			var cells: PackedStringArray = line.split("\t")
+			placed += int(cells[1].trim_prefix("×"))
+			if cells[2].is_valid_float(): nums.append(float(cells[2]))
+		summary.text = ("%d placed in the story, %d different builds · scores %.2f to %.2f" % [placed, rows_t.size(), nums.min(), nums.max()]) if not nums.is_empty() else score_lines[0]
+		var title := Game.label("Placed in the story (each one a random build: move, attacks, traits)", 13)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		title.modulate = Color("a8c6e6")
+		form.add_child(title)
+		var table_g := GridContainer.new()
+		table_g.columns = 3
+		table_g.add_theme_constant_override("h_separation", 18)
+		form.add_child(table_g)
+		for h in ["Build", "Placed", "Score"]:
+			var l := Game.label(h, 12)
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			l.modulate = Color(1, 1, 1, 0.5)
+			table_g.add_child(l)
+		for line in rows_t:
+			var cells: PackedStringArray = line.split("\t")
+			for k in 3:
+				var l := Game.label(cells[k], 12)
+				l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if k == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+				if k == 2 and cells.size() > 3 and cells[3] != "":
+					l.tooltip_text = cells[3]
+					l.mouse_filter = Control.MOUSE_FILTER_PASS
+				table_g.add_child(l)
 	else:
 		summary.text = "\n".join(score_lines)  # pinned below the list, always visible
 	_wrap_tips(form)
@@ -527,6 +553,18 @@ func _applicable(attack: Dictionary) -> Array:  # its type's boxes (Enemies tab:
 		if c in ["follow_up", "follow_up_count", "follow_up_gap_s"]:
 			return str(attack.get("follow_up", "")) != "" or str(attack.get("follow_up_count", "")) != ""
 		return c in mine)
+
+const TAG_W := 116  # value labels and boxes in the Enemies tab: one size, so they line up across attacks
+const BOX_W := 72
+
+func _value_tag(column: String) -> Label:
+	var tag := Game.label(TAGS.get(column, column), 12)
+	tag.modulate = Color(1, 1, 1, 0.6)
+	tag.tooltip_text = _help(column)
+	tag.mouse_filter = Control.MOUSE_FILTER_PASS
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tag.custom_minimum_size.x = TAG_W
+	return tag
 
 func _small_edit(editable: bool) -> LineEdit:
 	var edit := LineEdit.new()
@@ -779,7 +817,6 @@ func _score_text(e: Array) -> String:
 	if not catalog.validate().is_empty(): return "Scores: fix the invalid value first."
 	var lines := PackedStringArray()
 	if e[0] == "enemy_monster":
-		lines.append("Scores of the saved builds (body area once, then each of its attacks):")
 		var build_scores: Array = []
 		var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 		var entities = load("res://scripts/entities.gd")
@@ -789,13 +826,19 @@ func _score_text(e: Array) -> String:
 			for data in world.rooms[room_id].level.entities:
 				if data.t != "enemy_monster": continue
 				var enemy = entities.make(null, data.duplicate(true))
-				var key: String = library.key(enemy.d)
-				if seen.has(key): continue
-				seen[key] = true
+				var key: String = library.describe(enemy.d)  # builds that read the same count as one kind
+				if seen.has(key):
+					seen[key][1] += 1
+					continue
 				var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
 				var result: Dictionary = catalog.enemy_score(enemy.d.attacks, area, enemy.speed_multiplier, enemy.warning_multiplier)
-				lines.append("  %s · %s" % [library.describe(enemy.d), "%.2f" % result.score if result.valid else "unavailable: " + result.reason])
+				seen[key] = [result, 1]
 				if result.valid: build_scores.append(result.score)
+		var kinds: Array = seen.keys()
+		kinds.sort_custom(func(a, b): return seen[a][0].score > seen[b][0].score)
+		for k in kinds:  # build | how many placed | score
+			var res: Dictionary = seen[k][0]
+			lines.append("%s\t×%d\t%s\t%s" % [k, seen[k][1], "%.2f" % res.score if res.valid else "–", "" if res.valid else res.reason])
 	elif e[0] != "boss_ape":  # an enemy family: its body once, then its attacks
 		var enemy = load("res://scripts/entities.gd").make(null, {"t": e[0], "x": 0, "y": 0})
 		var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0

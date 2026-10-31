@@ -234,8 +234,8 @@ func _ready() -> void:
 		editor._show_enemies()
 		for x in catalog.attacks:  # undo: drop the half-made follow-up again
 			if str(x.get("follow_up", "")) == "": x.merge({"follow_up_count": "", "follow_up_gap_s": ""}, true)
-		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
-		check(editor.summary.text.begins_with("Saved builds:"), "The library monster's score summary is pinned below the list")
+		check(editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Placed in the story")), "Enemies tab shows the placed library builds")
+		check(editor.summary.text.contains("placed in the story"), "The library monster's score summary is pinned below the list")
 		editor._select_enemy(0)
 		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_monster", "default")[0].attack_name)
 		var edits: Array = []
