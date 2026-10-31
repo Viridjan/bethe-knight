@@ -111,6 +111,7 @@ func _select_row(index: int) -> void:
 			filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_child(filler)
 	_update_summary()
+	_wrap_tips(form)
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum"}
@@ -340,13 +341,14 @@ func _select_enemy(i: int) -> void:
 		margin.add_theme_constant_override("margin_left", widths[0])
 		block.add_child(margin)
 		var mech := HFlowContainer.new()
-		mech.add_theme_constant_override("h_separation", 10)
+		mech.add_theme_constant_override("h_separation", 14)
+		mech.add_theme_constant_override("v_separation", 3)
 		margin.add_child(mech)
 		for column in _applicable(attack):
 			var pair := HBoxContainer.new()  # tag and box wrap together
 			pair.add_theme_constant_override("separation", 3)
-			var tag := Game.label(TAGS.get(column, column), 11)
-			tag.modulate = Color(1, 1, 1, 0.55)
+			var tag := Game.label(TAGS.get(column, column), 12)
+			tag.modulate = Color(1, 1, 1, 0.6)
 			tag.tooltip_text = _help(column)
 			pair.add_child(tag)
 			_compact_field(pair, attack, column, score)
@@ -366,11 +368,12 @@ func _select_enemy(i: int) -> void:
 	scores.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	form.add_child(scores)
 	summary.text = "Skip %: the chance an attack in range passes its turn, so the next one in the list is tried."
+	_wrap_tips(form)
 
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
-const TAGS := {"windup_s": "wind", "animation_s": "exec", "recovery_s": "rec", "flight_time_s": "flight", "coverage_area_units2": "area",
-	"initial_speed_units_s": "spd", "multishot": "×", "aimed_shot": "aim", "spread_deg": "spr", "horizontal_speed_units_s": "h-spd",
-	"vertical_speed_units_s": "v-spd", "gravity_units_s2": "grav", "max_distance_units": "dist", "shockwave_s": "wave", "base_weight": "wgt"}
+const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
+	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal speed",
+	"vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight"}
 const NEEDS := {"body": ["windup_s", "animation_s", "recovery_s", "initial_speed_units_s"], "melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
 	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"], "movement": ["windup_s", "recovery_s"],
 	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]}
@@ -433,6 +436,28 @@ func _edit_notes(attack: Dictionary, title: Control) -> void:
 		if not dlg.visible: dlg.queue_free())
 	add_child(dlg)
 	dlg.popup_centered()
+
+# Tooltips wrapped into a squarish block (a bit taller than wide) instead of one long line.
+static func squarish(text: String) -> String:
+	if text.length() <= 40 or text.contains("\n\n"): return text
+	var width := maxi(28, int(sqrt(text.length() * 2.2)))
+	var out := PackedStringArray()
+	for para in text.split("\n"):
+		var line := ""
+		for word in para.split(" "):
+			if not line.is_empty() and line.length() + 1 + word.length() > width:
+				out.append(line)
+				line = word
+			else:
+				line = word if line.is_empty() else line + " " + word
+		out.append(line)
+	return "\n".join(out)
+
+func _wrap_tips(node: Node) -> void:
+	if node is Control and node.tooltip_text != "":
+		node.tooltip_text = squarish(node.tooltip_text)
+	for child in node.get_children():
+		_wrap_tips(child)
 
 func _show_score(label: Label, attack: Dictionary) -> void:
 	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}
