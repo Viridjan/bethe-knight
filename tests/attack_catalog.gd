@@ -173,8 +173,9 @@ func _ready() -> void:
 		collect.call(editor.form, collect)
 		var wind: LineEdit = edits.filter(func(x): return x.text == top.windup_s)[0]
 		wind.text_changed.emit("0.65")
-		check(top.windup_s == "0.65" and editor.dirty and edits.any(func(x): return x.text == top.notes) and edits.any(func(x): return x.text == top.codex_online_name),
-			"Enemies tab: each attack's values, name and notes are editable right under it")
+		var name_box: Array = edits.filter(func(x): return x.text == top.codex_online_name)
+		check(top.windup_s == "0.65" and editor.dirty and not name_box.is_empty() and name_box[0].tooltip_text.contains(top.notes),
+			"Enemies tab: each attack's values and name are editable right under it; its notes are in the name's tooltip")
 		top.windup_s = "0.50"
 		editor._select_enemy(2)
 		await get_tree().process_frame

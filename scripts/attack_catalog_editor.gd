@@ -300,8 +300,14 @@ func _select_enemy(i: int) -> void:
 		line.add_child(rank)
 		var score := Game.label("", 13)
 		var title := _compact_field(line, attack, "codex_online_name", score)  # the research name, editable here
-		title.custom_minimum_size.x = widths[1] - (46 if attack.get("status", "") != "implemented" else 0)
-		title.tooltip_text = "%s (%s, %s) · shared by every enemy with this attack" % [row.attack_name, attack.get("type", ""), attack.get("status", "")]
+		title.custom_minimum_size.x = widths[1] - 26 - (46 if attack.get("status", "") != "implemented" else 0)
+		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
+		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
+		info.add_theme_font_size_override("font_size", 12)
+		info.custom_minimum_size.x = 22
+		info.tooltip_text = str(attack.get("notes", "")) if str(attack.get("notes", "")) != "" else "No notes yet: click to add"
+		info.disabled = not writable and str(attack.get("notes", "")) == ""
+		line.add_child(info)
 		if attack.get("status", "") != "implemented":
 			var tag := Game.label(str(attack.get("status", "")), 11)
 			tag.custom_minimum_size.x = 46
@@ -345,14 +351,6 @@ func _select_enemy(i: int) -> void:
 			pair.add_child(tag)
 			_compact_field(pair, attack, column, score)
 			mech.add_child(pair)
-		var notes_line := HBoxContainer.new()
-		block.add_child(notes_line)
-		var pad := Control.new()
-		pad.custom_minimum_size.x = widths[0]
-		notes_line.add_child(pad)
-		var notes := _compact_field(notes_line, attack, "notes", score)
-		notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		notes.placeholder_text = "notes"
 		block.add_child(HSeparator.new())
 	var free: Array = catalog.EXECUTABLE.get(e[0], []).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
 	if writable and not free.is_empty():
@@ -413,6 +411,28 @@ func _compact_field(parent: Control, attack: Dictionary, column: String, score: 
 		_update_feedback())
 	parent.add_child(edit)
 	return edit
+
+# A small window to read / edit an attack's notes (shared by every enemy with the attack).
+func _edit_notes(attack: Dictionary, title: Control) -> void:
+	var dlg := AcceptDialog.new()
+	dlg.title = "Notes · " + str(attack.get("codex_online_name", attack.get("name", "")))
+	var text := TextEdit.new()
+	text.text = str(attack.get("notes", ""))
+	text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	text.custom_minimum_size = Vector2(520, 140)
+	text.editable = writable
+	dlg.add_child(text)
+	dlg.confirmed.connect(func():
+		if writable and text.text != str(attack.get("notes", "")):
+			attack.notes = text.text
+			dirty = true
+			dirty_changed.emit()
+			_update_feedback()
+			_select_enemy(enemy_index))
+	dlg.visibility_changed.connect(func():
+		if not dlg.visible: dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()
 
 func _show_score(label: Label, attack: Dictionary) -> void:
 	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}
