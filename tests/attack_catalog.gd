@@ -125,8 +125,8 @@ func _ready() -> void:
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
 		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 4, "Attack form groups fields into four sections with two fields per row")
 		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
-		check(not editor.fields.has("score") and not editor.fields.has("notes") and not editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
-			"The Attacks tab holds only what makes an attack work")
+		check(not editor.fields.has("score") and not editor.fields.has("notes") and editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
+			"The Attacks tab holds what makes an attack work, plus its score weight")
 		var grey := func(id: String) -> bool:
 			editor._select_row(catalog.attacks.find(catalog.attack(id)))
 			return not editor.fields.animation_s.editable

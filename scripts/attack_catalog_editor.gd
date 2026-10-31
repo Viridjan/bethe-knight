@@ -88,7 +88,7 @@ func _select_row(index: int) -> void:
 	var groups: Array = [
 		["Identity", ["name", "type"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
-		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]],
+		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "base_weight"]],
 		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
 	]
 	if ranges:
@@ -114,7 +114,7 @@ func _select_row(index: int) -> void:
 	_wrap_tips(form)
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
-	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum"}
+	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.custom_minimum_size.x = 150  # the same in every section, so the boxes line up
@@ -164,7 +164,7 @@ func _update_summary() -> void:
 	if ranges:
 		summary.text = "Check maximum range descending, then priority descending. Use [minimum, maximum); execute only the first eligible attack."
 	else:
-		summary.text = "What makes the attack work. Scores, weights, names and notes are in Enemies, under each attack."
+		summary.text = "What makes the attack work, and its score weight. Scores, names and notes are in Enemies, under each attack."
 
 func _update_feedback() -> void:
 	if feedback == null: return
@@ -380,9 +380,10 @@ const NEEDS := {"body": ["windup_s", "animation_s", "recovery_s", "initial_speed
 
 func _applicable(attack: Dictionary) -> Array:  # the values that mean something for this attack
 	var type: String = attack.get("type", "")
-	var need: Array = NEEDS.get(type, []) + ["base_weight"]
+	var need: Array = NEEDS.get(type, [])
 	var shots := type == "ranged" or int(str(attack.get("multishot", "1")) if str(attack.get("multishot", "")) != "" else "1") > 1
 	return TAGS.keys().filter(func(c):
+		if c == "base_weight": return false  # edited in the Attacks tab
 		if c == "animation_s" and type in ["ranged", "movement"]: return false  # not used: the shot / the move sets the time
 		if c in ["multishot", "aimed_shot", "spread_deg"] and not shots: return false
 		return c in need or str(attack.get(c, "")) != "")
@@ -542,6 +543,7 @@ func _help(field: String) -> String:
 		"priority": return "Higher values are checked first when maximum ranges match."
 		"skip_chance": return "Percent chance this attack passes its turn when it could be used; the next one in the list is tried."
 		"max_range_units": return "Center-to-center radial distance in tiles, exclusive. Empty (0) = no maximum."
+		"base_weight": return "Score multiplier for this kind of attack (1 = as the formula says, 2 = counts double). Only affects the score."
 		"min_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive. Large maximum ranges are checked first."
 		"notes": return str(_rows()[selected].get("notes", ""))
 	return field.replace("_", " ") + ". Blank means unspecified, not zero. See docs/ATTACK_SCORING_PLAN.md."
