@@ -90,7 +90,7 @@ func _select_row(index: int) -> void:
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
 		["Scoring · tile units", ["score", "base_weight", "coverage_area_units2", "initial_speed_units_s", "projectiles_toward", "projectiles_other", "omnidirectional"]],
 		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"]],
-		["Reference", ["source_url", "notes"]]
+		["Reference", ["notes"]]
 	]
 	if ranges:
 		groups = [["Assignment", ["enemy_id", "phase", "attack_name"]], ["Distance · tiles", ["min_range_units", "max_range_units", "priority"]]]

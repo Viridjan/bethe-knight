@@ -30,7 +30,7 @@ in GDScript. Score is an estimate of threat, not measured difficulty.
 
 Additional inputs needed to reproduce the score: `base_weight`,
 `coverage_area_units2`, `initial_speed_units_s`, `projectiles_toward`,
-`projectiles_other`, `omnidirectional`, and `recovery_s`. Add `source_url` to
+`projectiles_other`, `omnidirectional`, and `recovery_s`. Put the source link in `notes` ("Source: ...") to
 identify the research reference; researched names without a verified source
 remain explicitly marked as proposed. Geometry can use a shape reference rather
 than a hand-maintained area when a hitbox definition already exists.
