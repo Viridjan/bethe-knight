@@ -125,6 +125,8 @@ func _ready() -> void:
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
 		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 4, "Attack form groups fields into four sections with two fields per row")
 		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
+		check(not editor.fields.has("score") and not editor.fields.has("notes") and not editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
+			"The Attacks tab holds only what makes an attack work")
 		var grey := func(id: String) -> bool:
 			editor._select_row(catalog.attacks.find(catalog.attack(id)))
 			return not editor.fields.animation_s.editable
@@ -161,6 +163,19 @@ func _ready() -> void:
 		editor._add_binding(editor.ENEMIES[0], catalog.EXECUTABLE.enemy_monster.filter(func(a): return not catalog.ordered_attacks("enemy_monster", "default").any(func(b): return b.attack_name == a))[0])
 		check(catalog.assignments.size() == n_before and catalog.validate().is_empty(), "Attacks can be removed from and added to an enemy")
 		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
+		editor._select_enemy(0)
+		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_monster", "default")[0].attack_name)
+		var edits: Array = []
+		var collect := func(node, f):
+			for c in node.get_children():
+				if c is LineEdit: edits.append(c)
+				f.call(c, f)
+		collect.call(editor.form, collect)
+		var wind: LineEdit = edits.filter(func(x): return x.text == top.windup_s)[0]
+		wind.text_changed.emit("0.65")
+		check(top.windup_s == "0.65" and editor.dirty and edits.any(func(x): return x.text == top.notes) and edits.any(func(x): return x.text == top.codex_online_name),
+			"Enemies tab: each attack's values, name and notes are editable right under it")
+		top.windup_s = "0.50"
 		editor._select_enemy(2)
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Repertoire score")),

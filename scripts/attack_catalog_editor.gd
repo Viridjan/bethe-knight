@@ -86,11 +86,10 @@ func _select_row(index: int) -> void:
 		form.remove_child(node)
 		node.queue_free()
 	var groups: Array = [
-		["Identity", ["name", "codex_online_name", "type", "status"]],
+		["Identity", ["name", "type"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
-		["Scoring · tile units", ["score", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]],
-		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]],
-		["Reference", ["notes"]]
+		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]],
+		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
 	]
 	if ranges:
 		groups = [["Assignment", ["enemy_id", "phase", "attack_name"]], ["Distance · tiles", ["min_range_units", "max_range_units", "priority"]]]
@@ -164,9 +163,7 @@ func _update_summary() -> void:
 	if ranges:
 		summary.text = "Check maximum range descending, then priority descending. Use [minimum, maximum); execute only the first eligible attack."
 	else:
-		var result: Dictionary = catalog.score_attack(row)
-		summary.text = "Score unavailable: " + result.reason if not result.valid else "Score %.2f = raw %.2f / warning penalty %.2f · area %.2f units² · measured time %.2f s · weighted count %.2f" % [result.score, result.raw, result.penalty, result.area, result.time, result.count]
-		if fields.has("score"): fields.score.text = "%.2f" % result.score if result.valid else ""
+		summary.text = "What makes the attack work. Scores, weights, names and notes are in Enemies, under each attack."
 
 func _update_feedback() -> void:
 	if feedback == null: return
@@ -235,18 +232,24 @@ func _show_enemies() -> void:
 	_select_enemy(enemy_index)
 	_update_feedback()
 
-class SpritePreview extends Control:  # the enemy drawn 3x, animated
+class SpritePreview extends Control:  # the enemy drawn 5x, animated (through a scaled node: some draws set their own transform)
 	var ent = null
+	var canvas := Sprite.new()
+	func _ready() -> void:
+		add_child(canvas)
 	func _process(dt: float) -> void:
-		if ent != null and "clock" in ent:
-			ent.clock += dt
-		queue_redraw()
-	func _draw() -> void:
 		if ent == null: return
+		if "clock" in ent:
+			ent.clock += dt
 		var k := 5.0
-		draw_set_transform(size / 2.0 - Vector2(ent.rect.get_center()) * k, 0, Vector2(k, k))
-		ent.draw(self)
-		draw_set_transform(Vector2.ZERO)
+		canvas.ent = ent
+		canvas.scale = Vector2(k, k)
+		canvas.position = size / 2.0 - Vector2(ent.rect.get_center()) * k
+		canvas.queue_redraw()
+	class Sprite extends Node2D:
+		var ent = null
+		func _draw() -> void:
+			if ent != null: ent.draw(self)
 
 func _sample_monster() -> Dictionary:  # the first saved library-monster build in the world, else a plain one
 	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
@@ -274,46 +277,83 @@ func _select_enemy(i: int) -> void:
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	head.modulate = Color("a8c6e6")
 	form.add_child(head)
-	var grid := GridContainer.new()
-	grid.columns = 9
-	grid.add_theme_constant_override("h_separation", 10)
-	form.add_child(grid)
-	for title in ["#", "Attack", "Min (tiles)", "Max (tiles)", "Skip %", "", "", "", "Score"]:
-		var l := Game.label(title, 13)
+	# one block per attack: its binding line (rank, name, ranges, skip, order, score), its mechanics, its notes
+	var widths := [22, 190, 62, 62, 62, 30, 30, 30, 56]
+	var header := HBoxContainer.new()
+	for k in widths.size():
+		var l := Game.label(["#", "Attack", "Min", "Max", "Skip %", "", "", "", "Score"][k], 12)
+		l.custom_minimum_size.x = widths[k]
 		l.modulate = Color(1, 1, 1, 0.6)
-		grid.add_child(l)
+		header.add_child(l)
+	form.add_child(header)
 	var rows: Array = catalog.ordered_attacks(e[0], e[1])
 	for k in rows.size():
 		var row: Dictionary = rows[k]
-		grid.add_child(Game.label(str(k + 1), 14))
-		var name := Game.label(str(catalog.attack(row.attack_name).get("codex_online_name", row.attack_name)), 14)
-		name.tooltip_text = row.attack_name
-		grid.add_child(name)
+		var attack: Dictionary = catalog.attack(row.attack_name)
+		var block := VBoxContainer.new()
+		block.add_theme_constant_override("separation", 2)
+		form.add_child(block)
+		var line := HBoxContainer.new()
+		block.add_child(line)
+		var rank := Game.label(str(k + 1), 13)
+		rank.custom_minimum_size.x = widths[0]
+		line.add_child(rank)
+		var score := Game.label("", 13)
+		var title := _compact_field(line, attack, "codex_online_name", score)  # the research name, editable here
+		title.custom_minimum_size.x = widths[1] - (46 if attack.get("status", "") != "implemented" else 0)
+		title.tooltip_text = "%s (%s, %s) · shared by every enemy with this attack" % [row.attack_name, attack.get("type", ""), attack.get("status", "")]
+		if attack.get("status", "") != "implemented":
+			var tag := Game.label(str(attack.get("status", "")), 11)
+			tag.custom_minimum_size.x = 46
+			tag.modulate = Color(1, 1, 1, 0.5)
+			line.add_child(tag)
 		for column in ["min_range_units", "max_range_units", "skip_chance"]:
-			var edit := LineEdit.new()
+			var edit := _small_edit(writable)
 			edit.text = catalog.format_cell(column, str(row.get(column, "0")))
 			if column == "max_range_units" and float(str(row.get(column, "0"))) == 0:
 				edit.text = ""  # 0 = no maximum
 			if column == "max_range_units":
 				edit.placeholder_text = "no max"
-			edit.custom_minimum_size.x = 80
-			edit.editable = writable
+			edit.custom_minimum_size.x = widths[2]
 			edit.tooltip_text = _help(column)
-			var bad: bool = catalog.error_at.table == "ranges" and catalog.assignments.find(row) == catalog.error_at.index and catalog.error_at.field == column
-			if bad: edit.add_theme_color_override("font_color", Color("ff7070"))
+			if catalog.error_at.table == "ranges" and catalog.assignments.find(row) == catalog.error_at.index and catalog.error_at.field == column:
+				edit.add_theme_color_override("font_color", Color("ff7070"))
 			edit.text_changed.connect(func(v): _binding_change(row, column, v))
-			grid.add_child(edit)
-		for b in [["▲", -1, k == 0], ["▼", 1, k == rows.size() - 1]]:
-			var btn := Game.button(b[0], func(): _move(row, b[1]))
+			line.add_child(edit)
+		for b in [["▲", -1, k == 0], ["▼", 1, k == rows.size() - 1], ["✕", 0, false]]:
+			var btn := Game.button(b[0], (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
+			btn.add_theme_font_size_override("font_size", 12)
+			btn.custom_minimum_size = Vector2(widths[5], 0)
 			btn.disabled = not writable or b[2]
-			btn.tooltip_text = "Raise priority" if b[1] < 0 else "Lower priority"
-			grid.add_child(btn)
-		var del := Game.button("✕", func(): _remove_binding(row))
-		del.disabled = not writable
-		del.tooltip_text = "Remove this attack from the enemy"
-		grid.add_child(del)
-		var sc: Dictionary = catalog.score_attack(catalog.attack(row.attack_name))
-		grid.add_child(Game.label("%.2f" % sc.score if sc.valid else "-", 14))
+			btn.tooltip_text = {-1: "Raise priority", 1: "Lower priority", 0: "Remove this attack from the enemy"}[b[1]]
+			line.add_child(btn)
+		score.custom_minimum_size.x = widths[8]
+		line.add_child(score)
+		_show_score(score, attack)
+		var margin := MarginContainer.new()  # the attack's values: only those that apply, a short tag before each box
+		margin.add_theme_constant_override("margin_left", widths[0])
+		block.add_child(margin)
+		var mech := HFlowContainer.new()
+		mech.add_theme_constant_override("h_separation", 10)
+		margin.add_child(mech)
+		for column in _applicable(attack):
+			var pair := HBoxContainer.new()  # tag and box wrap together
+			pair.add_theme_constant_override("separation", 3)
+			var tag := Game.label(TAGS.get(column, column), 11)
+			tag.modulate = Color(1, 1, 1, 0.55)
+			tag.tooltip_text = _help(column)
+			pair.add_child(tag)
+			_compact_field(pair, attack, column, score)
+			mech.add_child(pair)
+		var notes_line := HBoxContainer.new()
+		block.add_child(notes_line)
+		var pad := Control.new()
+		pad.custom_minimum_size.x = widths[0]
+		notes_line.add_child(pad)
+		var notes := _compact_field(notes_line, attack, "notes", score)
+		notes.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		notes.placeholder_text = "notes"
+		block.add_child(HSeparator.new())
 	var free: Array = catalog.EXECUTABLE.get(e[0], []).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
 	if writable and not free.is_empty():
 		var add_row := HBoxContainer.new()
@@ -328,6 +368,55 @@ func _select_enemy(i: int) -> void:
 	scores.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	form.add_child(scores)
 	summary.text = "Skip %: the chance an attack in range passes its turn, so the next one in the list is tried."
+
+# Short tags for the compact view, in display order; the fields an attack's type always needs.
+const TAGS := {"windup_s": "wind", "animation_s": "exec", "recovery_s": "rec", "flight_time_s": "flight", "coverage_area_units2": "area",
+	"initial_speed_units_s": "spd", "multishot": "×", "aimed_shot": "aim", "spread_deg": "spr", "horizontal_speed_units_s": "h-spd",
+	"vertical_speed_units_s": "v-spd", "gravity_units_s2": "grav", "max_distance_units": "dist", "shockwave_s": "wave", "base_weight": "wgt"}
+const NEEDS := {"body": ["windup_s", "animation_s", "recovery_s", "initial_speed_units_s"], "melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
+	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"], "movement": ["windup_s", "recovery_s"],
+	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]}
+
+func _applicable(attack: Dictionary) -> Array:  # the values that mean something for this attack
+	var type: String = attack.get("type", "")
+	var need: Array = NEEDS.get(type, []) + ["base_weight"]
+	var shots := type == "ranged" or int(str(attack.get("multishot", "1")) if str(attack.get("multishot", "")) != "" else "1") > 1
+	return TAGS.keys().filter(func(c):
+		if c == "animation_s" and type in ["ranged", "movement"]: return false  # not used: the shot / the move sets the time
+		if c in ["multishot", "aimed_shot", "spread_deg"] and not shots: return false
+		return c in need or str(attack.get(c, "")) != "")
+
+func _small_edit(editable: bool) -> LineEdit:
+	var edit := LineEdit.new()
+	edit.add_theme_font_size_override("font_size", 12)
+	edit.custom_minimum_size.x = 56
+	edit.editable = editable
+	return edit
+
+# One small edit box for an attack value (shared by every enemy with that attack); greying as in the Attacks tab.
+func _compact_field(parent: Control, attack: Dictionary, column: String, score: Label) -> LineEdit:
+	var edit := _small_edit(writable)
+	edit.text = catalog.format_cell(column, str(attack.get(column, "")))
+	edit.tooltip_text = _help(column) + " · shared by every enemy with this attack"
+	if column == "animation_s" and attack.get("type", "") in ["ranged", "movement"]:
+		edit.editable = false
+	if column == "coverage_area_units2" and catalog.uses_body(attack):
+		edit.text = "body"
+		edit.editable = false
+	if catalog.error_at.table == "attacks" and catalog.attacks.find(attack) == catalog.error_at.index and catalog.error_at.field == column:
+		edit.add_theme_color_override("font_color", Color("ff7070"))
+	edit.text_changed.connect(func(v):
+		attack[column] = v
+		dirty = true
+		dirty_changed.emit()
+		_show_score(score, attack)
+		_update_feedback())
+	parent.add_child(edit)
+	return edit
+
+func _show_score(label: Label, attack: Dictionary) -> void:
+	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}
+	label.text = "%.2f" % sc.score if sc.valid else "-"
 
 func _binding_change(row: Dictionary, column: String, value: String) -> void:
 	row[column] = "0" if column == "max_range_units" and value.strip_edges().is_empty() else value  # empty = no maximum

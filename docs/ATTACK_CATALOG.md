@@ -7,6 +7,11 @@ The original bestiary still shows appearances, discoveries, and kills.
 
 ## Editing
 
+**Attacks** holds only what makes an attack work (type, timings, shape, movement). **Enemies** shows, under each of
+the selected enemy's attacks, a compact editable line of that attack's values (only the ones that apply, with short
+tags: wind, exec, rec, flight, area, spd, ×, aim, spr, h-spd, v-spd, grav, dist, wave, wgt), its research name, notes
+and score. Those values are shared by every enemy with the attack.
+
 Select an attack or binding on the left and edit its fields on the right.
 Fields are grouped into Identity, Timing, Scoring, and Movement, with two fields
 per row; reference notes and links use full-width rows. CSV float inputs and
