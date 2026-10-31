@@ -361,7 +361,8 @@ func _select_enemy(i: int) -> void:
 		line.add_child(rank)
 		var score := Game.label("", 13)
 		var title := _compact_field(line, attack, "codex_online_name", score)  # the research name, editable here
-		title.custom_minimum_size.x = widths[1] - 26 - (46 if attack.get("status", "") != "implemented" else 0)
+		var tagged: bool = attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name)
+		title.custom_minimum_size.x = widths[1] - 26 - (46 if tagged else 0)
 		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
 		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
 		info.add_theme_font_size_override("font_size", 12)
@@ -369,8 +370,8 @@ func _select_enemy(i: int) -> void:
 		info.tooltip_text = str(attack.get("notes", "")) if str(attack.get("notes", "")) != "" else "No notes yet: click to add"
 		info.disabled = not writable and str(attack.get("notes", "")) == ""
 		line.add_child(info)
-		if attack.get("status", "") != "implemented":
-			var tag := Game.label(str(attack.get("status", "")), 11)
+		if attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name):
+			var tag := Game.label("not in game yet" if not catalog.performs(e[0], row.attack_name) else str(attack.get("status", "")), 11)
 			tag.custom_minimum_size.x = 46
 			tag.modulate = Color(1, 1, 1, 0.5)
 			line.add_child(tag)
@@ -426,14 +427,20 @@ func _select_enemy(i: int) -> void:
 			_compact_field(pair, attack, column, score)
 			mech.add_child(pair)
 		block.add_child(HSeparator.new())
-	var free: Array = catalog.EXECUTABLE.get(e[0], []).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
-	if writable and not free.is_empty():
+	if writable:  # any attack from the catalogue, or a brand-new one
+		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
+		free.sort_custom(func(a, b): return int(catalog.performs(e[0], a)) > int(catalog.performs(e[0], b)) or (catalog.performs(e[0], a) == catalog.performs(e[0], b) and a < b))
 		var add_row := HBoxContainer.new()
 		var pick := OptionButton.new()
 		for a in free:
-			pick.add_item(a)
+			pick.add_item("%s · %s%s" % [a, catalog.attack(a).get("codex_online_name", ""), "" if catalog.performs(e[0], a) else "  (not in game yet)"])
+			pick.set_item_metadata(pick.item_count - 1, a)
+		pick.add_item("＋ New attack…")
+		pick.set_item_metadata(pick.item_count - 1, "")
 		add_row.add_child(pick)
-		add_row.add_child(Game.button("+ Add attack", func(): _add_binding(e, pick.get_item_text(pick.selected))))
+		add_row.add_child(Game.button("+ Add attack", func():
+			var chosen: String = pick.get_item_metadata(pick.selected)
+			_add_binding(e, chosen if chosen != "" else _new_attack())))
 		form.add_child(add_row)
 	var scores := Game.label(_score_text(e), 13)
 	scores.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -608,6 +615,20 @@ func _remove_binding(row: Dictionary) -> void:
 	dirty_changed.emit()
 	_select_enemy(enemy_index)
 	_update_feedback()
+
+# A new attack row (status planned: no gameplay yet), named new_attack_N; returns its name.
+func _new_attack() -> String:
+	var n := 1
+	while not catalog.attack("new_attack_%d" % n).is_empty():
+		n += 1
+	var row := {}
+	for column in catalog.attack_columns:
+		row[column] = ""
+	row.merge({"name": "new_attack_%d" % n, "codex_online_name": "New attack %d" % n, "type": "melee", "status": "planned", "windup_s": "0.50",
+		"animation_s": "0.30", "recovery_s": "0.50", "coverage_area_units2": "1.00", "base_weight": "1.00", "multishot": "1", "aimed_shot": "0",
+		"spread_deg": "0.00", "notes": "Added in the Monster Editor: needs its gameplay written before enemies can use it."}, true)
+	catalog.attacks.append(row)
+	return row.name
 
 func _add_binding(e: Array, attack_name: String) -> void:  # added last (lowest priority)
 	for row in catalog.ordered_attacks(e[0], e[1]):

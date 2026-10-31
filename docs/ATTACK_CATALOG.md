@@ -30,7 +30,8 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
   its attacks **in priority order**: the first attack that is in range (minimum inclusive, maximum exclusive;
   an empty / 0 maximum means no maximum),
   eligible and not skipped starts. ▲ / ▼ move an attack up or down (priorities are renumbered), ✕ removes it,
-  "+ Add attack" adds an implemented one at the bottom. **Skip %** (`skip_chance`, 0-100) is the chance an attack
+  "+ Add attack" adds any attack from the catalogue (or "＋ New attack…", a new planned row) at the bottom; one the
+  enemy's code can't do yet is tagged "not in game yet": it's saved and shown, and skipped in play. **Skip %** (`skip_chance`, 0-100) is the chance an attack
   passes its turn when it could be used, so the next one is tried. Below the list: the scores, per saved library
   build (body area once, then its distinct attacks) or for the Ape phase's repertoire. An invalid value shows in red.
 

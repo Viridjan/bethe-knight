@@ -113,7 +113,6 @@ func validate() -> String:
 		if str(row.get("phase", "")).is_empty(): return _fail("ranges", i, "phase", "Range requires enemy and phase")
 		if not ids.has(row.get("attack_name", "")): return _fail("ranges", i, "attack_name", "Unknown attack binding: " + str(row.get("attack_name", "")))
 		if not EXECUTABLE.has(row.enemy_id): return _fail("ranges", i, "enemy_id", "Attack has no implementation for " + str(row.enemy_id) + ": " + str(row.attack_name))
-		if row.attack_name not in EXECUTABLE[row.enemy_id]: return _fail("ranges", i, "attack_name", "Attack has no implementation for " + str(row.enemy_id) + ": " + str(row.attack_name))
 		if row.phase not in (["normal", "enraged"] if row.enemy_id == "boss_ape" else ["default"]): return _fail("ranges", i, "phase", "Unknown phase for " + str(row.enemy_id))
 		var key := "%s/%s/%s" % [row.enemy_id, row.phase, row.attack_name]
 		if bindings.has(key): return _fail("ranges", i, "attack_name", "Duplicate range binding: " + key)
@@ -204,6 +203,10 @@ static func shot_angles(row: Dictionary) -> Array:
 		out.append((k - aimed) * step)
 	return out
 
+# Whether the enemy's code can do this attack (bindings to others are plans: kept, shown, skipped in play).
+static func performs(enemy_id: String, attack_name: String) -> bool:
+	return attack_name in EXECUTABLE.get(enemy_id, [])
+
 # A binding's maximum range in tiles; 0 in the CSV means there's no maximum.
 static func max_range(row: Dictionary) -> float:
 	var m := float(row.get("max_range_units", "0"))
@@ -234,6 +237,7 @@ func move_binding(row: Dictionary, step: int) -> void:
 func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0) -> String:
 	for row in ordered_attacks(enemy_id, phase, available):
 		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
+		if not performs(enemy_id, row.attack_name): continue  # added in the editor, not in its code yet
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue
 		var skip := str(row.get("skip_chance", ""))
 		if skip != "" and randf() * 100.0 < float(skip): continue

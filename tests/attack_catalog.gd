@@ -171,6 +171,16 @@ func _ready() -> void:
 		editor._remove_binding(catalog.ordered_attacks("enemy_monster", "default")[0])
 		editor._add_binding(editor.ENEMIES[0], catalog.EXECUTABLE.enemy_monster.filter(func(a): return not catalog.ordered_attacks("enemy_monster", "default").any(func(b): return b.attack_name == a))[0])
 		check(catalog.assignments.size() == n_before and catalog.validate().is_empty(), "Attacks can be removed from and added to an enemy")
+		var hb_e: Array = editor.ENEMIES.filter(func(x): return x[0] == "enemy_hornback")[0]
+		editor._add_binding(hb_e, "shoot")
+		var made: String = editor._new_attack()
+		editor._add_binding(hb_e, made)
+		check(catalog.validate().is_empty() and catalog.ordered_attacks("enemy_hornback", "default").size() == 3 and not catalog.attack(made).is_empty()
+			and catalog.select_attack("enemy_hornback", "default", [], 1) == "hornback_charge",
+			"Any attack (or a new one) can be added to an enemy; ones its code can't do yet are kept but skipped in play")
+		for b in catalog.ordered_attacks("enemy_hornback", "default").filter(func(x): return x.attack_name != "hornback_charge"):
+			catalog.assignments.erase(b)
+		catalog.attacks.erase(catalog.attack(made))
 		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
 		editor._select_enemy(0)
 		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_monster", "default")[0].attack_name)
