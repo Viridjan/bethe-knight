@@ -35,7 +35,11 @@ of its package. Stable runtime IDs, implemented types, and derived scores cannot
 be edited in the form. New behavior still requires a gameplay implementation;
 adding an unknown attack binding to CSV is rejected.
 
-Body attacks (charge, leap, dive, the Ape's leap) hit with the enemy's own body: they have no area of their own
+Attack types: body, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
+decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
+(its value is only a time limit / reference).
+
+Body and movement attacks (charge, leap, dive, the Ape's leap) hit with the enemy's own body: they have no area of their own
 (blank `coverage_area_units2`, shown as "body"); scores use the body's size (a 10x10 px library monster or the
 Ape's 3x3 tiles as the reference in the Attacks tab, each enemy's real size in Enemies).
 

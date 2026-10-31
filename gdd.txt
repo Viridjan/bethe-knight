@@ -515,3 +515,4 @@ validated CSV editor in source builds; web includes gameplay tables only.
 - 2026-10-31: attacks.csv: source_url merged into notes ("Source: <url>").
 - 2026-10-31: Attack catalogue multishot: projectiles_toward / projectiles_other / omnidirectional replaced by multishot (shots at once), aimed_shot (which one points at the player, 0 = lowest, upward from there) and spread_deg (degrees between shots; 0 = evenly around 360). Library monsters' shoot and lob fire the whole fan. Score: shots within 30 degrees of the aimed one count fully, others 20%.
 - 2026-10-31: Attack editor: Execution is read-only (greyed) for ranged attacks: they spawn a projectile, no execution animation of their own.
+- 2026-10-31: Attack type "movement" for charge, leap, dive, ape_leap and ape_slam (the move sets the duration); Execution read-only for movement and ranged attacks. Scoring unchanged (movement with a speed: travel time; slam: its area over its execution).

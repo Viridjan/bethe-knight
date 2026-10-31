@@ -125,10 +125,12 @@ func _ready() -> void:
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
 		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 4, "Attack form groups fields into four sections with two fields per row")
 		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
-		editor._select_row(catalog.attacks.find(catalog.attack("shoot")))
-		var shot_exec_grey: bool = not editor.fields.animation_s.editable
+		var grey := func(id: String) -> bool:
+			editor._select_row(catalog.attacks.find(catalog.attack(id)))
+			return not editor.fields.animation_s.editable
+		check(grey.call("shoot") and grey.call("charge") and grey.call("ape_slam") and not grey.call("ape_scream"),
+			"Execution is greyed out for projectile and movement attacks, editable for attacks with their own animation")
 		editor._select_row(0)
-		check(shot_exec_grey and editor.fields.animation_s.editable, "Execution is greyed out for projectile attacks, editable for the others")
 		editor._change("windup_s", "0.75")
 		editor._save()
 		check(not editor.dirty, "Monsters editor explicitly saves a valid draft")

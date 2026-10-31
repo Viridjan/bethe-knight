@@ -3,7 +3,7 @@ extends RefCounted
 # Units: tiles (8 pixels), seconds, square tiles. Scores are estimates at reference conditions.
 const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
-const TYPES := ["body", "melee", "ranged", "area"]
+const TYPES := ["body", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"]}
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
@@ -80,7 +80,7 @@ func validate() -> String:
 		if row.get("type", "") not in TYPES: return _fail("attacks", i, "type", "Invalid type for " + id)
 		if row.get("status", "") == "implemented":
 			var required := ["windup_s", "animation_s", "base_weight", "multishot", "recovery_s"]
-			if row.type != "body": required.append("coverage_area_units2")  # body attacks: the enemy's body
+			if row.type not in ["body", "movement"]: required.append("coverage_area_units2")  # body / movement attacks: the enemy's body
 			if row.type in ["body", "ranged"]: required.append("initial_speed_units_s")
 			for field in required:
 				if str(row.get(field, "")).is_empty(): return _fail("attacks", i, field, "Implemented attack requires " + id + "." + field)
@@ -131,9 +131,9 @@ func value(id: String, field: String, fallback: float) -> float:
 	return fallback if cell.is_empty() else float(cell)
 
 func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0) -> Dictionary:
-	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if row.get("type", "") == "body" else float(row.get("coverage_area_units2", "0")))
+	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if uses_body(row) else float(row.get("coverage_area_units2", "0")))
 	var time := float(row.get("animation_s", "0"))
-	if row.get("type", "") in ["body", "ranged"]:
+	if row.get("type", "") in ["body", "ranged"] or (row.get("type", "") == "movement" and str(row.get("initial_speed_units_s", "")) != ""):
 		var speed := float(row.get("initial_speed_units_s", "0")) * speed_scale
 		if speed <= 0: return {"valid": false, "reason": "Missing positive reference speed"}
 		time = REFERENCE_DISTANCE / speed
@@ -156,7 +156,7 @@ func enemy_score(ids: Array, body_area: float, speed_scale: float = 1.0, warning
 		if seen.has(id): continue
 		seen[id] = true
 		var row := attack(id)
-		var area := body_area if row.get("type", "") == "body" else float(row.get("coverage_area_units2", "0")) * size_scale * size_scale
+		var area := body_area if uses_body(row) else float(row.get("coverage_area_units2", "0")) * size_scale * size_scale
 		var effective_speed := speed_scale if id in ["charge", "dive"] else 1.0
 		var score := score_attack(row, area, effective_speed, warning_scale)
 		if not score.valid:
@@ -190,6 +190,10 @@ static func shot_angles(row: Dictionary) -> Array:
 static func max_range(row: Dictionary) -> float:
 	var m := float(row.get("max_range_units", "0"))
 	return INF if m == 0 else m
+
+# Body and movement attacks without an area of their own hit with the enemy's body.
+static func uses_body(row: Dictionary) -> bool:
+	return row.get("type", "") in ["body", "movement"] and str(row.get("coverage_area_units2", "")) == ""
 
 # Body attacks hit with the enemy's own body, so their area is the body's: the Ape's 3x3 tiles, a library monster's
 # 10x10 px as the reference here (each enemy's real size is used in its scores).

@@ -1,12 +1,12 @@
 name,codex_online_name,type,windup_s,animation_s,score,base_weight,coverage_area_units2,initial_speed_units_s,multishot,aimed_shot,spread_deg,recovery_s,status,notes,horizontal_speed_units_s,vertical_speed_units_s,flight_time_s,gravity_units_s2
-charge,Ground charge,body,0.50,1.20,1.07,1.00,,13.75,1,0,0.00,0.90,implemented,Base ActionMonster timings; body area depends on enemy. Collision can end attack early.,,,,
-leap,Leap / pounce,body,0.50,0.76,2.03,1.00,,26.01,1,0,0.00,0.90,implemented,Reference at horizontal speed cap; actual launch depends on target; ends on landing. Source: https://metroid.retropixel.net/games/metroid/manual/metroid1_manual.pdf,15.00,21.25,0.60,56.25
+charge,Ground charge,movement,0.50,1.20,1.07,1.00,,13.75,1,0,0.00,0.90,implemented,Base ActionMonster timings; body area depends on enemy. Collision can end attack early.,,,,
+leap,Leap / pounce,movement,0.50,0.76,2.03,1.00,,26.01,1,0,0.00,0.90,implemented,Reference at horizontal speed cap; actual launch depends on target; ends on landing. Source: https://metroid.retropixel.net/games/metroid/manual/metroid1_manual.pdf,15.00,21.25,0.60,56.25
 shoot,Aimed shot,ranged,0.50,0.02,0.09,1.00,0.14,12.50,1,0,0.00,0.90,implemented,Projectile released immediately after wind-up; verify damage hitbox and execution duration. Source: https://deadcells.wiki.gg/wiki/Enemies,,,,
 lob,Lobbed projectile,ranged,0.50,0.02,0.18,1.00,0.14,25.00,1,0,0.00,0.90,implemented,"Scoring reference: 20-unit horizontal target offset, vertical speed -15. Actual horizontal launch follows target. Source: https://deadcells.wiki.gg/wiki/Enemies",20.00,15.00,1.00,30.00
-dive,Dive attack,body,0.50,0.60,1.46,1.00,,18.75,1,0,0.00,0.90,implemented,Base speed; body area depends on enemy. Collision can end attack early.,,,,
+dive,Dive attack,movement,0.50,0.60,1.46,1.00,,18.75,1,0,0.00,0.90,implemented,Base speed; body area depends on enemy. Collision can end attack early.,,,,
 ape_scream,Radial area attack,area,0.50,0.35,164.56,1.00,78.54,,1,0,0.00,0.61,implemented,Circle radius 5 units. Scripted opening/hurt wind-ups stay explicit.,,,,
-ape_leap,Ape leap,body,0.45,0.75,17.44,1.00,,38.76,1,0,0.00,0.46,implemented,Reference: 20-unit horizontal travel in 0.75 s. Targeted speed varies. Landing slam is separate.,,,0.75,75.00
+ape_leap,Ape leap,movement,0.45,0.75,17.44,1.00,,38.76,1,0,0.00,0.46,implemented,Reference: 20-unit horizontal travel in 0.75 s. Targeted speed varies. Landing slam is separate.,,,0.75,75.00
 ape_throw,Ape stone throw,ranged,0.70,0.02,5.18,1.00,4.00,33.50,1,0,0.00,0.77,implemented,Reference: 20-unit horizontal and zero vertical target offset; aimed ballistic launch varies. Source: https://deadcells.wiki.gg/wiki/Enemies,27.50,,0.70,50.00
-ape_slam,Landing shockwave,area,0.00,0.20,37.50,1.00,7.50,,1,0,0.00,0.00,implemented,60 x 8 pixel landing damage rectangle; phase-two hops enlarge it.,,,,
+ape_slam,Landing shockwave,movement,0.00,0.20,37.50,1.00,7.50,,1,0,0.00,0.00,implemented,60 x 8 pixel landing damage rectangle; phase-two hops enlarge it.,,,,
 ape_split,Split stone,ranged,0.00,0.02,2.19,1.00,1.00,21.87,2,0,0.00,0.00,implemented,One split stone; two created per impact. Score row represents the pair.,11.25,18.75,,50.00
 ape_log,Falling hazard,ranged,0.40,,,1.00,1.78,,1,0,0.00,0.00,reference_pending,"Starts at rest and accelerates, capped at 17.5 units/s. Initial-speed reference model cannot assign a finite travel-time score; deliberately unscored.",,,,25.00
