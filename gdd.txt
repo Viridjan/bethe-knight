@@ -513,3 +513,4 @@ validated CSV editor in source builds; web includes gameplay tables only.
 - 2026-10-31: Cmd+Q (macOS) / Ctrl+Q quits from anywhere, also paused or with a dialog / editor window focused (Game.QuitKey, always processing); desktop only.
 - 2026-10-31: Attack catalogue: a max range of 0 (empty in the editor, "no max") means no maximum; body attacks have no area of their own (blank in attacks.csv, "body" in the editor), scored with the body's size (reference 10x10 px / the Ape's 3x3 tiles).
 - 2026-10-31: attacks.csv: source_url merged into notes ("Source: <url>").
+- 2026-10-31: Attack catalogue multishot: projectiles_toward / projectiles_other / omnidirectional replaced by multishot (shots at once), aimed_shot (which one points at the player, 0 = lowest, upward from there) and spread_deg (degrees between shots; 0 = evenly around 360). Library monsters' shoot and lob fire the whole fan. Score: shots within 30 degrees of the aimed one count fully, others 20%.

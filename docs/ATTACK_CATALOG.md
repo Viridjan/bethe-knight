@@ -79,9 +79,12 @@ score = raw / penalty
 ```
 
 This implements a neutral penalty of 1 at or below measured time, rising linearly
-to 5 at two seconds. All type weights initially equal 1. For an omnidirectional
-pattern, shots toward the reference player count fully and other shots count 20%.
-For ordinary multi-shot patterns, every projectile counts fully.
+to 5 at two seconds. All type weights initially equal 1.
+
+**Multishot** (`multishot`, `aimed_shot`, `spread_deg`): an attack fires `multishot` projectiles at once;
+`aimed_shot` is the one pointing at the player (0 = the lowest, numbers go upward); `spread_deg` is the angle
+between neighbouring shots, and 0 spaces them evenly around the full circle. Library monsters' shoot and lob fire
+the whole fan. For the score, shots within 30 degrees of the aimed one count fully and the others count 20%.
 
 Scores for measured times of two seconds or more remain unavailable because the
 requested curve's anchors conflict there. Falling logs also remain unscored:

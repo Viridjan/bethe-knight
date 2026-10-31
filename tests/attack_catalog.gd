@@ -38,10 +38,18 @@ func _ready() -> void:
 	check(not catalog.score_attack(sample).valid, "Unresolved slow attack scoring is explicitly unavailable")
 	sample.initial_speed_units_s = "40"
 	sample.windup_s = "0.5"
-	sample.omnidirectional = "true"
-	sample.projectiles_toward = "2"
-	sample.projectiles_other = "6"
-	check(is_equal_approx(catalog.score_attack(sample).score, 12.8), "Omnidirectional volley weights other shots by 20 percent")
+	sample.multishot = "8"
+	sample.aimed_shot = "0"
+	sample.spread_deg = "0"
+	check(is_equal_approx(catalog.score_attack(sample).score, 4 * (1 + 7 * 0.2)), "A full-circle multishot counts the shots away from the player at 20 percent")
+	sample.multishot = "3"
+	sample.aimed_shot = "1"
+	sample.spread_deg = "15"
+	check(is_equal_approx(catalog.score_attack(sample).score, 12) and catalog.shot_angles(sample) == [-15.0, 0.0, 15.0], "A tight multishot fan counts every shot; shot 0 is the lowest")
+	sample.aimed_shot = "3"
+	catalog.attacks.append(sample)
+	check(not catalog.validate().is_empty(), "The aimed shot must be one of the shots")
+	catalog.attacks.erase(sample)
 	var rules: Array = catalog.ordered_attacks("enemy_monster", "default", ["charge", "shoot"])
 	check(rules.size() == 2 and rules[0].attack_name == "shoot", "Rules follow priority (highest first) regardless of saved attack order")
 	var shoot_rule: Dictionary = rules[0]

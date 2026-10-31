@@ -2203,6 +2203,22 @@ func check_monster_library() -> void:
 				break
 		Game.settings.invincible = false
 	check(seen.size() == 5, "each library attack fires at a player in reach (%s)" % [seen.keys()])
+	var shoot_row: Dictionary = E.AttackCatalog.shared().attack("shoot")
+	var keep_shot: Array = [shoot_row.multishot, shoot_row.aimed_shot, shoot_row.spread_deg]
+	shoot_row.merge({"multishot": "3", "aimed_shot": "1", "spread_deg": "20"}, true)
+	make_world([{"t": "enemy_monster", "x": 170, "y": floor_y - 2, "move": "patrol", "attacks": ["shoot"], "traits": [], "tier": 0, "look": "enemy_skeleton", "facing": -1}])
+	Game.settings.invincible = true
+	var shooter = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
+	for k in 120:
+		step()
+		if shooter.orbs.size() >= 3:
+			break
+	Game.settings.invincible = false
+	var dirs: Array = shooter.orbs.map(func(o): return o[1].normalized())
+	var aim: Vector2 = (p().center() - shooter.center()).normalized()
+	check(dirs.size() == 3 and dirs[1].distance_to(aim) < 0.2 and dirs[0].y > dirs[1].y and dirs[2].y < dirs[1].y,
+		"multishot: 3 shots, shot 1 aimed at the player, shot 0 the lowest (%s)" % [dirs])
+	shoot_row.merge({"multishot": keep_shot[0], "aimed_shot": keep_shot[1], "spread_deg": keep_shot[2]}, true)
 	make_world([{"t": "enemy_monster", "x": 300, "y": floor_y - 2, "move": "patrol", "attacks": ["charge"], "traits": ["armored", "brood"], "tier": 2, "look": "enemy_hornback"}])
 	var b = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
 	var hp0: int = b.hp

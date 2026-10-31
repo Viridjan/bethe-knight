@@ -5,7 +5,7 @@ const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body", "melee", "ranged", "area"]
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"]}
-const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "projectiles_toward", "projectiles_other", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
+const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
 var assignment_path := "res://data/enemy_attacks.csv"
@@ -79,7 +79,7 @@ func validate() -> String:
 		ids[id] = true
 		if row.get("type", "") not in TYPES: return _fail("attacks", i, "type", "Invalid type for " + id)
 		if row.get("status", "") == "implemented":
-			var required := ["windup_s", "animation_s", "base_weight", "projectiles_toward", "projectiles_other", "recovery_s"]
+			var required := ["windup_s", "animation_s", "base_weight", "multishot", "recovery_s"]
 			if row.type != "body": required.append("coverage_area_units2")  # body attacks: the enemy's body
 			if row.type in ["body", "ranged"]: required.append("initial_speed_units_s")
 			for field in required:
@@ -90,10 +90,13 @@ func validate() -> String:
 				return _fail("attacks", i, field, "Invalid nonnegative number: " + id + "." + field)
 		for field in ["animation_s", "initial_speed_units_s", "flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s"]:
 			if str(row.get(field, "")) != "" and float(row[field]) <= 0: return _fail("attacks", i, field, "Must be positive: " + id + "." + field)
-		for field in ["projectiles_toward", "projectiles_other"]:
-			var value := str(row.get(field, ""))
-			if value != "" and not value.is_valid_int(): return _fail("attacks", i, field, "Projectile counts must be integers: " + id)
-		if str(row.get("omnidirectional", "false")) not in ["true", "false"]: return _fail("attacks", i, "omnidirectional", "Expected true/false: " + id)
+		var shots := str(row.get("multishot", ""))
+		if shots != "" and (not shots.is_valid_int() or int(shots) < 1): return _fail("attacks", i, "multishot", "Multishot must be a whole number, 1 or more: " + id)
+		var aimed := str(row.get("aimed_shot", ""))
+		if aimed != "" and (not aimed.is_valid_int() or int(aimed) >= maxi(1, int(shots) if shots != "" else 1)):
+			return _fail("attacks", i, "aimed_shot", "Aimed shot is a shot number, 0 to multishot - 1: " + id)
+		var spread := str(row.get("spread_deg", ""))
+		if spread != "" and float(spread) >= 360: return _fail("attacks", i, "spread_deg", "Spread must be under 360 degrees: " + id)
 	var bindings := {}
 	for i in assignments.size():
 		var row: Dictionary = assignments[i]
@@ -138,8 +141,9 @@ func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: flo
 	if time >= 2: return {"valid": false, "reason": "Measured time >= 2 s: wind-up rule not decided"}
 	var windup := float(row.get("windup_s", "0")) * warning_scale
 	var penalty := 1.0 + 4.0 * clampf((windup - time) / (2.0 - time), 0, 1)
-	var count := float(row.get("projectiles_toward", "1"))
-	count += float(row.get("projectiles_other", "0")) * (0.2 if row.get("omnidirectional", "false") == "true" else 1.0)
+	var count := 0.0  # shots within 30 degrees of the aimed one count fully, the others (they rarely hit) 0.2
+	for offset in shot_angles(row):
+		count += 1.0 if absf(wrapf(offset, -180.0, 180.0)) <= 30.0 else 0.2
 	var raw := float(row.get("base_weight", "1")) * area / time * count
 	if not is_finite(raw): return {"valid": false, "reason": "Score exceeds numeric limits"}
 	return {"valid": true, "score": raw / penalty, "raw": raw, "penalty": penalty, "time": time, "area": area, "count": count}
@@ -169,6 +173,18 @@ func ordered_attacks(enemy_id: String, phase: String, available: Array = []) -> 
 		if float(a.priority) != float(b.priority): return float(a.priority) > float(b.priority)
 		return assignments.find(a) < assignments.find(b))
 	return result
+
+# Multishot: the angles (degrees) of the shots relative to the one aimed at the player, in shot order. Shot 0 is the
+# lowest; numbers go upward. spread_deg between neighbours; 0 spaces them evenly around the full circle.
+static func shot_angles(row: Dictionary) -> Array:
+	var n := maxi(1, int(str(row.get("multishot", "1")) if str(row.get("multishot", "")) != "" else "1"))
+	var aimed := clampi(int(str(row.get("aimed_shot", "0")) if str(row.get("aimed_shot", "")) != "" else "0"), 0, n - 1)
+	var spread := float(str(row.get("spread_deg", "0")) if str(row.get("spread_deg", "")) != "" else "0")
+	var step := spread if spread > 0 else 360.0 / n
+	var out: Array = []
+	for k in n:
+		out.append((k - aimed) * step)
+	return out
 
 # A binding's maximum range in tiles; 0 in the CSV means there's no maximum.
 static func max_range(row: Dictionary) -> float:
@@ -219,7 +235,7 @@ func range_warnings() -> String:
 
 # Keep authored decimals readable without rounding intermediate score calculations.
 func format_cell(column: String, cell: String) -> String:
-	var integers := ["projectiles_toward", "projectiles_other", "priority"]
+	var integers := ["multishot", "aimed_shot", "priority"]
 	var numeric := column in NUMERIC or column in ["score", "min_range_units", "max_range_units", "skip_chance"]
 	if numeric and column not in integers and cell.is_valid_float() and is_finite(float(cell)):
 		return "%.2f" % float(cell)

@@ -29,8 +29,8 @@ in GDScript. Score is an estimate of threat, not measured difficulty.
 | score | Generated value, never an independently edited input |
 
 Additional inputs needed to reproduce the score: `base_weight`,
-`coverage_area_units2`, `initial_speed_units_s`, `projectiles_toward`,
-`projectiles_other`, `omnidirectional`, and `recovery_s`. Put the source link in `notes` ("Source: ...") to
+`coverage_area_units2`, `initial_speed_units_s`, `multishot`, `aimed_shot`,
+`spread_deg`, and `recovery_s`. Put the source link in `notes` ("Source: ...") to
 identify the research reference; researched names without a verified source
 remain explicitly marked as proposed. Geometry can use a shape reference rather
 than a hand-maintained area when a hitbox definition already exists.
@@ -136,8 +136,9 @@ Wind-up is again separate.
 
 For identical projectiles:
 
-    normal volley = projectile_count * single_projectile_score
-    omnidirectional = (toward_count + 0.2 * other_count) * single_projectile_score
+    volley = (shots within 30 degrees of the aimed one + 0.2 * the other shots) * single_projectile_score
+
+(columns `multishot`, `aimed_shot`, `spread_deg`; spread 0 = evenly around the full circle)
 
 For different projectiles, sum their individual weighted scores. Snapshot the
 player direction when the volley is committed. Define "toward" as a positive dot

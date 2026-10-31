@@ -1330,13 +1330,19 @@ class ActionMonster extends CombatEnemy:
 			"leap": velocity = Vector2(clampf(to.x / _param("flight_time_s", 0.6), -_param("horizontal_speed_units_s", 15) * T, _param("horizontal_speed_units_s", 15) * T), -_param("vertical_speed_units_s", 21.25) * T)
 			"shoot":
 				timer = _param("animation_s", 1.0 / 60.0)
-				orbs.append([center(), to.normalized() * _param("initial_speed_units_s", 12.5) * T, 2.5])
+				for v in _fan(to.normalized() * _param("initial_speed_units_s", 12.5) * T):
+					orbs.append([center(), v, 2.5])
 			"lob":
 				timer = _param("animation_s", 1.0 / 60.0)
-				bones.append([center(), Vector2(to.x / _param("flight_time_s", 1.0), -_param("vertical_speed_units_s", 15) * T), 2.5, _param("gravity_units_s2", 30) * T])
+				for v in _fan(Vector2(to.x / _param("flight_time_s", 1.0), -_param("vertical_speed_units_s", 15) * T)):
+					bones.append([center(), v, 2.5, _param("gravity_units_s2", 30) * T])
 			"dive":
 				velocity = to.normalized() * _param("initial_speed_units_s", 18.75) * T * speed_multiplier
 				timer = _param("animation_s", 0.6)
+	# Multishot: one launch velocity per shot, the aimed one being v; higher shot numbers turn upward.
+	func _fan(v: Vector2) -> Array:
+		var up := -1.0 if v.x >= 0 else 1.0  # a negative angle turns a rightward vector up (screen y points down)
+		return AttackCatalog.shot_angles(attack_data).map(func(a): return v.rotated(deg_to_rad(a) * up))
 	func _attack(dt: float) -> bool:  # true when the attack is over
 		match attack:
 			"charge":
