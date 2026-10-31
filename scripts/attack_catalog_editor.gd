@@ -137,8 +137,7 @@ func _select_row(index: int) -> void:
 		["Identity", ["name", "type"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
 		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "base_weight"]],
-		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]],
-		["Follow-up", ["follow_up", "follow_up_count", "follow_up_gap_s"]]
+		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
 	]
 	if ranges:
 		groups = [["Assignment", ["enemy_id", "phase", "attack_name"]], ["Distance · tiles", ["min_range_units", "max_range_units", "priority"]]]
@@ -151,7 +150,7 @@ func _select_row(index: int) -> void:
 		grid.columns = 2 if group[0] == "Reference" else 4
 		grid.add_theme_constant_override("h_separation", 12)
 		form.add_child(grid)
-		var keep: Array = _applicable(_rows()[index]) + ["name", "type", "base_weight", "follow_up", "follow_up_count", "follow_up_gap_s"] if not ranges else []
+		var keep: Array = _applicable(_rows()[index]) + ["name", "type", "base_weight"] if not ranges else []
 		for column in group[1]:
 			if _rows()[index].has(column) and (ranges or column in keep):  # only the values that mean something for this attack
 				_add_field(grid, column, index)
@@ -441,8 +440,18 @@ func _select_enemy(i: int) -> void:
 			tag.modulate = Color(1, 1, 1, 0.6)
 			tag.tooltip_text = _help(column)
 			pair.add_child(tag)
-			_compact_field(pair, attack, column, score)
+			if column == "follow_up":
+				pair.add_child(_follow_up_picker(attack))
+			else:
+				_compact_field(pair, attack, column, score)
 			mech.add_child(pair)
+		if writable and not ("follow_up" in _applicable(attack)):  # no follow-up yet: one click adds one
+			mech.add_child(Game.button("+ Then…", func():
+				attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
+				dirty = true
+				dirty_changed.emit()
+				_select_enemy(enemy_index)
+				_update_feedback()))
 		block.add_child(HSeparator.new())
 	if writable:  # any attack from the catalogue, or a brand-new one
 		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
@@ -488,6 +497,8 @@ func _applicable(attack: Dictionary) -> Array:  # the values that mean something
 	var shots := type == "ranged" or int(str(attack.get("multishot", "1")) if str(attack.get("multishot", "")) != "" else "1") > 1
 	return TAGS.keys().filter(func(c):
 		if c == "base_weight": return false  # edited in the Attacks tab
+		if c in ["follow_up", "follow_up_count", "follow_up_gap_s"]:  # all three once it has a follow-up (Enemies tab)
+			return str(attack.get("follow_up", "")) != "" or str(attack.get("follow_up_count", "")) != ""
 		if c == "animation_s" and type in ["ranged", "movement"]: return false  # not used: the shot / the move sets the time
 		if c in ["multishot", "aimed_shot", "spread_deg"] and not shots: return false
 		return c in need or str(attack.get(c, "")) != "")
@@ -657,6 +668,28 @@ func _delete_attack(name: String) -> void:
 		if not confirm.visible: confirm.queue_free())
 	add_child(confirm)
 	confirm.popup_centered()
+
+# "Then": which attack follows this one (none = no follow-up, clears its times and gap).
+func _follow_up_picker(attack: Dictionary) -> OptionButton:
+	var pick := OptionButton.new()
+	pick.add_theme_font_size_override("font_size", 12)
+	pick.add_item("none")
+	var names: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(n): return n != attack.name)
+	for n in names:
+		pick.add_item(n)
+	pick.select(names.find(str(attack.get("follow_up", ""))) + 1)
+	pick.disabled = not writable
+	pick.tooltip_text = _help("follow_up")
+	pick.item_selected.connect(func(i):
+		if i == 0:
+			attack.merge({"follow_up": "", "follow_up_count": "", "follow_up_gap_s": ""}, true)
+		else:
+			attack.follow_up = names[i - 1]
+		dirty = true
+		dirty_changed.emit()
+		_select_enemy(enemy_index)
+		_update_feedback())
+	return pick
 
 # A new attack row (status planned: no gameplay yet), named new_attack_N; returns its name.
 func _new_attack() -> String:

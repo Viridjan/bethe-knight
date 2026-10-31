@@ -132,7 +132,7 @@ func _ready() -> void:
 		editor.catalog = catalog
 		add_child(editor)
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
-		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 5, "Attack form groups fields into five sections with two fields per row")
+		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 4, "Attack form groups charge's fields into four sections, two per row (follow-ups are in Enemies)")
 		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
 		check(not editor.fields.has("score") and not editor.fields.has("notes") and editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
 			"The Attacks tab holds what makes an attack work, plus its score weight")
@@ -190,6 +190,24 @@ func _ready() -> void:
 		catalog.assignments = catalog.assignments.filter(func(b): return b.attack_name != made)
 		check(del_ok and del_locked and catalog.attack(made).is_empty() and catalog.validate().is_empty(), "An attack the code doesn't use can be deleted; used ones can't")
 		editor._show_enemies()
+		var ch: Dictionary = catalog.attack("charge")
+		editor._select_enemy(0)
+		var adds: Array = []
+		var findb := func(node, f):
+			for c in node.get_children():
+				if c is Button and c.text == "+ Then…": adds.append(c)
+				f.call(c, f)
+		findb.call(editor.form, findb)
+		adds[0].pressed.emit()
+		var picks: Array = []
+		var findp := func(node, f):
+			for c in node.get_children():
+				if c is OptionButton and c.get_item_text(0) == "none": picks.append(c)
+				f.call(c, f)
+		findp.call(editor.form, findp)
+		check(not adds.is_empty() and not picks.is_empty(), "Enemies tab: '+ Then…' adds a follow-up with an attack picker")
+		for x in catalog.attacks:  # undo: drop the half-made follow-up again
+			if str(x.get("follow_up", "")) == "": x.merge({"follow_up_count": "", "follow_up_gap_s": ""}, true)
 		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
 		check(editor.summary.text.begins_with("Saved builds:"), "The library monster's score summary is pinned below the list")
 		editor._select_enemy(0)
