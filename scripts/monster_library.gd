@@ -13,11 +13,10 @@ const MOVES := {
 }
 # attack -> label, needs ground (true) / air (false) / either (null), range bindings live in data/enemy_attacks.csv
 const ATTACKS := {
-	"charge": {"label": "charges along the ground", "ground": true},
+	"charge": {"label": "charges at you", "ground": null},
 	"leap": {"label": "leaps at you", "ground": true},
 	"shoot": {"label": "shoots a bolt", "ground": null},
 	"lob": {"label": "lobs an arcing glob", "ground": null},
-	"dive": {"label": "dives at you", "ground": false},
 }
 # Zodiac: each region has a sign; its own (native) monsters are built from the sign's moves and attacks.
 const SIGNS := {
@@ -31,8 +30,8 @@ const SIGNS := {
 	"Scorpio": {"moves": ["hop", "patrol"], "attacks": ["lob", "leap"]},  # the scorpion / serpent
 	"Sagittarius": {"moves": ["patrol", "hover"], "attacks": ["shoot"]},  # the archer
 	"Capricorn": {"moves": ["hop"], "attacks": ["leap"]},  # the goat
-	"Aquarius": {"moves": ["hover"], "attacks": ["lob", "dive"]},  # the water bearer
-	"Pisces": {"moves": ["hover"], "attacks": ["dive"]},  # the fish
+	"Aquarius": {"moves": ["hover"], "attacks": ["lob", "charge"]},  # the water bearer
+	"Pisces": {"moves": ["hover"], "attacks": ["charge"]},  # the fish
 }
 # traits = CombatEnemy variants (speed, warning, recovery, size; hit points in CombatEnemy.variant_hp)
 const TRAITS := ["swift", "armored", "giant", "shielded", "brood", "venom"]

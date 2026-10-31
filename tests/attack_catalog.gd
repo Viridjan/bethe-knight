@@ -176,9 +176,9 @@ func _ready() -> void:
 		var made: String = editor._new_attack()
 		editor._add_binding(hb_e, made)
 		check(catalog.validate().is_empty() and catalog.ordered_attacks("enemy_hornback", "default").size() == 3 and not catalog.attack(made).is_empty()
-			and catalog.select_attack("enemy_hornback", "default", [], 1) == "hornback_charge",
+			and catalog.select_attack("enemy_hornback", "default", [], 1) == "charge",
 			"Any attack (or a new one) can be added to an enemy; ones its code can't do yet are kept but skipped in play")
-		for b in catalog.ordered_attacks("enemy_hornback", "default").filter(func(x): return x.attack_name != "hornback_charge"):
+		for b in catalog.ordered_attacks("enemy_hornback", "default").filter(func(x): return x.attack_name != "charge"):
 			catalog.assignments.erase(b)
 		editor._add_binding(hb_e, made)  # delete: gone from the catalogue and from the enemy
 		editor._show_table(false)

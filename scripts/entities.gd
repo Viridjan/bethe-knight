@@ -1027,7 +1027,7 @@ class SkreeEnemy extends CombatEnemy:
 class BatEnemy extends CombatEnemy:
 	var velocity := Vector2.ZERO
 	var swooped := 0.0  # px flown in the current swoop
-	func attack_id() -> String: return "duskflit_swoop"
+	func attack_id() -> String: return "charge"  # shared: a flyer's charge is its swoop
 	# Initialize BatEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1196,7 +1196,7 @@ class HornbackEnemy extends CombatEnemy:
 	# Walks its floor. A player at its height in sight gets a warning, then a fast charge that stops at walls and ledges.
 	var gravity_speed := 0.0
 	var charged := 0.0  # px run in the current charge
-	func attack_id() -> String: return "hornback_charge"
+	func attack_id() -> String: return "charge"
 	# Initialize HornbackEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1320,7 +1320,7 @@ class ActionMonster extends CombatEnemy:
 				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
 					func(a):
 						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
-						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or absf(w.player.center().y - center().y) < 12 * scale), scale)
+						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale)
 				if not chosen.is_empty():
 					facing = -1 if w.player.center().x < center().x else 1
 					Game.play_sfx("enemy_alert")
@@ -1354,7 +1354,10 @@ class ActionMonster extends CombatEnemy:
 		phase = "attack"
 		var to: Vector2 = w.player.center() - center()
 		match a:
-			"charge": travelled = 0.0
+			"charge":  # walkers run along the floor; flyers fly straight at the player
+				travelled = 0.0
+				if not ground():
+					velocity = to.normalized() * _param("initial_speed_units_s", 13.75) * T * speed_multiplier
 			"leap": velocity = Vector2(clampf(to.x / _param("flight_time_s", 0.6), -_param("horizontal_speed_units_s", 15) * T, _param("horizontal_speed_units_s", 15) * T), -_param("vertical_speed_units_s", 21.25) * T)
 			"shoot":
 				timer = _param("animation_s", 1.0 / 60.0)
@@ -1364,16 +1367,16 @@ class ActionMonster extends CombatEnemy:
 				timer = _param("animation_s", 1.0 / 60.0)
 				for v in _fan(Vector2(to.x / _param("flight_time_s", 1.0), -_param("vertical_speed_units_s", 15) * T)):
 					bones.append([center(), v, 2.5, _param("gravity_units_s2", 30) * T])
-			"dive":
-				velocity = to.normalized() * _param("initial_speed_units_s", 18.75) * T * speed_multiplier
-				travelled = 0.0
 	# Multishot: one launch velocity per shot, the aimed one being v; higher shot numbers turn upward.
 	func _fan(v: Vector2) -> Array:
 		var up := -1.0 if v.x >= 0 else 1.0  # a negative angle turns a rightward vector up (screen y points down)
 		return AttackCatalog.shot_angles(attack_data).map(func(a): return v.rotated(deg_to_rad(a) * up))
 	func _attack(dt: float) -> bool:  # true when the attack is over
 		match attack:
-			"charge":  # until a wall or ledge, or its maximum distance
+			"charge":  # until a wall, a ledge or anything it hits, or its maximum distance
+				if not ground():
+					travelled += velocity.length() * dt
+					return move_enemy(velocity * dt) or travelled >= _param("max_distance_units", 16.5) * T
 				var px := _param("initial_speed_units_s", 13.75) * T * speed_multiplier * dt
 				travelled += px
 				return walk(px) or travelled >= _param("max_distance_units", 16.5) * T
@@ -1384,9 +1387,6 @@ class ActionMonster extends CombatEnemy:
 				if landed:
 					velocity = Vector2.ZERO
 				return landed
-			"dive":  # until it hits something, or its maximum distance
-				travelled += velocity.length() * dt
-				return move_enemy(velocity * dt) or travelled >= _param("max_distance_units", 11.25) * T
 		return timer <= 0  # shot is out; finish its CSV execution interval
 	func vis_rect() -> Rect2i:
 		var area := body_rect()
@@ -1493,7 +1493,7 @@ class MurksporeEnemy extends CombatEnemy:
 	# Big hovering spore: keeps its distance, bobs, and spits a three-orb spread at a visible player.
 	var orbs: Array = []  # owned projectiles (see update_shots)
 	var bob := 0.0
-	func attack_id() -> String: return "murkspore_spread"
+	func attack_id() -> String: return "shoot"
 	# Initialize MurksporeEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()

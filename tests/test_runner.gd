@@ -1094,7 +1094,9 @@ func check_combat_enemies() -> void:
 	p().pos = Vector2(160, 140)
 	enemy.update(DT)
 	check(enemy.phase == "windup", "Duskflit warns before swooping at a visible target")
-	for i in 26: enemy.update(DT)
+	for i in 60:  # its warning (the shared charge's wind-up), then the swoop
+		enemy.update(DT)
+		if enemy.phase == "swoop": break
 	var locked: Vector2 = enemy.velocity
 	p().pos = Vector2(80, 216)
 	enemy.update(DT)
@@ -1282,7 +1284,8 @@ func check_big_enemies() -> void:
 	for i in 200:
 		m.update(DT)
 		spat = maxi(spat, m.orbs.size())
-	check(spat == 3, "Murkspore spits a three-orb spread (%d)" % spat)
+	var shots := int(E.AttackCatalog.shared().attack("shoot").multishot)
+	check(spat == shots, "Murkspore fires the shared 'shoot' (%d of %d shots)" % [spat, shots])
 	m.orbs = [[p().center() + Vector2(10, 0), Vector2.ZERO, 1.0]]
 	p().attack_timer = 0.1
 	p().attack_dir = Vector2.RIGHT
@@ -2226,15 +2229,16 @@ func check_monster_library() -> void:
 		"a monster placed in the editor rolls a build from its spot and keeps it (%s)" % placed.describe())
 	var floor_y := 27 * 8
 	var seen := {}
-	for a in ["charge", "leap", "shoot", "lob", "dive"]:
-		var move := "hover" if a == "dive" else "patrol"
+	for pair in [["charge", "patrol"], ["leap", "patrol"], ["shoot", "patrol"], ["lob", "patrol"], ["charge", "hover"]]:  # a flyer's charge flies at you
+		var a: String = pair[0]
+		var move: String = pair[1]
 		make_world([{"t": "enemy_monster", "x": 140, "y": (floor_y - 40) if move == "hover" else floor_y - 2, "move": move, "attacks": [a], "traits": [], "tier": 0, "look": Lib.MOVES[move].looks[0], "facing": -1}])
 		Game.settings.invincible = true
 		var m = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
 		for k in 120:
 			step()
 			if m.phase == "attack" or m.orbs.size() + m.bones.size() > 0:
-				seen[a] = true
+				seen[a + "/" + move] = true
 				break
 		Game.settings.invincible = false
 	check(seen.size() == 5, "each library attack fires at a player in reach (%s)" % [seen.keys()])
@@ -2272,7 +2276,7 @@ func check_monster_library() -> void:
 	Game.settings.invincible = false
 	charge_row.max_distance_units = keep_dist
 	check(ran > 0 and ran <= 3 * 8 + 3, "a charge stops at its maximum distance (%.1f px of 24)" % ran)
-	var hb_row: Dictionary = E.AttackCatalog.shared().attack("hornback_charge")
+	var hb_row: Dictionary = E.AttackCatalog.shared().attack("charge")  # shared with library monsters and Duskflit
 	var hb_bind: Dictionary = E.AttackCatalog.shared().ordered_attacks("enemy_hornback", "default")[0]
 	var keep_hb: String = hb_row.max_distance_units
 	hb_row.max_distance_units = "2"

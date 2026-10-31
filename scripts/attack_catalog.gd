@@ -4,9 +4,9 @@ extends RefCounted
 const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
-const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
-	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["duskflit_swoop"], "enemy_skeleton": ["ossling_bone_throw"],
-	"enemy_hornback": ["hornback_charge"], "enemy_cragjaw": ["cragjaw_leap"], "enemy_murkspore": ["murkspore_spread"]}
+const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
+	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
+	"enemy_hornback": ["charge"], "enemy_cragjaw": ["cragjaw_leap"], "enemy_murkspore": ["shoot"]}
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "follow_up_count", "follow_up_gap_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
@@ -174,7 +174,7 @@ func enemy_score(ids: Array, body_area: float, speed_scale: float = 1.0, warning
 		seen[id] = true
 		var row := attack(id)
 		var area := body_area if uses_body(row) else float(row.get("coverage_area_units2", "0")) * size_scale * size_scale
-		var effective_speed := speed_scale if id in ["charge", "dive"] else 1.0
+		var effective_speed := speed_scale if id == "charge" else 1.0
 		var score := score_attack(row, area, effective_speed, warning_scale)
 		if not score.valid:
 			unscored.append(str(id) + ": " + score.reason)
