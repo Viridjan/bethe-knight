@@ -23,6 +23,7 @@ func _ready() -> void:
 	check(catalog.reload(), "Shipped attack and range CSVs validate")
 	check(catalog.attacks.size() >= 9, "Library and Ape attacks are catalogued")
 	var sample: Dictionary = catalog.attack("charge").duplicate(true)
+	sample.type = "ranged"  # body attacks use the body's area, not this column (checked below)
 	sample.coverage_area_units2 = "2"
 	sample.initial_speed_units_s = "40"
 	sample.windup_s = "0.5"
@@ -52,6 +53,13 @@ func _ready() -> void:
 	catalog.move_binding(shoot_rule, -1)
 	check(catalog.select_attack("enemy_monster", "default", ["charge", "shoot"], 2, func(a): return a != "shoot") == "charge", "Ineligible first attack falls back to next rule")
 	check(catalog.select_attack("enemy_monster", "default", ["charge", "shoot"], 100) == "", "Out-of-range attacks do not execute")
+	check(catalog.attack("charge").coverage_area_units2 == "" and is_equal_approx(catalog.score_attack(catalog.attack("charge")).area, 1.5625) and is_equal_approx(catalog.score_attack(catalog.attack("ape_leap")).area, 9.0),
+		"Body attacks hit with the body: no area of their own, the reference body is used")
+	var open_rule: Dictionary = catalog.ordered_attacks("enemy_monster", "default", ["leap"])[0]
+	var keep_max: String = open_rule.max_range_units
+	open_rule.max_range_units = "0"
+	check(catalog.validate().is_empty() and catalog.select_attack("enemy_monster", "default", ["leap"], 500) == "leap", "A maximum range of 0 means no maximum")
+	open_rule.max_range_units = keep_max
 	var total: Dictionary = catalog.enemy_score(["charge", "charge"], 2)
 	var one: Dictionary = catalog.score_attack(catalog.attack("charge"), 2)
 	check(total.valid and is_equal_approx(total.score, 2 + one.score), "Enemy hitbox area is added once and duplicate attack bindings do not double count")

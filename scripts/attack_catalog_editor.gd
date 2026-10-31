@@ -124,6 +124,9 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	edit.custom_minimum_size.x = 125
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edit.editable = writable and column not in ["score", "name", "type", "status"]
+	if column == "coverage_area_units2" and _rows()[index].get("type", "") == "body":  # body attacks: the enemy's own body
+		edit.text = "body"
+		edit.editable = false
 	edit.tooltip_text = _help(column)
 	if catalog.error_at.table == ("ranges" if ranges else "attacks") and catalog.error_at.index == index and catalog.error_at.field == column:
 		edit.add_theme_color_override("font_color", Color("ff7070"))  # the value the validation stopped at
@@ -282,6 +285,10 @@ func _select_enemy(i: int) -> void:
 		for column in ["min_range_units", "max_range_units", "skip_chance"]:
 			var edit := LineEdit.new()
 			edit.text = catalog.format_cell(column, str(row.get(column, "0")))
+			if column == "max_range_units" and float(str(row.get(column, "0"))) == 0:
+				edit.text = ""  # 0 = no maximum
+			if column == "max_range_units":
+				edit.placeholder_text = "no max"
 			edit.custom_minimum_size.x = 80
 			edit.editable = writable
 			edit.tooltip_text = _help(column)
@@ -316,7 +323,7 @@ func _select_enemy(i: int) -> void:
 	summary.text = "Skip %: the chance an attack in range passes its turn, so the next one in the list is tried."
 
 func _binding_change(row: Dictionary, column: String, value: String) -> void:
-	row[column] = value
+	row[column] = "0" if column == "max_range_units" and value.strip_edges().is_empty() else value  # empty = no maximum
 	dirty = true
 	dirty_changed.emit()
 	_update_feedback()
@@ -384,10 +391,11 @@ func _help(field: String) -> String:
 		"score": return "Derived reference score; recalculated when saved. Not editable."
 		"windup_s": return "Warning before execution, in seconds. Longer warning reduces score."
 		"animation_s": return "Execution duration; area/melee scoring uses this. Projectiles use 20-unit reference travel time."
-		"coverage_area_units2": return "Reference damage area in square tiles, not sprite size. Body scores use actual enemy size in encounter inspection."
+		"coverage_area_units2": return "Damage area in square tiles, not sprite size. Body attacks hit with the enemy's own body: its size is used (10x10 px reference here; each enemy's real size in Enemies)."
 		"initial_speed_units_s": return "Initial speed for reference scoring; charge, dive, and straight shots also use this at runtime. Aimed ballistic attacks use their component parameters."
 		"priority": return "Higher values are checked first when maximum ranges match."
 		"skip_chance": return "Percent chance this attack passes its turn when it could be used; the next one in the list is tried."
-		"min_range_units", "max_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive. Large maximum ranges are checked first."
+		"max_range_units": return "Center-to-center radial distance in tiles, exclusive. Empty (0) = no maximum."
+		"min_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive. Large maximum ranges are checked first."
 		"notes": return str(_rows()[selected].get("notes", ""))
 	return field.replace("_", " ") + ". Blank means unspecified, not zero. See docs/ATTACK_SCORING_PLAN.md."

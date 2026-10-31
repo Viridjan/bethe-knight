@@ -1292,7 +1292,7 @@ class ActionMonster extends CombatEnemy:
 				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
 					func(a):
 						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
-						return sees_player(float(row.max_range_units) * T * scale) and (a != "charge" or absf(w.player.center().y - center().y) < 12 * scale), scale)
+						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or absf(w.player.center().y - center().y) < 12 * scale), scale)
 				if not chosen.is_empty():
 					facing = -1 if w.player.center().x < center().x else 1
 					Game.play_sfx("enemy_alert")
@@ -2668,7 +2668,7 @@ class Ape extends Ent:
 	func _select_attack(distance_units: float, above: bool, corner: bool, allow_throw: bool) -> String:
 		var phase_name := "enraged" if enraged() else "normal"
 		var near_rules: Array = AttackCatalog.shared().ordered_attacks("boss_ape", phase_name, ["ape_scream"])
-		var near_limit := float(near_rules[0].max_range_units) if not near_rules.is_empty() else NEAR / T
+		var near_limit: float = AttackCatalog.max_range(near_rules[0]) if not near_rules.is_empty() else NEAR / T
 		return AttackCatalog.shared().select_attack("boss_ape", phase_name, [], distance_units,
 			func(id):
 				if id == "ape_throw": return allow_throw

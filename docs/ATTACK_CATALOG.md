@@ -22,7 +22,8 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
   discarding a draft. Saving refuses to overwrite files changed externally since
   they were loaded.
 - **Enemies** lists the CSV-driven enemies (library monster, Ape, Ape enraged). Pick one to see its sprite and
-  its attacks **in priority order**: the first attack that is in range (minimum inclusive, maximum exclusive),
+  its attacks **in priority order**: the first attack that is in range (minimum inclusive, maximum exclusive;
+  an empty / 0 maximum means no maximum),
   eligible and not skipped starts. ▲ / ▼ move an attack up or down (priorities are renumbered), ✕ removes it,
   "+ Add attack" adds an implemented one at the bottom. **Skip %** (`skip_chance`, 0-100) is the chance an attack
   passes its turn when it could be used, so the next one is tried. Below the list: the scores, per saved library
@@ -33,6 +34,10 @@ can inspect the catalogue; the web keeps the development editor hidden and out
 of its package. Stable runtime IDs, implemented types, and derived scores cannot
 be edited in the form. New behavior still requires a gameplay implementation;
 adding an unknown attack binding to CSV is rejected.
+
+Body attacks (charge, leap, dive, the Ape's leap) hit with the enemy's own body: they have no area of their own
+(blank `coverage_area_units2`, shown as "body"); scores use the body's size (a 10x10 px library monster or the
+Ape's 3x3 tiles as the reference in the Attacks tab, each enemy's real size in Enemies).
 
 The source tables are [attacks.csv](../data/attacks.csv) and
 [enemy_attacks.csv](../data/enemy_attacks.csv). A blank means unspecified, not zero.

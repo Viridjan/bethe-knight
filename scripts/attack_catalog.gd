@@ -79,7 +79,8 @@ func validate() -> String:
 		ids[id] = true
 		if row.get("type", "") not in TYPES: return _fail("attacks", i, "type", "Invalid type for " + id)
 		if row.get("status", "") == "implemented":
-			var required := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "projectiles_toward", "projectiles_other", "recovery_s"]
+			var required := ["windup_s", "animation_s", "base_weight", "projectiles_toward", "projectiles_other", "recovery_s"]
+			if row.type != "body": required.append("coverage_area_units2")  # body attacks: the enemy's body
 			if row.type in ["body", "ranged"]: required.append("initial_speed_units_s")
 			for field in required:
 				if str(row.get(field, "")).is_empty(): return _fail("attacks", i, field, "Implemented attack requires " + id + "." + field)
@@ -109,7 +110,7 @@ func validate() -> String:
 			var value := str(row.get(field, ""))
 			if not value.is_valid_float() or not is_finite(float(value)) or float(value) < 0: return _fail("ranges", i, field, "Invalid range/priority: " + key)
 		if not str(row.priority).is_valid_int(): return _fail("ranges", i, "priority", "Priority must be an integer: " + key)
-		if float(row.max_range_units) <= float(row.min_range_units): return _fail("ranges", i, "max_range_units", "Range maximum must exceed minimum: " + key)
+		if float(row.max_range_units) != 0 and float(row.max_range_units) <= float(row.min_range_units): return _fail("ranges", i, "max_range_units", "Range maximum must exceed minimum (0 = no maximum): " + key)
 		var skip := str(row.get("skip_chance", ""))
 		if skip != "" and (not skip.is_valid_float() or float(skip) < 0 or float(skip) > 100): return _fail("ranges", i, "skip_chance", "Skip chance must be 0-100 %: " + key)
 	for enemy_id in EXECUTABLE:
@@ -127,7 +128,7 @@ func value(id: String, field: String, fallback: float) -> float:
 	return fallback if cell.is_empty() else float(cell)
 
 func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0) -> Dictionary:
-	var area := area_override if area_override >= 0 else float(row.get("coverage_area_units2", "0"))
+	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if row.get("type", "") == "body" else float(row.get("coverage_area_units2", "0")))
 	var time := float(row.get("animation_s", "0"))
 	if row.get("type", "") in ["body", "ranged"]:
 		var speed := float(row.get("initial_speed_units_s", "0")) * speed_scale
@@ -169,6 +170,16 @@ func ordered_attacks(enemy_id: String, phase: String, available: Array = []) -> 
 		return assignments.find(a) < assignments.find(b))
 	return result
 
+# A binding's maximum range in tiles; 0 in the CSV means there's no maximum.
+static func max_range(row: Dictionary) -> float:
+	var m := float(row.get("max_range_units", "0"))
+	return INF if m == 0 else m
+
+# Body attacks hit with the enemy's own body, so their area is the body's: the Ape's 3x3 tiles, a library monster's
+# 10x10 px as the reference here (each enemy's real size is used in its scores).
+static func body_area(id: String) -> float:
+	return 9.0 if id.begins_with("ape") else 1.5625
+
 # Move a binding one place up (-1) or down (+1) in its enemy/phase list; priorities are renumbered n-1 .. 0.
 func move_binding(row: Dictionary, step: int) -> void:
 	var rows := ordered_attacks(row.enemy_id, row.phase)
@@ -184,7 +195,7 @@ func move_binding(row: Dictionary, step: int) -> void:
 # that attack passes and the next one is tried.
 func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0) -> String:
 	for row in ordered_attacks(enemy_id, phase, available):
-		if distance < float(row.min_range_units) * range_scale or distance >= float(row.max_range_units) * range_scale: continue
+		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue
 		var skip := str(row.get("skip_chance", ""))
 		if skip != "" and randf() * 100.0 < float(skip): continue
@@ -202,7 +213,7 @@ func range_warnings() -> String:
 			if other == row: break
 			if other.attack_name in CHOSEN_BY_RULE: continue
 			if row.enemy_id == "enemy_monster": continue  # each build has only some of these attacks: overlaps are expected
-			if float(other.min_range_units) <= float(row.min_range_units) and float(other.max_range_units) >= float(row.max_range_units):
+			if float(other.min_range_units) <= float(row.min_range_units) and max_range(other) >= max_range(row):
 				warnings.append("%s/%s: %s covers %s's range; latter needs an eligibility fallback." % [row.enemy_id, row.phase, other.attack_name, row.attack_name])
 	return "\n".join(warnings)
 
