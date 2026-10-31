@@ -2531,6 +2531,7 @@ class Ape extends Ent:
 	var hops := 0  # in-place hops still to do after an enraged scream
 	var retreat := false  # this leap goes away from a cornered player, then a volley follows
 	var volley := 0  # stones still to throw in a volley
+	var volley_gap := VOLLEY_GAP
 	var throw_chance := THROW_CHANCE  # tests pin it to 0 or 1
 	var slam_scale := 1.0
 	var logs: Array = []  # [top-left, vy, wait]
@@ -2640,8 +2641,11 @@ class Ape extends Ent:
 						var chosen := _select_attack(dist / T, above, corner, randf() < throw_chance)
 						match chosen:
 							"ape_throw": _go("throw", AttackCatalog.shared().value(chosen, "windup_s", 0.7))
+							"ape_retreat":
+								retreat = true
+								_go("crouch", AttackCatalog.shared().value(chosen, "windup_s", 0.45))
 							"ape_leap":
-								retreat = corner and not above
+								retreat = false
 								_go("crouch", AttackCatalog.shared().value(chosen, "windup_s", 0.45))
 							"ape_scream": _go("scream", AttackCatalog.shared().value(chosen, "windup_s", 0.5))
 
@@ -2650,7 +2654,7 @@ class Ape extends Ent:
 					_throw(p.center())
 					volley = maxi(0, volley - 1)
 					if volley > 0:
-						_go("throw", VOLLEY_GAP)
+						_go("throw", volley_gap)
 					else:
 						_go("idle", _ape_param("ape_throw", "recovery_s", 1.0 * PAUSE))
 			"crouch":
@@ -2665,8 +2669,9 @@ class Ape extends Ent:
 						tx = center().x
 						slam_scale = HOP_SCALE[hops - 1]
 						hops -= 1
-					var duration := _ape_param("ape_leap", "flight_time_s", LEAP_TIME)
-					var gravity := _ape_param("ape_leap", "gravity_units_s2", LEAP_G / T) * T
+					var leap_id := "ape_retreat" if retreat else "ape_leap"
+					var duration := _ape_param(leap_id, "flight_time_s", LEAP_TIME)
+					var gravity := _ape_param(leap_id, "gravity_units_s2", LEAP_G / T) * T
 					vel = Vector2((tx - center().x) / duration, -0.5 * gravity * duration)
 					phase = "air"
 			"air":
@@ -2713,8 +2718,9 @@ class Ape extends Ent:
 		var near_limit: float = AttackCatalog.max_range(near_rules[0]) if not near_rules.is_empty() else NEAR / T
 		return AttackCatalog.shared().select_attack("boss_ape", phase_name, [], distance_units,
 			func(id):
+				if id == "ape_retreat": return corner and not above  # cornered: away to the far side, then its follow-up
 				if id == "ape_throw": return allow_throw
-				if id == "ape_leap": return above or corner or distance_units >= near_limit
+				if id == "ape_leap": return above or corner or distance_units >= near_limit  # (cornered too, if the retreat is skipped)
 				return id == "ape_scream" and not above and not corner)
 	func _ape_param(id: String, field: String, fallback: float) -> float:
 		if attack_snapshot.get("name", "") == id:
@@ -2788,10 +2794,12 @@ class Ape extends Ent:
 		_drop_log()  # every landing shakes one log loose, the hops in place too
 		if hops > 0:
 			_go("crouch", 0.25)
-		elif retreat:  # landed away from a cornered player: a volley of 3 stones
+		elif retreat:  # landed away from a cornered player: the retreat's follow-up (CSV: 3 stones, 0.35 s apart)
 			retreat = false
-			volley = VOLLEY
-			_go("throw", VOLLEY_GAP)
+			var row: Dictionary = AttackCatalog.shared().attack("ape_retreat")
+			volley = int(str(row.get("follow_up_count", ""))) if str(row.get("follow_up_count", "")).is_valid_int() else VOLLEY
+			volley_gap = float(str(row.get("follow_up_gap_s", ""))) if str(row.get("follow_up_gap_s", "")).is_valid_float() else VOLLEY_GAP
+			_go("throw", volley_gap)
 		else:
 			_go("idle", _ape_param("ape_leap", "recovery_s", 0.6 * PAUSE))
 	# Remove boss health, select the hurt/dying phase and reveal the next arena hazards when applicable.

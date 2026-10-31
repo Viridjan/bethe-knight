@@ -4,10 +4,10 @@ extends RefCounted
 const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
-const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_throw", "ape_leap", "ape_scream"],
+const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob", "dive"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["duskflit_swoop"], "enemy_skeleton": ["ossling_bone_throw"],
 	"enemy_hornback": ["hornback_charge"], "enemy_cragjaw": ["cragjaw_leap"], "enemy_murkspore": ["murkspore_spread"]}
-const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
+const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "follow_up_count", "follow_up_gap_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
 var assignment_path := "res://data/enemy_attacks.csv"
@@ -98,6 +98,12 @@ func validate() -> String:
 		var aimed := str(row.get("aimed_shot", ""))
 		if aimed != "" and (not aimed.is_valid_int() or int(aimed) >= maxi(1, int(shots) if shots != "" else 1)):
 			return _fail("attacks", i, "aimed_shot", "Aimed shot is a shot number, 0 to multishot - 1: " + id)
+		var then := str(row.get("follow_up", ""))  # a follow-up: another attack, this many times, this far apart
+		if then != "":
+			if not attacks.any(func(o): return o.get("name", "") == then) or then == id: return _fail("attacks", i, "follow_up", "Follow-up must be another attack: " + id)
+			var times := str(row.get("follow_up_count", ""))
+			if not times.is_valid_int() or int(times) < 1: return _fail("attacks", i, "follow_up_count", "Follow-up count must be 1 or more: " + id)
+			if not str(row.get("follow_up_gap_s", "")).is_valid_float() or float(row.get("follow_up_gap_s", "0")) <= 0: return _fail("attacks", i, "follow_up_gap_s", "Follow-up gap must be over 0 s: " + id)
 		var spread := str(row.get("spread_deg", ""))
 		if spread != "" and float(spread) >= 360: return _fail("attacks", i, "spread_deg", "Spread must be under 360 degrees: " + id)
 	var bindings := {}
@@ -150,7 +156,15 @@ func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: flo
 		count += 1.0 if absf(wrapf(offset, -180.0, 180.0)) <= 30.0 else 0.2
 	var raw := float(row.get("base_weight", "1")) * area / time * count
 	if not is_finite(raw): return {"valid": false, "reason": "Score exceeds numeric limits"}
-	return {"valid": true, "score": raw / penalty, "raw": raw, "penalty": penalty, "time": time, "area": area, "count": count}
+	var total := raw / penalty
+	var then := str(row.get("follow_up", ""))  # its follow-up, as many times as it comes
+	if then != "" and then != str(row.get("name", "")):
+		var once: Dictionary = attack(then).duplicate()
+		once.follow_up = ""  # one level: a chain that loops back can't recurse
+		var follow := score_attack(once, -1.0, speed_scale, warning_scale)
+		if follow.get("valid", false):
+			total += follow.score * maxi(1, int(str(row.get("follow_up_count", "1")) if str(row.get("follow_up_count", "")) != "" else "1"))
+	return {"valid": true, "score": total, "raw": raw, "penalty": penalty, "time": time, "area": area, "count": count}
 
 func enemy_score(ids: Array, body_area: float, speed_scale: float = 1.0, warning_scale: float = 1.0, size_scale: float = 1.0) -> Dictionary:
 	var total := body_area
@@ -228,7 +242,7 @@ func select_attack(enemy_id: String, phase: String, available: Array, distance: 
 
 # Attacks whose gameplay has its own eligibility rule, so covering another's range is intended (the Ape's random throw
 # and its leap picked by distance in entities.gd): no overlap warning for them.
-const CHOSEN_BY_RULE := ["ape_throw", "ape_leap"]
+const CHOSEN_BY_RULE := ["ape_retreat", "ape_throw", "ape_leap"]
 
 func range_warnings() -> String:
 	var warnings := PackedStringArray()
@@ -243,7 +257,7 @@ func range_warnings() -> String:
 
 # Keep authored decimals readable without rounding intermediate score calculations.
 func format_cell(column: String, cell: String) -> String:
-	var integers := ["multishot", "aimed_shot", "priority"]
+	var integers := ["multishot", "aimed_shot", "priority", "follow_up_count"]
 	var numeric := column in NUMERIC or column in ["score", "min_range_units", "max_range_units", "skip_chance"]
 	if numeric and column not in integers and cell.is_valid_float() and is_finite(float(cell)):
 		return "%.2f" % float(cell)

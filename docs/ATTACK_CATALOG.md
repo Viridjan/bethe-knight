@@ -45,6 +45,12 @@ Enemy families in the CSV (their behaviour code reads the values; variants share
 (`cragjaw_leap`), Murkspore (`murkspore_spread`). Thornmite, Fuzzbob and Mosstrot have no attack (they hurt on touch).
 A skipped family attack waits its recovery before trying again.
 
+**Follow-ups** (`follow_up`, `follow_up_count`, `follow_up_gap_s`; "Then / Times / Every (s)"): another attack done
+right after this one, that many times, that far apart; its score is added that many times. The Ape's **retreat leap**
+(`ape_retreat`, top priority, 0-5.5 tiles, only when the player is cornered: in scream range with a wall behind them,
+not above or below) lands at the far end of its range, then throws `ape_throw` 3 times, 0.35 s apart. With the retreat
+skipped or removed, a cornered Ape does a plain leap instead.
+
 Attack types: body, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
 decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
 (the move sets the time). Movement values instead: **Max distance** (tiles) for charge and dive, which stop sooner at a

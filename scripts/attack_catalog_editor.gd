@@ -137,7 +137,8 @@ func _select_row(index: int) -> void:
 		["Identity", ["name", "type"]],
 		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
 		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "base_weight"]],
-		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
+		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]],
+		["Follow-up", ["follow_up", "follow_up_count", "follow_up_gap_s"]]
 	]
 	if ranges:
 		groups = [["Assignment", ["enemy_id", "phase", "attack_name"]], ["Distance · tiles", ["min_range_units", "max_range_units", "priority"]]]
@@ -162,7 +163,7 @@ func _select_row(index: int) -> void:
 	_wrap_tips(form)
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
-	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight"}
+	var labels := {"codex_online_name": "Research name", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.custom_minimum_size.x = 150  # the same in every section, so the boxes line up
@@ -337,10 +338,6 @@ func _select_enemy(i: int) -> void:
 	if e[1] == "":  # attacks in the game code: what it is and does, read-only
 		_code_enemy_info(e, preview.ent)
 		return
-	var head := Game.label("Attacks in priority order: the first one in range, eligible and not skipped is used", 14)
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	head.modulate = Color("a8c6e6")
-	form.add_child(head)
 	# one block per attack: its binding line (rank, name, ranges, skip, order, score), its mechanics, its notes
 	var widths := [22, 190, 62, 62, 62, 30, 30, 30, 56]
 	var header := HBoxContainer.new()
@@ -448,7 +445,7 @@ func _select_enemy(i: int) -> void:
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
 const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
 	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal speed",
-	"vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight"}
+	"vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 const NEEDS := {"body": ["windup_s", "animation_s", "recovery_s", "initial_speed_units_s"], "melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
 	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"], "movement": ["windup_s", "recovery_s"],
 	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg"]}
@@ -474,6 +471,8 @@ func _small_edit(editable: bool) -> LineEdit:
 func _compact_field(parent: Control, attack: Dictionary, column: String, score: Label) -> LineEdit:
 	var edit := _small_edit(writable)
 	edit.text = catalog.format_cell(column, str(attack.get(column, "")))
+	if column == "follow_up":
+		edit.custom_minimum_size.x = 110  # an attack name
 	edit.tooltip_text = _help(column) + " · shared by every enemy with this attack"
 	if column == "animation_s" and attack.get("type", "") in ["ranged", "movement"]:
 		edit.editable = false
@@ -537,6 +536,7 @@ func _wrap_tips(node: Node) -> void:
 
 # ---- sprite frames: the enemy's own, and each attack's animation ----
 const APE_POSES := {"ape_throw": ["crouch", "throw"], "ape_leap": ["crouch", "launch", "rise", "apex", "fall", "land"],
+	"ape_retreat": ["crouch", "launch", "rise", "apex", "fall", "land"],
 	"ape_scream": ["crouch", "scream"]}
 
 func _frame_strip(textures: Array, k: float) -> HBoxContainer:
@@ -705,6 +705,9 @@ func _help(field: String) -> String:
 		"priority": return "Higher values are checked first when maximum ranges match."
 		"skip_chance": return "Percent chance this attack passes its turn when it could be used; the next one in the list is tried."
 		"max_range_units": return "Center-to-center radial distance in tiles, exclusive. Empty (0) = no maximum."
+		"follow_up": return "Another attack done right after this one (e.g. ape_throw). Empty = none."
+		"follow_up_count": return "How many times the follow-up comes."
+		"follow_up_gap_s": return "Seconds between one follow-up and the next."
 		"base_weight": return "Score multiplier for this kind of attack (1 = as the formula says, 2 = counts double). Only affects the score."
 		"min_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive. Large maximum ranges are checked first."
 		"notes": return str(_rows()[selected].get("notes", ""))

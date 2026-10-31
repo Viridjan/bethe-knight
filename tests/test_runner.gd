@@ -1905,6 +1905,41 @@ func check_ape() -> void:
 			break
 	Game.settings.invincible = keep_inv
 	check(away and volley_n == E.Ape.VOLLEY, "a cornered player: the Ape leaps to the far side and throws %d stones in a row (away %s, thrown %d)" % [E.Ape.VOLLEY, away, volley_n])
+	# the retreat is the CSV attack ape_retreat: its follow-up count sets the volley, its skip chance can pass it
+	var retreat_row: Dictionary = E.AttackCatalog.shared().attack("ape_retreat")
+	var retreat_rules: Array = E.AttackCatalog.shared().ordered_attacks("boss_ape", "normal", ["ape_retreat"])
+	var corner_run := func() -> int:
+		make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
+		ape = find.call(E.Ape)[0]
+		p().pos = Vector2(30 * 8 - 5, floor_y)
+		ape.phase = "idle"
+		ape.timer = 0.0
+		ape.update(0.0)
+		var n_thrown := 0
+		var n_had := 0
+		Game.settings.invincible = true
+		for k in 300:
+			step()
+			if ape.stones.size() > n_had:
+				n_thrown += ape.stones.size() - n_had
+			n_had = ape.stones.size()
+			if ape.phase == "idle" and n_thrown > 0:
+				break
+		Game.settings.invincible = keep_inv
+		return n_thrown
+	retreat_row.follow_up_count = "2"
+	var two: int = corner_run.call()
+	retreat_row.follow_up_count = "3"
+	retreat_rules[0].skip_chance = "100"
+	make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
+	ape = find.call(E.Ape)[0]
+	p().pos = Vector2(30 * 8 - 5, floor_y)
+	ape.phase = "idle"
+	ape.timer = 0.0
+	ape.update(0.0)
+	var no_retreat: bool = ape.phase == "crouch" and not ape.retreat
+	retreat_rules[0].skip_chance = "0.00"
+	check(two == 2 and no_retreat, "the retreat is a CSV attack: Times sets the volley (%d stones), Skip 100%% passes it to a plain leap" % two)
 	make_world([{"t": "boss_ape", "x": 200, "y": floor_y - 32}])
 	ape = find.call(E.Ape)[0]
 	p().pos = Vector2(200 + 32 + 10, floor_y)
