@@ -132,6 +132,17 @@ func _ready() -> void:
 	apply_settings()
 	tuning = Tuning.startup(settings.tuning_preset)
 	get_sfx()  # synthesizes every effect (~190 ms) during the boot splash, not on the first click or scream
+	var quit_key := QuitKey.new()
+	quit_key.process_mode = Node.PROCESS_MODE_ALWAYS  # also in the pause menu
+	add_child(quit_key)
+
+# Cmd+Q (macOS) / Ctrl+Q: quit from anywhere, paused or not, also with a dialog or an editor window focused.
+class QuitKey extends Node:
+	func _input(event: InputEvent) -> void:
+		if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_Q \
+				and event.is_command_or_control_pressed() and not OS.has_feature("web"):
+			get_viewport().set_input_as_handled()
+			Game.quit_game()
 
 
 # Return the shared effects service, creating it if needed; all callers then reuse the same voice pool.
