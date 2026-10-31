@@ -262,6 +262,8 @@ func _sample_monster() -> Dictionary:  # the first saved library-monster build i
 func _select_enemy(i: int) -> void:
 	enemy_index = i
 	selected = i
+	if view == "enemies" and table.item_count > i and not table.is_selected(i):
+		table.select(i)
 	fields.clear()
 	for node in form.get_children():
 		form.remove_child(node)
@@ -274,6 +276,12 @@ func _select_enemy(i: int) -> void:
 	data.y = 0
 	preview.ent = load("res://scripts/entities.gd").make(null, data)
 	form.add_child(preview)
+	var own: Array = _look_frames(str(data.get("look", ""))) if e[0] == "enemy_monster" else _ape_frames(["idle", "run", "crouch", "air"])
+	if not own.is_empty():
+		var own_row := HBoxContainer.new()
+		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		own_row.add_child(_frame_strip(own, 2.0))
+		form.add_child(own_row)
 	var head := Game.label("Attacks in priority order: the first one in range, eligible and not skipped is used", 14)
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	head.modulate = Color("a8c6e6")
@@ -340,10 +348,22 @@ func _select_enemy(i: int) -> void:
 		var margin := MarginContainer.new()  # the attack's values: only those that apply, a short tag before each box
 		margin.add_theme_constant_override("margin_left", widths[0])
 		block.add_child(margin)
+		var inner := VBoxContainer.new()
+		inner.add_theme_constant_override("separation", 3)
+		margin.add_child(inner)
+		var shown: Array = _attack_frames(e, attack)
+		if not shown[0].is_empty():
+			var anim := HBoxContainer.new()
+			anim.add_child(_frame_strip(shown[0], 1.5))
+			if shown[1] != "":
+				var cap := Game.label(shown[1], 11)
+				cap.modulate = Color(1, 1, 1, 0.5)
+				anim.add_child(cap)
+			inner.add_child(anim)
 		var mech := HFlowContainer.new()
 		mech.add_theme_constant_override("h_separation", 14)
 		mech.add_theme_constant_override("v_separation", 3)
-		margin.add_child(mech)
+		inner.add_child(mech)
 		for column in _applicable(attack):
 			var pair := HBoxContainer.new()  # tag and box wrap together
 			pair.add_theme_constant_override("separation", 3)
@@ -459,6 +479,55 @@ func _wrap_tips(node: Node) -> void:
 		node.tooltip_text = squarish(node.tooltip_text)
 	for child in node.get_children():
 		_wrap_tips(child)
+
+# ---- sprite frames: the enemy's own, and each attack's animation ----
+const APE_POSES := {"ape_throw": ["crouch", "throw"], "ape_leap": ["crouch", "launch", "rise", "apex", "fall", "land"],
+	"ape_scream": ["crouch", "scream"]}
+
+func _frame_strip(textures: Array, k: float) -> HBoxContainer:
+	var strip := HBoxContainer.new()
+	strip.add_theme_constant_override("separation", 4)
+	for t in textures:
+		var pic := TextureRect.new()
+		pic.texture = t
+		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.custom_minimum_size = Vector2(t.get_width(), t.get_height()) * k
+		strip.add_child(pic)
+	return strip
+
+func _look_frames(kind: String) -> Array:  # an enemy family's 4 walk frames (EnemyArt atlas row)
+	var art = load("res://scripts/enemy_art.gd")
+	var row: int = art.KINDS.find(kind)
+	if row < 0: return []
+	var out: Array = []
+	for f in 4:
+		var at := AtlasTexture.new()
+		at.atlas = art.texture()
+		at.region = Rect2(f * art.SIZE, row * art.SIZE, art.SIZE, art.SIZE)
+		out.append(at)
+	return out
+
+func _ape_frames(poses: Array) -> Array:
+	var art = load("res://scripts/ape_art.gd")
+	return poses.map(func(p): return art.texture(p, 0))
+
+# What an attack looks like: the Ape's poses / shockwave, a projectile, or (library monsters, which have only walk
+# frames) the walk frames. Returns [textures, caption].
+func _attack_frames(e: Array, attack: Dictionary) -> Array:
+	var id: String = attack.get("name", "")
+	if APE_POSES.has(id): return [_ape_frames(APE_POSES[id]), ""]
+	if id == "ape_slam":
+		var art = load("res://scripts/ape_art.gd")
+		return [[0, 1, 2, 3].map(func(f): return art.impact_texture(24, 8, f)), "shockwave"]
+	if attack.get("type", "") == "ranged":
+		var img := Image.create(5, 5, false, Image.FORMAT_RGBA8)
+		img.fill_rect(Rect2i(1, 1, 3, 3), Color("e070b0") if e[0] == "enemy_monster" else Color("8a7a6a"))
+		return [[ImageTexture.create_from_image(img)], "projectile"]
+	if e[0] == "enemy_monster":
+		return [_look_frames(str(_sample_monster().get("look", "enemy_hornback"))), "walk frames (no attack art yet)"]
+	return [[], ""]
 
 func _show_score(label: Label, attack: Dictionary) -> void:
 	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}

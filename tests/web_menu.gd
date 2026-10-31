@@ -13,7 +13,7 @@ func _ready() -> void:
 	var labels: Array = []
 	for child in menu.body.get_children():
 		if child is Button: labels.append(child.text)
-	for name in ["World Editor", "Monsters", "Monster Editor", "Art", "Music Studio"]:
+	for name in ["World Editor", "Monster Editor", "Art", "Music Studio"]:
 		check(not labels.has(name), name + " is absent from the online menu")
 	for name in ["Adventure", "Options", "Credits"]:
 		check(labels.has(name), name + " remains available online")

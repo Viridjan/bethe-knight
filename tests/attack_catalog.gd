@@ -13,10 +13,19 @@ func _ready() -> void:
 	var menu = load("res://scripts/menu.gd").new()
 	add_child(menu)
 	check(menu.body.get_children().any(func(node): return node is Button and node.text == "Monster Editor"), "Desktop menu has a direct Monster Editor entry")
-	menu._monsters(true)
+	check(not menu.body.get_children().any(func(node): return node is Button and node.text == "Monsters"), "The main menu has no Monsters page any more")
+	menu._monster_editor()
 	for frame in 3: await get_tree().process_frame
-	var bestiaries: Array = menu.body.get_children().filter(func(node): return node.has_method("_open_catalog"))
-	check(bestiaries.size() == 1 and is_instance_valid(bestiaries[0].catalog_window) and bestiaries[0].catalog_window.visible, "Monster Editor entry opens the CSV editor directly")
+	var editors: Array = menu.body.get_children().filter(func(node): return node.has_method("_show_enemies"))
+	check(editors.size() == 1, "Monster Editor entry opens the CSV editor as its own page")
+	if editors.size() == 1:
+		editors[0]._show_enemies()
+		editors[0]._select_enemy(1)
+		var pics := func(node, f) -> int:
+			var n := 1 if node is TextureRect and node.texture != null else 0
+			for c in node.get_children(): n += f.call(c, f)
+			return n
+		check(pics.call(editors[0].form, pics) >= 10, "Enemies tab shows the Ape's frames and its attacks' animation frames")
 	menu.queue_free()
 	await get_tree().process_frame
 	var catalog = load(path).new()

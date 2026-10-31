@@ -47,9 +47,8 @@ func _main() -> void:
 	if not _is_web():
 		if OS.has_feature("editor"):  # world files are writable only from source
 			body.add_child(Game.button("World Editor", func(): Game.goto("world_editor")))
-		body.add_child(Game.button("Monsters", _monsters))
 		if OS.has_feature("editor"):
-			body.add_child(Game.button("Monster Editor", func(): _monsters(true)))
+			body.add_child(Game.button("Monster Editor", _monster_editor))
 		body.add_child(Game.button("Art", _art))
 		body.add_child(Game.button("Music Studio", func(): Game.goto("music_studio")))
 	body.add_child(Game.button("Options", _options))
@@ -80,17 +79,24 @@ func _options() -> void:
 	add_child(o)
 	o.closed.connect(_main)
 
-# Display the bestiary and optionally open its CSV editor directly.
-func _monsters(open_editor: bool = false) -> void:
+# The attack CSV editor (attacks, enemies) as a page of its own. (The monsters met in a run are in the map's tab.)
+func _monster_editor() -> void:
 	_clear()
-	body.add_child(Game.label("Monsters", 44))
-	var b = load("res://scripts/bestiary.gd").new()
-	b.custom_minimum_size = Vector2(860, 505)
-	body.add_child(b)
-	var back := Game.button("Back", _main)
+	var editor = load("res://scripts/attack_catalog_editor.gd").new()
+	editor.custom_minimum_size = Vector2(1100, 600)
+	editor.theme = Game.theme.duplicate()
+	editor.theme.default_font_size = 15
+	body.add_child(editor)
+	var back := Game.button("Back", func():
+		if not editor.dirty:
+			_main()
+			return
+		var confirm := ConfirmationDialog.new()
+		confirm.dialog_text = "Discard unsaved CSV edits?"
+		confirm.confirmed.connect(_main)
+		add_child(confirm)
+		confirm.popup_centered())
 	body.add_child(back)
-	back.grab_focus()
-	if open_editor: b._open_catalog.call_deferred()
 
 # Every piece of game art, by folder (scripts/art_gallery.gd).
 func _art() -> void:
