@@ -38,7 +38,7 @@ func _ready() -> void:
 	bar.add_child(save_button)
 	reload_button = Game.button("Reload CSV", _reload_requested)
 	bar.add_child(reload_button)
-	var location := Game.label("Source CSVs · tiles (8 px), seconds · saved with 2 decimals" if writable else "Read-only catalogue · tiles (8 px), seconds", 14)
+	var location := Game.label("Source CSVs · tiles (8 px), seconds" if writable else "Read-only catalogue · tiles (8 px), seconds", 14)
 	location.tooltip_text = "res://data/attacks.csv and res://data/enemy_attacks.csv. Editing is available in the desktop source version."
 	bar.add_child(location)
 	var panes := HSplitContainer.new()
