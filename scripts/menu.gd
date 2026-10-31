@@ -48,6 +48,8 @@ func _main() -> void:
 		if OS.has_feature("editor"):  # world files are writable only from source
 			body.add_child(Game.button("World Editor", func(): Game.goto("world_editor")))
 		body.add_child(Game.button("Monsters", _monsters))
+		if OS.has_feature("editor"):
+			body.add_child(Game.button("Monster Editor", func(): _monsters(true)))
 		body.add_child(Game.button("Art", _art))
 		body.add_child(Game.button("Music Studio", func(): Game.goto("music_studio")))
 	body.add_child(Game.button("Options", _options))
@@ -78,8 +80,8 @@ func _options() -> void:
 	add_child(o)
 	o.closed.connect(_main)
 
-# Display the read-only enemy catalogue.
-func _monsters() -> void:
+# Display the bestiary and optionally open its CSV editor directly.
+func _monsters(open_editor: bool = false) -> void:
 	_clear()
 	body.add_child(Game.label("Monsters", 44))
 	var b = load("res://scripts/bestiary.gd").new()
@@ -88,6 +90,7 @@ func _monsters() -> void:
 	var back := Game.button("Back", _main)
 	body.add_child(back)
 	back.grab_focus()
+	if open_editor: b._open_catalog.call_deferred()
 
 # Every piece of game art, by folder (scripts/art_gallery.gd).
 func _art() -> void:

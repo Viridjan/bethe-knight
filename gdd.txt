@@ -505,3 +505,8 @@ open. Gates support after-boss activation; progression reports honor it.
 2026-10-30 — World Editor Progression runs snapshot analysis in a separate Python
 process and opens the browser explorer. Added independent tabs, compact help,
 route-preserving navigation, and tests for editor/job/report behavior.
+
+2026-10-31 — Attack CSV catalogue: reusable timings, reference scores, and
+descending range selection for ActionMonster and the Ape. Monsters opens a
+validated CSV editor in source builds; web includes gameplay tables only.
+- 2026-10-31: Attack CSV editor (Codex's Monster Editor): "Enemy ranges" and "Enemy scores" merged into an "Enemies" tab: pick an enemy (library monster, Ape, Ape enraged), see its sprite, its attacks in priority order with editable ranges and Skip %, ▲/▼ to move (priorities renumbered), ✕ / + Add attack, and its scores. Attack order is now priority only (was longest range first; library monster priorities set to keep today's order: shoot, charge, lob, dive, leap). New column skip_chance in data/enemy_attacks.csv. Validation reports the row and field (shown red). Overlap warnings skip the Ape's rule-picked attacks and library monsters.

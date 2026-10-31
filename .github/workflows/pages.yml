@@ -55,6 +55,7 @@ jobs:
           ~/godot/godot --headless --path . res://tests/test.tscn
           ~/godot/godot --headless --path . res://tests/smoke.tscn
           ~/godot/godot --headless --path . res://tests/web_menu.tscn
+          ~/godot/godot --headless --path . res://tests/attack_catalog.tscn
           python3 -m unittest tests/test_world_accessibility.py tests/test_story_entrances.py
 
       - name: Export

@@ -26,6 +26,8 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [ ] Research height cues for audio (above/below; HRTF or elevation tricks) before building
 
 ### Content
+- [ ] Add traps to rooms.
+- [ ] Expand basic enemy behaviors and attacks: roaming, jumping, jumping to the opposite wall, and other patterns. Audit existing primitives first; see [enemy pattern research](docs/ENEMY_PATTERNS.md) for movement/attack candidates and priorities.
 - [x] Forest environment theme (`forest`: grass tops, trunks, vines, ferns)
 - [x] Leaf platforms (`leaf`, a jump-through)
 - [x] Waterfall blocks (`waterfall`: inside, the player can't rise and is pushed down)

@@ -11,13 +11,13 @@ const MOVES := {
 	"hop": {"label": "hops along", "ground": true, "looks": ["enemy_cragjaw", "enemy_thornmite", "enemy_murkspore"], "hp": 3},
 	"hover": {"label": "floats around its spot", "ground": false, "looks": ["enemy_bat", "enemy_fuzzbob", "enemy_skree"], "hp": 2},
 }
-# attack -> label, needs ground (true) / air (false) / either (null), reach in px
+# attack -> label, needs ground (true) / air (false) / either (null), range bindings live in data/enemy_attacks.csv
 const ATTACKS := {
-	"charge": {"label": "charges along the ground", "ground": true, "range": 120},
-	"leap": {"label": "leaps at you", "ground": true, "range": 80},
-	"shoot": {"label": "shoots a bolt", "ground": null, "range": 140},
-	"lob": {"label": "lobs an arcing glob", "ground": null, "range": 110},
-	"dive": {"label": "dives at you", "ground": false, "range": 100},
+	"charge": {"label": "charges along the ground", "ground": true},
+	"leap": {"label": "leaps at you", "ground": true},
+	"shoot": {"label": "shoots a bolt", "ground": null},
+	"lob": {"label": "lobs an arcing glob", "ground": null},
+	"dive": {"label": "dives at you", "ground": false},
 }
 # Zodiac: each region has a sign; its own (native) monsters are built from the sign's moves and attacks.
 const SIGNS := {

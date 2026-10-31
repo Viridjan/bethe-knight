@@ -19,6 +19,7 @@ const BlockArt := preload("res://scripts/block_art.gd")
 const ButtonArt := preload("res://scripts/button_art.gd")
 const IslandArt := preload("res://scripts/island_art.gd")
 const MonsterLib := preload("res://scripts/monster_library.gd")
+const AttackCatalog := preload("res://scripts/attack_catalog.gd")
 
 # The entity registry: the one place a type is declared.
 # type id (saved in level JSON) -> [editor label, sized (drag a rect in the editor), palette color, class]
@@ -926,7 +927,7 @@ class CombatEnemy extends Ent:
 		for i in range(shots.size() - 1, -1, -1):
 			var shot: Array = shots[i]
 			shot[2] -= dt
-			shot[1].y += gravity * dt
+			shot[1].y += (float(shot[3]) if shot.size() > 3 else gravity) * dt
 			var delta: Vector2 = shot[1] * dt
 			var count := maxi(1, ceili(delta.length()))
 			var remove: bool = shot[2] <= 0
@@ -1217,6 +1218,7 @@ class ActionMonster extends CombatEnemy:
 	var velocity := Vector2.ZERO
 	var on_floor := false
 	var attack := ""  # the attack under way
+	var attack_data: Dictionary = {}  # snapshot: edits do not change an attack already winding up
 	var hop_t := 0.0
 	func describe() -> String:
 		return super.describe() + " - " + MonsterLib.describe(d)
@@ -1275,7 +1277,7 @@ class ActionMonster extends CombatEnemy:
 			"attack":
 				if _attack(dt):
 					phase = "rest"
-					timer = 0.9 * recovery_multiplier
+					timer = _param("recovery_s", 0.9) * recovery_multiplier
 			"rest":
 				if timer <= 0:
 					phase = "return" if not ground() else "idle"
@@ -1285,14 +1287,23 @@ class ActionMonster extends CombatEnemy:
 					phase = "idle"
 			_:
 				_move(dt)
-				for a in d.attacks:
-					if sees_player(MonsterLib.ATTACKS[a].range * scale) and (a not in ["charge"] or absf(w.player.center().y - center().y) < 12 * scale):
-						facing = -1 if w.player.center().x < center().x else 1
-						Game.play_sfx("enemy_alert")
-						attack = a
-						phase = "windup"
-						timer = 0.5 * warning_multiplier
-						break
+				if d.attacks.is_empty(): return
+				var catalog = AttackCatalog.shared()
+				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
+					func(a):
+						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
+						return sees_player(float(row.max_range_units) * T * scale) and (a != "charge" or absf(w.player.center().y - center().y) < 12 * scale), scale)
+				if not chosen.is_empty():
+					facing = -1 if w.player.center().x < center().x else 1
+					Game.play_sfx("enemy_alert")
+					attack = chosen
+					attack_data = catalog.attack(chosen).duplicate(true)
+					phase = "windup"
+					timer = _param("windup_s", 0.5) * warning_multiplier
+	func _param(field: String, fallback: float) -> float:
+		var value := str(attack_data.get(field, ""))
+		return fallback if value.is_empty() else float(value)
+
 	func _move(dt: float) -> void:
 		match d.move:
 			"patrol":
@@ -1315,19 +1326,23 @@ class ActionMonster extends CombatEnemy:
 		phase = "attack"
 		var to: Vector2 = w.player.center() - center()
 		match a:
-			"charge": timer = 1.2
-			"leap": velocity = Vector2(clampf(to.x / 0.6, -120, 120), -170)
-			"shoot": orbs.append([center(), to.normalized() * 100, 2.5])
-			"lob": bones.append([center(), Vector2(to.x / 1.0, -120), 2.5])
+			"charge": timer = _param("animation_s", 1.2)
+			"leap": velocity = Vector2(clampf(to.x / _param("flight_time_s", 0.6), -_param("horizontal_speed_units_s", 15) * T, _param("horizontal_speed_units_s", 15) * T), -_param("vertical_speed_units_s", 21.25) * T)
+			"shoot":
+				timer = _param("animation_s", 1.0 / 60.0)
+				orbs.append([center(), to.normalized() * _param("initial_speed_units_s", 12.5) * T, 2.5])
+			"lob":
+				timer = _param("animation_s", 1.0 / 60.0)
+				bones.append([center(), Vector2(to.x / _param("flight_time_s", 1.0), -_param("vertical_speed_units_s", 15) * T), 2.5, _param("gravity_units_s2", 30) * T])
 			"dive":
-				velocity = to.normalized() * 150 * speed_multiplier
-				timer = 0.6
+				velocity = to.normalized() * _param("initial_speed_units_s", 18.75) * T * speed_multiplier
+				timer = _param("animation_s", 0.6)
 	func _attack(dt: float) -> bool:  # true when the attack is over
 		match attack:
 			"charge":
-				return walk(110 * speed_multiplier * dt) or timer <= 0
+				return walk(_param("initial_speed_units_s", 13.75) * T * speed_multiplier * dt) or timer <= 0
 			"leap":
-				velocity.y += 450 * dt
+				velocity.y += _param("gravity_units_s2", 56.25) * T * dt
 				move_enemy(Vector2(velocity.x * dt, 0))
 				var landed := move_enemy(Vector2(0, velocity.y * dt)) and velocity.y > 0
 				if landed:
@@ -1335,7 +1350,7 @@ class ActionMonster extends CombatEnemy:
 				return landed
 			"dive":
 				return move_enemy(velocity * dt) or timer <= 0
-		return true  # shoot, lob: the shot is out
+		return timer <= 0  # shot is out; finish its CSV execution interval
 	func vis_rect() -> Rect2i:
 		var area := body_rect()
 		for o in orbs + bones:
@@ -2462,6 +2477,8 @@ class Ape extends Ent:
 	const LOG_G := 200.0  # logs fall at half the stones' gravity
 	const LOG_MAX_FALL := 140.0
 	const LOG_WAIT := 0.4  # the log shakes at the top this long before it drops
+	var attack_snapshot: Dictionary = {}
+	var slam_snapshot: Dictionary = {}
 	var hp := HP
 	var phase := "sleep"  # sleep, idle, throw, crouch, air, scream, hurt, dying, gone
 	var timer := 0.0
@@ -2531,7 +2548,7 @@ class Ape extends Ent:
 		return false
 	# Return the circular range of the boss scream in world pixels.
 	func scream_radius() -> float:
-		return SIZE / 2.0 + SCREAM_REACH
+		return sqrt(_ape_param("ape_scream", "coverage_area_units2", PI * 25.0) / PI) * T
 	# Measure the nearest point of a rectangle against the circular scream, avoiding square-corner false hits.
 	func scream_hits(area: Rect2i) -> bool:
 		var c := center()
@@ -2539,7 +2556,7 @@ class Ape extends Ent:
 		return area.has_area() and c.distance_squared_to(nearest) < scream_radius() * scream_radius()
 	# Expose active circular hazards; an empty list means no circular damage is active.
 	func damage_circles() -> Array:
-		return [[center(),scream_radius()]] if phase == "scream" and timer <= 0.0 and timer > -0.35 else []
+		return [[center(),scream_radius()]] if phase == "scream" and timer <= 0.0 and timer > -_ape_param("ape_scream", "animation_s", 0.35) else []
 	# Apply Ape interaction when World reports an overlapping player.
 	func touch(p) -> void:
 		if hurts() and body_hits(p.damage_rect()):
@@ -2575,17 +2592,17 @@ class Ape extends Ent:
 						_go("crouch", 0.45)
 					elif p.center().x < r.x or p.center().x > r.y:  # player out of its reach (past the trunk): leap at them
 						_go("crouch", 0.45)
-					elif randf() < throw_chance:
-						_go("throw", 0.7)
-					elif absf(p.center().y - center().y) > absf(dx):  # player above or below (steeper than 45 degrees): leap
-						_go("crouch", 0.45)
-					elif _cornered(p):  # the player is pinned against a wall: leap away to the far side, then 3 stones
-						retreat = true
-						_go("crouch", 0.45)
-					elif dist > NEAR:
-						_go("crouch", 0.45)
 					else:
-						_go("scream", 0.5)
+						var above := absf(p.center().y - center().y) > absf(dx)
+						var corner := _cornered(p)
+						var chosen := _select_attack(dist / T, above, corner, randf() < throw_chance)
+						match chosen:
+							"ape_throw": _go("throw", AttackCatalog.shared().value(chosen, "windup_s", 0.7))
+							"ape_leap":
+								retreat = corner and not above
+								_go("crouch", AttackCatalog.shared().value(chosen, "windup_s", 0.45))
+							"ape_scream": _go("scream", AttackCatalog.shared().value(chosen, "windup_s", 0.5))
+
 			"throw":
 				if timer <= 0:
 					_throw(p.center())
@@ -2593,7 +2610,7 @@ class Ape extends Ent:
 					if volley > 0:
 						_go("throw", VOLLEY_GAP)
 					else:
-						_go("idle", 1.0 * PAUSE)
+						_go("idle", _ape_param("ape_throw", "recovery_s", 1.0 * PAUSE))
 			"crouch":
 				if timer <= 0:
 					var side := 1.0 if dx > 0 else -1.0
@@ -2606,19 +2623,21 @@ class Ape extends Ent:
 						tx = center().x
 						slam_scale = HOP_SCALE[hops - 1]
 						hops -= 1
-					vel = Vector2((tx - center().x) / LEAP_TIME, -0.5 * LEAP_G * LEAP_TIME)
+					var duration := _ape_param("ape_leap", "flight_time_s", LEAP_TIME)
+					var gravity := _ape_param("ape_leap", "gravity_units_s2", LEAP_G / T) * T
+					vel = Vector2((tx - center().x) / duration, -0.5 * gravity * duration)
 					phase = "air"
 			"air":
-				vel.y += LEAP_G * dt
+				vel.y += _ape_param("ape_leap", "gravity_units_s2", LEAP_G / T) * T * dt
 				_move(dt)
 				var t = trunk()
 				if t != null and not t.down() and not t.falling and rect.intersects(t.standing):
 					t.fell()  # crashed into the standing trunk
 			"scream":
-				if timer <= 0.0 and timer > -0.35:  # the scream itself, after the 0.5 s wind-up
+				if timer <= 0.0 and timer > -_ape_param("ape_scream", "animation_s", 0.35):  # the scream itself, after the 0.5 s wind-up
 					if not p.dead and scream_hits(p.damage_rect()):
 						p.die((p.center() - center()).normalized())
-				elif timer <= -0.35:
+				elif timer <= -_ape_param("ape_scream", "animation_s", 0.35):
 					if enraged():
 						then_slam = false
 						hops = 2
@@ -2627,7 +2646,7 @@ class Ape extends Ent:
 						then_slam = false
 						_go("crouch", 0.3)
 					else:
-						_go("idle", 0.8 * PAUSE)
+						_go("idle", _ape_param("ape_scream", "recovery_s", 0.8 * PAUSE))
 			"hurt":
 				if timer <= 0:
 					then_slam = true
@@ -2646,7 +2665,23 @@ class Ape extends Ent:
 		return absf(x - c.x) <= scream_radius()
 
 	# Change the boss phase and set its duration, emitting the appropriate one-time attack cue.
+	func _select_attack(distance_units: float, above: bool, corner: bool, allow_throw: bool) -> String:
+		var phase_name := "enraged" if enraged() else "normal"
+		var near_rules: Array = AttackCatalog.shared().ordered_attacks("boss_ape", phase_name, ["ape_scream"])
+		var near_limit := float(near_rules[0].max_range_units) if not near_rules.is_empty() else NEAR / T
+		return AttackCatalog.shared().select_attack("boss_ape", phase_name, [], distance_units,
+			func(id):
+				if id == "ape_throw": return allow_throw
+				if id == "ape_leap": return above or corner or distance_units >= near_limit
+				return id == "ape_scream" and not above and not corner)
+	func _ape_param(id: String, field: String, fallback: float) -> float:
+		if attack_snapshot.get("name", "") == id:
+			var cell := str(attack_snapshot.get(field, ""))
+			if not cell.is_empty(): return float(cell)
+		return AttackCatalog.shared().value(id, field, fallback)
 	func _go(ph: String, t: float) -> void:
+		var id: String = {"scream": "ape_scream", "crouch": "ape_leap", "throw": "ape_throw"}.get(ph, "")
+		if not id.is_empty(): attack_snapshot = AttackCatalog.shared().attack(id).duplicate(true)
 		if ph == "scream":
 			Game.play_sfx("ape_scream")
 		elif ph == "hurt" or ph == "dying":
@@ -2657,8 +2692,9 @@ class Ape extends Ent:
 	func _throw(target: Vector2) -> void:
 		Game.play_sfx("projectile", 0.6)
 		var from := Vector2(center().x + facing * 10, rect.position.y)
-		var t := clampf(absf(target.x - from.x) / 220.0, 0.7, 1.3)
-		stones.append([from, Vector2((target.x - from.x) / t, (target.y - from.y) / t - 0.5 * STONE_G * t), STONE])
+		var t := clampf(absf(target.x - from.x) / (_ape_param("ape_throw", "horizontal_speed_units_s", 27.5) * T), _ape_param("ape_throw", "flight_time_s", 0.7), 1.3)
+		var gravity := _ape_param("ape_throw", "gravity_units_s2", STONE_G / T) * T
+		stones.append([from, Vector2((target.x - from.x) / t, (target.y - from.y) / t - 0.5 * gravity * t), STONE, gravity])
 	# Resolve boss displacement in whole pixels and trigger the landing reaction on downward impact.
 	func _move(dt: float) -> void:
 		rem += vel * dt  # whole pixels move, the rest carries over (Ent.rem)
@@ -2691,13 +2727,15 @@ class Ape extends Ent:
 	# The landing shockwave along the ground, both sides of the body.
 	# Return the ground-level shockwave rectangle used by both damage and its visual overlay.
 	func slam_box() -> Rect2i:
-		var wide := roundi((SIZE + 2 * SLAM_REACH) * slam_scale)
+		var area := float(slam_snapshot.get("coverage_area_units2", "7.5"))
+		var wide := roundi(area * T * T / SLAM_HEIGHT * slam_scale)
 		return Rect2i(rect.position.x + (SIZE - wide) / 2, rect.end.y - SLAM_HEIGHT, wide, SLAM_HEIGHT)
 	# Stop the leap, create the shockwave and check whether the landing feet overlap an arena spike patch.
 	func _land() -> void:
 		Game.play_sfx("impact")
 		vel = Vector2.ZERO
-		slam_t = SLAM_TIME
+		slam_snapshot = AttackCatalog.shared().attack("ape_slam").duplicate(true)
+		slam_t = float(slam_snapshot.get("animation_s", str(SLAM_TIME)))
 		w.shake_dir(Vector2.DOWN, 0.2)
 		w.dust(Vector2(center().x, rect.end.y), Vector2.UP, 10)
 		var feet := Rect2i(rect.position.x, rect.end.y - 4, rect.size.x, 4)
@@ -2713,7 +2751,7 @@ class Ape extends Ent:
 			volley = VOLLEY
 			_go("throw", VOLLEY_GAP)
 		else:
-			_go("idle", 0.6 * PAUSE)
+			_go("idle", _ape_param("ape_leap", "recovery_s", 0.6 * PAUSE))
 	# Remove boss health, select the hurt/dying phase and reveal the next arena hazards when applicable.
 	func _hit() -> void:
 		hp -= 1
@@ -2803,7 +2841,7 @@ class Ape extends Ent:
 		var y := 0
 		while y < w.gh * T and w.collide_solid(Rect2i(int(lx), y, LOG.x, LOG.y)) != null:
 			y += T
-		logs.append([Vector2(lx, y), 0.0, LOG_WAIT])
+		logs.append([Vector2(lx, y), 0.0, AttackCatalog.shared().value("ape_log", "windup_s", LOG_WAIT), AttackCatalog.shared().value("ape_log", "gravity_units_s2", LOG_G / T) * T])
 	# Where a log breaks on the ground it leaves a 1-tile spike (the only spikes the fight makes).
 	func _log_spike(box: Rect2i) -> void:
 		var tx := int(box.get_center().x) / T
@@ -2822,7 +2860,7 @@ class Ape extends Ent:
 			l[2] -= dt
 			if l[2] > 0:
 				continue
-			l[1] = minf(l[1] + LOG_G * dt, LOG_MAX_FALL)
+			l[1] = minf(l[1] + (float(l[3]) if l.size() > 3 else LOG_G) * dt, LOG_MAX_FALL)
 			l[0].y += l[1] * dt
 			var box := Rect2i(Vector2i(l[0]), LOG)
 			if not w.player.dead and box.intersects(w.player.damage_rect()):
@@ -2838,7 +2876,7 @@ class Ape extends Ent:
 		var t = trunk() if w != null else null
 		for i in range(stones.size() - 1, -1, -1):
 			var s: Array = stones[i]
-			s[1].y += STONE_G * dt
+			s[1].y += (float(s[3]) if s.size() > 3 else STONE_G) * dt
 			s[0] += s[1] * dt
 			var box := Rect2i(Vector2i(s[0]) - Vector2i(s[2] / 2, s[2] / 2), Vector2i(s[2], s[2]))
 			var gone := false
@@ -2853,7 +2891,7 @@ class Ape extends Ent:
 				if s[2] == STONE and enraged() and s[1].y > 0:  # enraged: the stone splits in two on the ground
 					var back: Vector2 = s[0] - s[1] * dt
 					for side in [-1.0, 1.0]:
-						stones.append([back + Vector2(side * 4, -4), Vector2(side * 90.0, -150.0), STONE / 2])
+						stones.append([back + Vector2(side * 4, -4), Vector2(side * AttackCatalog.shared().value("ape_split", "horizontal_speed_units_s", 11.25) * T, -AttackCatalog.shared().value("ape_split", "vertical_speed_units_s", 18.75) * T), STONE / 2, AttackCatalog.shared().value("ape_split", "gravity_units_s2", STONE_G / T) * T])
 			if gone:
 				w.burst(s[0], Color("9a9080"), 8)
 				stones.remove_at(i)
@@ -2898,9 +2936,9 @@ class Ape extends Ent:
 		ci.draw_set_transform(Vector2.ZERO)
 		if slam_t > 0:  # textured impact stays inside the unchanged damage bounds
 			var sb := Rect2(slam_box())
-			var impact_frame := clampi(int((1.0 - slam_t / SLAM_TIME) * 4.0), 0, 3)
+			var impact_frame := clampi(int((1.0 - slam_t / float(slam_snapshot.get("animation_s", str(SLAM_TIME)))) * 4.0), 0, 3)
 			ci.draw_texture_rect(art.impact_texture(int(sb.size.x), int(sb.size.y), impact_frame), sb, false)
-		if phase == "scream" and timer <= 0.0 and timer > -0.35:  # the scream's reach
+		if phase == "scream" and timer <= 0.0 and timer > -_ape_param("ape_scream", "animation_s", 0.35):  # the scream's reach
 			var c := center()
 			for k in 3:
 				ci.draw_arc(c, minf(scream_radius(), scream_radius() * (k + 1) / 3.0 + fmod(clock * 30.0, 6.0)), 0, TAU, 24, Color(1, 0.9, 0.7, 0.5 - k * 0.12), 2.0)

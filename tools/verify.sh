@@ -25,6 +25,7 @@ run() {  # run <success regex> <godot args...>
 run '^0 failure\(s\)' res://tests/test.tscn
 run '^SMOKE OK' res://tests/smoke.tscn
 run '^WEB MENU OK' res://tests/web_menu.tscn
+run '^ATTACK CATALOG OK' res://tests/attack_catalog.tscn
 run '^SFX OK' --script tests/sfx.gd
 run '^ROAR OK' --script tests/roar.gd
 run '^MUSIC OK' --script tests/music.gd

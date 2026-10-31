@@ -2049,7 +2049,8 @@ func check_ape() -> void:
 	ape._land()
 	step(2)
 	check(slam_hit and not p().dead and ape.slam_box() == Rect2i(186, floor_y - 8, 60, 8), "the Ape's landing slam hits beside it along the ground, not beyond its reach")
-	check(is_equal_approx(ape.timer + 2 * DT, 0.6 * E.Ape.PAUSE), "the Ape waits less after a landing (%s)" % ape.timer)
+	var landing_recovery: float = load("res://scripts/attack_catalog.gd").shared().value("ape_leap", "recovery_s", 0.46)
+	check(is_equal_approx(ape.timer + 2 * DT, landing_recovery) and landing_recovery < 0.5, "the Ape uses its short CSV recovery after a landing (%s)" % ape.timer)
 	# enraged (2 hits taken): a scream is followed by 2 hops in place, shockwaves 130% then 170% wide, a log each
 	Game.settings.invincible = true
 	make_world([{"t": "boss_ape", "x": 200, "y": floor_y - 32}])
@@ -2214,6 +2215,18 @@ func check_monster_library() -> void:
 	var m2 = E.make(null, {"t": "enemy_monster", "x": 40, "y": 40, "move": "patrol", "attacks": ["charge", "leap"], "traits": ["swift"], "tier": 2, "look": "enemy_hornback"})
 	check(m2.rect.size.x > m0.rect.size.x and m2.rect.end.y == m0.rect.end.y and absi(m2.rect.get_center().x - m0.rect.get_center().x) <= 1 and m2.tint != m0.tint,
 		"upgraded monsters are bigger (same feet, same middle) and coloured (%s vs %s)" % [m2.rect, m0.rect])
+	# CSV edits must change future actions while an already-started action retains its snapshot.
+	var catalog = load("res://scripts/attack_catalog.gd").shared()
+	var row: Dictionary = catalog.attack("charge")
+	var old_windup: String = row.windup_s
+	row.windup_s = "1.25"
+	make_world([{"t": "enemy_monster", "x": 140, "y": floor_y - 2, "move": "patrol", "attacks": ["charge"], "traits": [], "tier": 0, "look": "enemy_hornback"}])
+	var csv_enemy = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
+	csv_enemy.update(0.0)
+	check(csv_enemy.phase == "windup" and is_equal_approx(csv_enemy.timer, 1.25), "Library monster reads attack wind-up from CSV catalogue")
+	row.windup_s = "0.1"
+	check(is_equal_approx(csv_enemy._param("windup_s", 0), 1.25), "Editing catalogue does not mutate an attack already in progress")
+	row.windup_s = old_windup
 	# migration (tools/populate.gd): 30% kept, 20% upgraded, 50% natives; tier 2 never moves on
 	var Pop = load("res://tools/populate.gd").new()
 	Pop.rng.seed = 3

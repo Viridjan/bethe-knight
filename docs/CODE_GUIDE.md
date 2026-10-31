@@ -168,3 +168,9 @@ See [the development skills installation report](DEVELOPMENT_SKILLS.md) for the 
 
 Progression analysis uses `tools/progression.py`; `tools/progression_job.py` snapshots
 the selected world and writes atomic report/status files. See [the guide](PROGRESSION_REPORT.md).
+
+Attack definitions and enemy range assignments live in `data/*.csv`.
+`scripts/attack_catalog.gd` validates, scores, saves, and selects attacks;
+`scripts/attack_catalog_editor.gd` provides the desktop Monsters editing window.
+`tools/score_attacks.gd` refreshes derived CSV scores after external edits.
+See [the catalogue guide](ATTACK_CATALOG.md) for runtime/reference field distinctions.

@@ -21,8 +21,9 @@ class Respawns(unittest.TestCase):
             got = {n: [(e["x"] // 8, e["y"] // 8) for e in json.load(open(os.path.join(d, n + ".json")))["entities"] if e["t"] == "respawn"]
                    for n in "abc"}
         self.assertEqual(got["a"], [(8, 4)])  # side entry: 1 tile in from the edge, on the floor under its lowest row
-        self.assertIn((1, 4), got["b"])  # b's left entry
-        self.assertIn((4, 4), got["b"])  # b's roof entry: its middle column, first floor below
+        # b's left entry (1, 4) and roof entry (its middle column, first floor below: (4, 4)) are a short safe walk
+        # apart, so the prune pass keeps one for both
+        self.assertTrue(got["b"] and set(got["b"]) <= {(1, 4), (4, 4)}, got["b"])
         self.assertEqual(got["c"], [])  # c's floor opening: no floor above it on that column...
         self.assertEqual(len(errors), 1)  # ...so an error instead
         self.assertIn("c: bottom entry", errors[0])
