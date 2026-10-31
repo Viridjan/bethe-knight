@@ -215,8 +215,27 @@ func apply_settings() -> void:
 	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if settings.fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
 	if DisplayServer.window_get_mode() != mode:
 		DisplayServer.window_set_mode(mode)
+	if mode == DisplayServer.WINDOW_MODE_WINDOWED:
+		_fit_window.call_deferred()
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if settings.vsync else DisplayServer.VSYNC_DISABLED)
 	_apply_input()
+
+# A windowed game opens landscape and playable: a window that's taller than wide or tiny (a remembered size, an
+# embedding panel) becomes 1280x720, fitted to the screen and centred; it can't be squeezed below 640x360.
+func _fit_window() -> void:
+	if OS.has_feature("web") or OS.has_feature("mobile") or DisplayServer.get_name() == "headless":
+		return
+	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
+		return
+	DisplayServer.window_set_min_size(Vector2i(640, 360))
+	var now := DisplayServer.window_get_size()
+	if now.x >= now.y and now.x >= 960:
+		return
+	var screen := DisplayServer.screen_get_usable_rect(DisplayServer.window_get_current_screen())
+	var k := minf(1.0, minf(screen.size.x * 0.9 / 1280.0, screen.size.y * 0.9 / 720.0))
+	var size := Vector2i(Vector2(1280, 720) * k)
+	DisplayServer.window_set_size(size)
+	DisplayServer.window_set_position(screen.position + (screen.size - size) / 2)
 
 # Rebuild Godot actions from saved keys/pad bindings, with analog movement and menu navigation fallbacks.
 func _apply_input() -> void:
