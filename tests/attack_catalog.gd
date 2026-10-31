@@ -138,9 +138,9 @@ func _ready() -> void:
 			"The Attacks tab holds what makes an attack work, plus its score weight")
 		var grey := func(id: String) -> bool:
 			editor._select_row(catalog.attacks.find(catalog.attack(id)))
-			return not editor.fields.animation_s.editable
+			return not editor.fields.has("animation_s") or not editor.fields.animation_s.editable  # hidden or greyed
 		check(grey.call("shoot") and grey.call("charge") and grey.call("ape_slam") and not grey.call("ape_scream"),
-			"Execution is greyed out for projectile and movement attacks, editable for attacks with their own animation")
+			"Execution is hidden for projectile and movement attacks, editable for attacks with their own animation")
 		editor._select_row(0)
 		editor._change("windup_s", "0.75")
 		editor._save()
@@ -180,8 +180,18 @@ func _ready() -> void:
 			"Any attack (or a new one) can be added to an enemy; ones its code can't do yet are kept but skipped in play")
 		for b in catalog.ordered_attacks("enemy_hornback", "default").filter(func(x): return x.attack_name != "hornback_charge"):
 			catalog.assignments.erase(b)
-		catalog.attacks.erase(catalog.attack(made))
+		editor._add_binding(hb_e, made)  # delete: gone from the catalogue and from the enemy
+		editor._show_table(false)
+		editor._select_row(catalog.attacks.find(catalog.attack(made)))
+		var del_ok: bool = editor.form.get_children().any(func(n): return n is Button and n.text == "Delete attack" and not n.disabled)
+		editor._select_row(0)
+		var del_locked: bool = editor.form.get_children().any(func(n): return n is Button and n.text == "Delete attack" and n.disabled)
+		catalog.attacks = catalog.attacks.filter(func(x): return x.name != made)
+		catalog.assignments = catalog.assignments.filter(func(b): return b.attack_name != made)
+		check(del_ok and del_locked and catalog.attack(made).is_empty() and catalog.validate().is_empty(), "An attack the code doesn't use can be deleted; used ones can't")
+		editor._show_enemies()
 		check(editor.form.get_children().any(func(n): return n is Label and n.text.contains("Scores of the saved builds")), "Enemies tab shows the scores")
+		check(editor.summary.text.begins_with("Saved builds:"), "The library monster's score summary is pinned below the list")
 		editor._select_enemy(0)
 		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_monster", "default")[0].attack_name)
 		var edits: Array = []
@@ -204,7 +214,7 @@ func _ready() -> void:
 		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
 		editor._select_enemy(2)
 		await get_tree().process_frame
-		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Repertoire score")),
+		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Repertoire score"),
 			"Enemies tab shows the Ape (enraged) with its repertoire score")
 		editor.queue_free()
 	else: check(false, "Monsters CSV editor is implemented")

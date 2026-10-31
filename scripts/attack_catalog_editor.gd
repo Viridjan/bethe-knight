@@ -151,14 +151,29 @@ func _select_row(index: int) -> void:
 		grid.columns = 2 if group[0] == "Reference" else 4
 		grid.add_theme_constant_override("h_separation", 12)
 		form.add_child(grid)
+		var keep: Array = _applicable(_rows()[index]) + ["name", "type", "base_weight", "follow_up", "follow_up_count", "follow_up_gap_s"] if not ranges else []
 		for column in group[1]:
-			if _rows()[index].has(column): _add_field(grid, column, index)
+			if _rows()[index].has(column) and (ranges or column in keep):  # only the values that mean something for this attack
+				_add_field(grid, column, index)
+		if grid.get_child_count() == 0:  # nothing that applies in this section: drop its heading too
+			form.remove_child(heading)
+			heading.queue_free()
+			form.remove_child(grid)
+			grid.queue_free()
+			continue
 		# Fill an incomplete pair so both field columns retain consistent widths.
 		if grid.columns == 4 and grid.get_child_count() % 4 != 0:
 			grid.add_child(Control.new())
 			var filler := Control.new()
 			filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			grid.add_child(filler)
+	if not ranges and writable:
+		var name: String = str(_rows()[index].get("name", ""))
+		var used: bool = catalog.EXECUTABLE.values().any(func(list): return name in list)
+		var del := Game.button("Delete attack", func(): _delete_attack(name))
+		del.disabled = used
+		del.tooltip_text = "The game code uses this attack: it can't be deleted." if used else "Remove this attack from the catalogue and from every enemy that has it."
+		form.add_child(del)
 	_update_summary()
 	_wrap_tips(form)
 
@@ -213,7 +228,7 @@ func _update_summary() -> void:
 	if ranges:
 		summary.text = "Check maximum range descending, then priority descending. Use [minimum, maximum); execute only the first eligible attack."
 	else:
-		summary.text = "What makes the attack work, and its score weight. Scores, names and notes are in Enemies, under each attack."
+		summary.text = ""
 
 func _update_feedback() -> void:
 	if feedback == null: return
@@ -343,6 +358,8 @@ func _select_enemy(i: int) -> void:
 	var header := HBoxContainer.new()
 	for k in widths.size():
 		var l := Game.label(["#", "Attack", "Min", "Max", "Skip %", "", "", "", "Score"][k], 12)
+		l.mouse_filter = Control.MOUSE_FILTER_PASS
+		l.tooltip_text = {2: _help("min_range_units"), 3: _help("max_range_units"), 4: _help("skip_chance"), 8: "The attack's reference score (with its follow-up)."}.get(k, "")
 		l.custom_minimum_size.x = widths[k]
 		l.modulate = Color(1, 1, 1, 0.6)
 		header.add_child(l)
@@ -442,11 +459,19 @@ func _select_enemy(i: int) -> void:
 			var chosen: String = pick.get_item_metadata(pick.selected)
 			_add_binding(e, chosen if chosen != "" else _new_attack())))
 		form.add_child(add_row)
-	var scores := Game.label(_score_text(e), 13)
-	scores.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	scores.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	form.add_child(scores)
-	summary.text = "Skip %: the chance an attack in range passes its turn, so the next one in the list is tried."
+	var score_lines: PackedStringArray = _score_text(e).split("\n")
+	if e[0] == "enemy_monster":  # one line pinned below; the per-build list stays in the page
+		var nums: Array = []
+		for line in score_lines:
+			var tail := line.get_slice(" · ", line.get_slice_count(" · ") - 1)
+			if tail.is_valid_float(): nums.append(float(tail))
+		summary.text = "Saved builds: %d · scores %.2f to %.2f (list above)" % [nums.size(), nums.min(), nums.max()] if not nums.is_empty() else score_lines[0]
+		var scores := Game.label("\n".join(score_lines), 13)
+		scores.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		scores.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		form.add_child(scores)
+	else:
+		summary.text = "\n".join(score_lines)  # pinned below the list, always visible
 	_wrap_tips(form)
 
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
@@ -616,6 +641,23 @@ func _remove_binding(row: Dictionary) -> void:
 	_select_enemy(enemy_index)
 	_update_feedback()
 
+func _delete_attack(name: String) -> void:
+	var confirm := ConfirmationDialog.new()
+	confirm.dialog_text = "Delete the attack %s from the catalogue and from every enemy?" % name
+	confirm.confirmed.connect(func():
+		catalog.attacks = catalog.attacks.filter(func(a): return a.name != name)
+		catalog.assignments = catalog.assignments.filter(func(b): return b.attack_name != name)
+		for a in catalog.attacks:
+			if str(a.get("follow_up", "")) == name: a.follow_up = ""
+		dirty = true
+		dirty_changed.emit()
+		_show_table(false)
+		_update_feedback())
+	confirm.visibility_changed.connect(func():
+		if not confirm.visible: confirm.queue_free())
+	add_child(confirm)
+	confirm.popup_centered()
+
 # A new attack row (status planned: no gameplay yet), named new_attack_N; returns its name.
 func _new_attack() -> String:
 	var n := 1
@@ -681,6 +723,7 @@ func _score_text(e: Array) -> String:
 	var lines := PackedStringArray()
 	if e[0] == "enemy_monster":
 		lines.append("Scores of the saved builds (body area once, then each of its attacks):")
+		var build_scores: Array = []
 		var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 		var entities = load("res://scripts/entities.gd")
 		var library = load("res://scripts/monster_library.gd")
@@ -695,6 +738,7 @@ func _score_text(e: Array) -> String:
 				var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
 				var result: Dictionary = catalog.enemy_score(enemy.d.attacks, area, enemy.speed_multiplier, enemy.warning_multiplier)
 				lines.append("  %s · %s" % [library.describe(enemy.d), "%.2f" % result.score if result.valid else "unavailable: " + result.reason])
+				if result.valid: build_scores.append(result.score)
 	elif e[0] != "boss_ape":  # an enemy family: its body once, then its attacks
 		var enemy = load("res://scripts/entities.gd").make(null, {"t": e[0], "x": 0, "y": 0})
 		var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
