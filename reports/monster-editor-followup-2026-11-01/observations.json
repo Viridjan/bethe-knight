@@ -1,0 +1,29 @@
+{
+	"ape_overview_nodes": 86,
+	"ape_warm_selection_median_ms": 6.618,
+	"backup_pair_exists": true,
+	"backup_pair_validates": true,
+	"compact_number_after_focus_exit": "1.234",
+	"empty_assignments_validate": true,
+	"empty_catalog_skeleton_phase": "windup",
+	"hornback_score_after_planned_binding": "Score 19.55 (body 1.88 once, then each attack; its variants change speed, warning and recovery)",
+	"hornback_score_before_planned_binding": "Score 17.29 (body 1.88 once, then each attack; its variants change speed, warning and recovery)",
+	"interrupted_pair_auto_recovered": false,
+	"interrupted_pair_error": "Unknown attack binding: draft_old",
+	"invalid_compact_error_location": {
+		"field": "windup_s",
+		"index": 7,
+		"table": "attacks"
+	},
+	"invalid_compact_field_marked": false,
+	"ossling_configured_shots": 5,
+	"ossling_emitted_shots": 1,
+	"parent_score_display_after_child_edit": "236.72",
+	"parent_score_display_before": "236.72",
+	"parent_score_recomputed_after_child_edit": "140.89",
+	"pending_id_escape_confirmations": 0,
+	"pending_id_escape_left_editor": false,
+	"pending_id_field_has_focus": true,
+	"pending_id_marks_dirty": false,
+	"planned_attack_runs": false
+}
