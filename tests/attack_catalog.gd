@@ -20,7 +20,7 @@ func _ready() -> void:
 	check(editors.size() == 1, "Monster Editor entry opens the CSV editor as its own page")
 	if editors.size() == 1:
 		editors[0]._show_enemies()
-		editors[0]._select_enemy(1)
+		editors[0]._select_enemy(0)
 		var pics := func(node, f) -> int:
 			var n := 1 if node is TextureRect and node.texture != null else 0
 			for c in node.get_children(): n += f.call(c, f)
@@ -162,14 +162,14 @@ func _ready() -> void:
 		editor._show_table(true)
 		check(editor.table.item_count == catalog.assignments.size(), "Monsters CSV editor lists range assignments")
 		editor._show_enemies()
-		check(editor.table.item_count == editor.ENEMIES.size() and editor.ENEMIES.size() > 30 and editor.form.get_children().any(func(n): return n.get("ent") != null),
+		check(editor.table.item_count == editor.ENEMIES.size() and editor.ENEMIES.size() > 30 and not editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
 			"Enemies tab lists the enemies and shows the selected one's sprite")
 		var first: String = catalog.ordered_attacks("enemy_monster", "default")[0].attack_name
 		editor._move(catalog.ordered_attacks("enemy_monster", "default")[0], 1)
 		check(catalog.ordered_attacks("enemy_monster", "default")[1].attack_name == first and editor.dirty, "The lower-priority button moves an attack down the list")
 		var n_before: int = catalog.assignments.size()
 		editor._remove_binding(catalog.ordered_attacks("enemy_monster", "default")[0])
-		editor._add_binding(editor.ENEMIES[0], catalog.EXECUTABLE.enemy_monster.filter(func(a): return not catalog.ordered_attacks("enemy_monster", "default").any(func(b): return b.attack_name == a))[0])
+		editor._add_binding(["enemy_monster", "default", "library"], catalog.EXECUTABLE.enemy_monster.filter(func(a): return not catalog.ordered_attacks("enemy_monster", "default").any(func(b): return b.attack_name == a))[0])
 		check(catalog.assignments.size() == n_before and catalog.validate().is_empty(), "Attacks can be removed from and added to an enemy")
 		var hb_e: Array = editor.ENEMIES.filter(func(x): return x[0] == "enemy_hornback")[0]
 		editor._add_binding(hb_e, "shoot")
@@ -234,10 +234,9 @@ func _ready() -> void:
 		editor._show_enemies()
 		for x in catalog.attacks:  # undo: drop the half-made follow-up again
 			if str(x.get("follow_up", "")) == "": x.merge({"follow_up_count": "", "follow_up_gap_s": ""}, true)
-		check(editor.form.get_children().any(func(n): return n is Label and n.text.begins_with("Placed in the story")), "Enemies tab shows the placed library builds")
-		check(editor.summary.text.contains("placed in the story"), "The library monster's score summary is pinned below the list")
-		editor._select_enemy(0)
-		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_monster", "default")[0].attack_name)
+		var hb_i: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
+		editor._select_enemy(hb_i)
+		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_hornback", "default")[0].attack_name)
 		var edits: Array = []
 		var collect := func(node, f):
 			for c in node.get_children():
@@ -256,7 +255,7 @@ func _ready() -> void:
 		var hb: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
 		editor._select_enemy(hb)
 		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
-		editor._select_enemy(2)
+		editor._select_enemy(1)
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Repertoire score"),
 			"Enemies tab shows the Ape (enraged) with its repertoire score")

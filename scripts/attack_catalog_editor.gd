@@ -17,7 +17,7 @@ var loaded_texts: Array = []
 var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy's attacks, ranges and scores)
 var enemy_index := 0
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
-const CSV_ENEMIES := [["enemy_monster", "default", "Library monster"], ["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
+const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
 	["enemy_skree", "default", "Dropwing · ceiling dive"], ["enemy_bat", "default", "Duskflit · swoop"], ["enemy_skeleton", "default", "Ossling · bone throw"],
 	["enemy_hornback", "default", "Hornback · charge"], ["enemy_cragjaw", "default", "Cragjaw · leaping brute"], ["enemy_murkspore", "default", "Murkspore · spore spitter"]]
 # Every enemy in the game: the CSV-driven ones first (their attacks are edited here), then all the others, whose
