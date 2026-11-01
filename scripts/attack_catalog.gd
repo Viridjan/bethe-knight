@@ -3,6 +3,9 @@ extends RefCounted
 # Units: tiles (8 pixels), seconds, square tiles. Scores are estimates at reference conditions.
 const PIXELS_PER_UNIT := 8.0
 const REFERENCE_DISTANCE := 20.0
+# Moving hits (shots, leaps, charges) also count the strip they sweep: hitbox width (√area) × this many tiles, so they
+# compare with area attacks, which count their whole area. 15 keeps the Ape's scream, leap, throw and slam within ~4x.
+const SWEEP_LENGTH := 15.0
 const TYPES := ["body movement", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
@@ -168,6 +171,7 @@ func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: flo
 		var speed := float(row.get("initial_speed_units_s", "0")) * speed_scale
 		if speed <= 0: return {"valid": false, "reason": "Missing positive reference speed"}
 		time = REFERENCE_DISTANCE / speed
+		area += sqrt(area) * SWEEP_LENGTH
 	if time <= 0 or area <= 0: return {"valid": false, "reason": "Missing positive damage area or duration"}
 	if time >= 2: return {"valid": false, "reason": "Measured time >= 2 s: wind-up rule not decided"}
 	var windup := float(row.get("windup_s", "0")) * warning_scale

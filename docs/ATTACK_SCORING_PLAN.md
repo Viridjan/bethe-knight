@@ -116,6 +116,9 @@ that instead and reassess the penalty to avoid charging for the same warning twi
 Score each projectile with the same rule. A thrown or otherwise detached moving
 item is ranged even if its emitter is performing a melee-looking animation.
 
+Update 2026-11-01: moving objects also count their swept strip (hitbox width × 15 tiles) so their scores compare
+with area attacks; see ATTACK_CATALOG.md "Scores".
+
 ### Body
 
 Use the ranged formula with the enemy's damaging body area and its attack's

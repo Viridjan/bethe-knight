@@ -11,8 +11,8 @@ save-systems, performance-optimization. **Headline: 3 blocking, 8 major, 6 minor
 
 **Status (2026-11-01): fixed 1-17.** Speed (11): the Ape page went 57 → 8 ms. Attack details build when opened;
 the world is read once; the real cost was the ▲ ▼ ✕ buttons: the UI font lacks those glyphs, and the system-font
-fallback took ~2 ms per button. They are now drawn pixel icons. 18: kept as asked (same boxes per type). 19: waiting
-for the designer.
+fallback took ~2 ms per button. They are now drawn pixel icons. 18: kept as asked (same boxes per type). 19: moving hits now count their swept strip
+(√area × 15 tiles), so the Ape's attacks sit within ~4x of each other.
 
 ## Findings
 

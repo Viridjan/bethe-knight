@@ -107,8 +107,13 @@ ranged attacks, reference time is `20 / initial_speed_units_s`. Area/melee attac
 use coverage area divided by execution duration. Authors supply measured coverage;
 this version does not automatically sample a melee animation's swept union.
 
+Moving hits (ranged shots, body and movement attacks with a speed) count the strip they sweep too:
+`area = hitbox_area + √hitbox_area × 15` (`SWEEP_LENGTH`, tiles). Area attacks already count their whole area, so this
+keeps types comparable: the Ape's scream 165, leap 105, stone throw 44, slam 37.5; library charge 14, leap 26,
+shot 3.6, lob 7.2. Tune `SWEEP_LENGTH` in `scripts/attack_catalog.gd`, then refresh the score column.
+
 ```
-raw = base_weight × coverage_area / measured_time × weighted_projectile_count
+raw = base_weight × area / measured_time × weighted_projectile_count
 penalty = 1 + 4 × clamp((windup - measured_time) / (2 - measured_time), 0, 1)
 score = raw / penalty
 ```

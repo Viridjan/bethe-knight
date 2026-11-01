@@ -38,10 +38,11 @@ func _ready() -> void:
 	sample.initial_speed_units_s = "40"
 	sample.windup_s = "0.5"
 	var score: Dictionary = catalog.score_attack(sample)
-	check(score.valid and is_equal_approx(score.score, 4.0), "Area over 20-unit travel time gives expected score")
+	var swept: float = (2 + sqrt(2.0) * catalog.SWEEP_LENGTH) / 0.5  # its area plus the strip it sweeps, over 20 / 40 s
+	check(score.valid and is_equal_approx(score.score, swept), "A moving hit counts its area plus its swept strip over the 20-unit travel time")
 	sample.windup_s = "1.25"
 	score = catalog.score_attack(sample)
-	check(score.valid and is_equal_approx(score.penalty, 3.0) and is_equal_approx(score.score, 4.0/3.0), "Wind-up penalty interpolates from execution time to 2 seconds")
+	check(score.valid and is_equal_approx(score.penalty, 3.0) and is_equal_approx(score.score, swept / 3.0), "Wind-up penalty interpolates from execution time to 2 seconds")
 	sample.windup_s = "2"
 	check(is_equal_approx(catalog.score_attack(sample).penalty, 5), "Two seconds gives maximum penalty")
 	sample.initial_speed_units_s = "10"
@@ -51,11 +52,11 @@ func _ready() -> void:
 	sample.multishot = "8"
 	sample.aimed_shot = "0"
 	sample.spread_deg = "0"
-	check(is_equal_approx(catalog.score_attack(sample).score, 4 * (1 + 7 * 0.2)), "A full-circle multishot counts the shots away from the player at 20 percent")
+	check(is_equal_approx(catalog.score_attack(sample).score, swept * (1 + 7 * 0.2)), "A full-circle multishot counts the shots away from the player at 20 percent")
 	sample.multishot = "3"
 	sample.aimed_shot = "1"
 	sample.spread_deg = "15"
-	check(is_equal_approx(catalog.score_attack(sample).score, 12) and catalog.shot_angles(sample) == [-15.0, 0.0, 15.0], "A tight multishot fan counts every shot; shot 0 is the lowest")
+	check(is_equal_approx(catalog.score_attack(sample).score, swept * 3) and catalog.shot_angles(sample) == [-15.0, 0.0, 15.0], "A tight multishot fan counts every shot; shot 0 is the lowest")
 	sample.aimed_shot = "3"
 	catalog.attacks.append(sample)
 	check(not catalog.validate().is_empty(), "The aimed shot must be one of the shots")
@@ -71,7 +72,7 @@ func _ready() -> void:
 	catalog.move_binding(shoot_rule, -1)
 	check(catalog.select_attack("enemy_monster", "default", ["charge", "shoot"], 2, func(a): return a != "shoot") == "charge", "Ineligible first attack falls back to next rule")
 	check(catalog.select_attack("enemy_monster", "default", ["charge", "shoot"], 100) == "", "Out-of-range attacks do not execute")
-	check(catalog.attack("charge").coverage_area_units2 == "" and is_equal_approx(catalog.score_attack(catalog.attack("charge")).area, 1.5625) and is_equal_approx(catalog.score_attack(catalog.attack("ape_leap")).area, 9.0),
+	check(catalog.attack("charge").coverage_area_units2 == "" and is_equal_approx(catalog.score_attack(catalog.attack("charge")).area, 1.5625 + 1.25 * catalog.SWEEP_LENGTH) and is_equal_approx(catalog.score_attack(catalog.attack("ape_leap")).area, 9.0 + 3.0 * catalog.SWEEP_LENGTH),
 		"Body attacks hit with the body: no area of their own, the reference body is used")
 	var open_rule: Dictionary = catalog.ordered_attacks("enemy_monster", "default", ["leap"])[0]
 	var keep_max: String = open_rule.max_range_units
