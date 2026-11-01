@@ -35,7 +35,7 @@ Ossling bones and Murkspore orbs collide with terrain and room bounds, expire af
 
 ## Playing and editing
 
-All 32 types are in the editor and on the Monsters page (main menu, or the map screen's second tab). In the story world the jungle has calm Mosstrots, and the Ape boss (`boss_ape`, not an enemy family) waits in its arena.
+All 32 types are in the room editor, in the Monster Editor (main menu) and on the map screen's Monsters tab. The six attacking families read their attacks from `data/attacks.csv` (see [ATTACK_CATALOG.md](ATTACK_CATALOG.md)). In the story world the jungle has calm Mosstrots, and the Ape boss (`boss_ape`, not an enemy family) waits in its arena.
 
 Attack with **A**; hold a direction to aim the swing. Enemies use the existing one-hit player death system. An enemy takes at most one hit per swing, with a brief hurt flash. Defeated enemies become harmless and respawn when the room is rebuilt.
 

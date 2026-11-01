@@ -82,13 +82,16 @@ Thornmite (wall crawler), Dropwing (ceiling dive), Duskflit (swoop), Ossling (bo
 throw), Hornback (charge), Fuzzbob (bouncing flight), and the big Cragjaw (leaping
 brute) and Murkspore (spore spitter), plus the story jungle's calm Mosstrot (wanders, never chases). Attack with A; bones and orbs can be swatted
 away. Most families come in 2-4 variants (Swift, Armored, Giant, Shielded, Brood,
-Venom); all 32 types are in the editor and on the Monsters page (main menu, or the map's second tab).
+Venom); all 32 types are in the room editor, in the Monster Editor (main menu, desktop source version) and on the
+in-game map's Monsters tab (the ones you've met, with kill counts).
 
 **Library monsters** (`scripts/monster_library.gd`, entity `enemy_monster`): built from a move (walk, hop, hover),
-attacks (charge, leap, shoot, lob, dive) and traits (the variants above). An upgrade adds an attack or a trait: once
+attacks (charge, leap, shoot, lob) and traits (the variants above). An upgrade adds an attack or a trait: once
 upgraded they're 1.25x and amber, twice 1.5x and magenta. `godot --headless --path . --script tools/populate.gd`
 fills each region: 30% of the previous region's monsters as they are, 20% upgraded, 50% the region's own (its zodiac
-sign's); twice-upgraded ones stay in their region. `--dry` previews, `--clear` removes what it placed. See [behaviour and placement notes](docs/ENEMIES.md) and the
+sign's); twice-upgraded ones stay in their region. `--dry` previews, `--clear` removes what it placed. These random
+builds are being replaced by calibrated placement per region (families and a danger budget):
+`docs/reviews/monsters/CODEX_PROMPT.md`, task 7. See [behaviour and placement notes](docs/ENEMIES.md) and the
 [animated sprite gallery](assets/enemies/preview.html).
 
 ## Tests
@@ -192,8 +195,9 @@ runtime drawing code. Gameplay textures, recorded music, and the in-game bestiar
 remain included. The engine download is still the largest part of the web build.
 
 In the desktop **Monsters** screen (also available from the map's Monsters tab),
-**Attacks CSV** reads the attack/range tables and offers validated source editing,
-score breakdowns, and enemy-score inspection. See [the attack catalogue guide](docs/ATTACK_CATALOG.md).
+**Monster Editor** (main menu, desktop source version) edits `data/attacks.csv` and `data/enemy_attacks.csv`:
+**Attack library** (each attack's values by type) and **Enemy loadouts** (each enemy's attacks in priority order,
+ranges, skip %, follow-ups, frames, scores). See [the attack catalogue guide](docs/ATTACK_CATALOG.md).
 
 In the desktop source version, **Monster Editor** on the main menu opens the CSV
 editor directly. Restart the game after updating the source to see the new entry.

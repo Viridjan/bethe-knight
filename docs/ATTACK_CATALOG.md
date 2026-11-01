@@ -28,14 +28,17 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
 - **Reload** rereads disk, refreshes the shared catalogue, and asks before
   discarding a draft. Saving refuses to overwrite files changed externally since
   they were loaded.
-- **Enemies** lists the CSV-driven enemies (library monster, Ape, Ape enraged). Pick one to see its sprite and
-  its attacks **in priority order**: the first attack that is in range (minimum inclusive, maximum exclusive;
-  an empty / 0 maximum means no maximum),
-  eligible and not skipped starts. ▲ / ▼ move an attack up or down (priorities are renumbered), ✕ removes it,
-  "+ Add attack" adds any attack from the catalogue (or "＋ New attack…", a new planned row) at the bottom; one the
-  enemy's code can't do yet is tagged "not in game yet": it's saved and shown, and skipped in play. **Skip %** (`skip_chance`, 0-100) is the chance an attack
-  passes its turn when it could be used, so the next one is tried. Below the list: the scores, per saved library
-  build (body area once, then its distinct attacks) or for the Ape phase's repertoire. An invalid value shows in red.
+- **Enemy loadouts** lists every enemy. Editable (attacks in the CSV): the Ape, the enraged Ape and the six
+  attacking families (Dropwing, Duskflit, Ossling, Hornback, Cragjaw, Murkspore); the others (variants, Thornmite,
+  Fuzzbob, Mosstrot, the chase Ape, the Guardian) are read-only (sprite, frames, HP, where they're placed). Attacks
+  are in **priority order**: the first one in range (minimum inclusive, maximum exclusive; empty / 0 = no maximum),
+  eligible and not skipped starts. ▲ / ▼ reorder, ✕ removes it from the enemy, "+ Add attack" adds any catalogue
+  attack or a new planned one (attacks the enemy's code can't do yet are tagged "not in game yet" and skipped in
+  play). **Skip %** is the chance an attack passes its turn to the next one. Under each attack: its frames, its
+  values (the same boxes for every attack of a type) and its follow-up (Then / Times / Every, or "+ Then…"). The
+  score line stays pinned below the list. An invalid value shows in red.
+- **Attack library** holds what defines each attack: Name, ID (renamable when no code uses it), Type, Weight and the
+  boxes of its type; **Delete attack** for attacks no code uses.
 
 Editing is available only in the desktop source version. Exported desktop games
 can inspect the catalogue; the web keeps the development editor hidden and out
@@ -46,7 +49,8 @@ adding an unknown attack binding to CSV is rejected.
 Enemy families in the CSV (their behaviour code reads the values; variants share the family's attack): Dropwing
 (`dropwing_dive`), Duskflit (`charge`, flying), Ossling (`ossling_bone_throw`), Hornback (`charge`), Cragjaw
 (`leap`), Murkspore (`shoot`). Shared attacks: **charge** (a rush: walkers run along their floor, flyers fly
-straight at the player; library monsters, Hornback, Duskflit) and **shoot** (library monsters, Murkspore); each enemy
+straight at the player; library monsters, Hornback, Duskflit), **leap** (library monsters, Cragjaw) and **shoot**
+(library monsters, Murkspore); each enemy
 keeps its own range. Thornmite, Fuzzbob and Mosstrot have no attack (they hurt on touch).
 A skipped family attack waits its recovery before trying again.
 
@@ -56,12 +60,12 @@ right after this one, that many times, that far apart; its score is added that m
 not above or below) lands at the far end of its range, then throws `ape_throw` 3 times, 0.35 s apart. With the retreat
 skipped or removed, a cornered Ape does a plain leap instead.
 
-Attack types: body movement, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
+Attack types: body movement, melee, ranged, area and **movement** (charge, leap, the Ape's leaps and landing slam: the move
 decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
-(the move sets the time). Movement values instead: **Max distance** (tiles) for charge and dive, which stop sooner at a
+(the move sets the time). Movement values instead: **Max distance** (tiles) for charge, which stops sooner at a
 wall, a ledge or anything they hit; **Shockwave time** (seconds) for the landing slam. Leaps end on landing.
 
-Body and movement attacks (charge, leap, dive, the Ape's leap) hit with the enemy's own body: they have no area of their own
+Body and movement attacks (charge, leap, the Ape's leaps) hit with the enemy's own body: they have no area of their own
 (blank `coverage_area_units2`, shown as "body"); scores use the body's size (a 10x10 px library monster or the
 Ape's 3x3 tiles as the reference in the Attacks tab, each enemy's real size in Enemies).
 
@@ -71,8 +75,8 @@ External spreadsheet edits take effect after Reload CSV or restarting the game.
 
 ## What currently controls gameplay
 
-Library monsters read CSV wind-up and recovery. Charge/dive read speed and execution
-duration; straight shots read speed and execution duration. Leaps read initial
+Library monsters read CSV wind-up and recovery. Charge reads speed and max distance (walkers along the floor, flyers
+straight at the player); straight shots read speed and execution duration. Leaps read initial
 horizontal/vertical components and gravity, ending on landing. Lobbed shots read
 flight-time, vertical velocity, gravity, and release-animation duration. Trait
 modifiers remain applied as before. Body size and the 3×3 pixel small-projectile
