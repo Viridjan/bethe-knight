@@ -145,7 +145,7 @@ func _ready() -> void:
 		editor.search.text = ""
 		editor._filter_list()
 		check(editor.form.get_children().any(func(node): return node is PanelContainer), "Attack settings are grouped in cards")
-		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
+		check(editor.fields.windup_s.text == "0.5", "Numeric edit fields show values without trailing zeros (the CSV keeps two decimals)")
 		check(not editor.fields.has("score") and not editor.fields.has("notes") and editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
 			"The Attacks tab holds what makes an attack work, plus its score weight")
 		var grey := func(id: String) -> bool:
@@ -174,8 +174,8 @@ func _ready() -> void:
 		editor._show_table(true)
 		check(editor.table.item_count == catalog.assignments.size(), "Monsters CSV editor lists range assignments")
 		editor._show_enemies()
-		check(editor.table.item_count == editor.ENEMIES.size() and editor.ENEMIES.size() > 30 and not editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
-			"Enemies tab lists the enemies and shows the selected one's sprite")
+		check(editor.table.item_count == editor.ENEMIES.size() + 1 and editor.ENEMIES.size() > 30 and not editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
+			"Enemies tab lists the enemies (editable, a divider, read-only) and shows the selected one's sprite")
 		var first: String = catalog.ordered_attacks("enemy_monster", "default")[0].attack_name
 		editor._move(catalog.ordered_attacks("enemy_monster", "default")[0], 1)
 		check(catalog.ordered_attacks("enemy_monster", "default")[1].attack_name == first and editor.dirty, "The lower-priority button moves an attack down the list")
@@ -313,6 +313,18 @@ func _review_fixes(path: String) -> void:
 	var saved: String = c.save_all()
 	c.reload()
 	check(saved == "" and str(c.attack("ape_retreat").score) == "%.2f" % c.score_attack(c.attack("ape_retreat")).score, "Saved scores match the saved values")
+	check(FileAccess.file_exists(dir + "attacks.csv.bak") and FileAccess.file_exists(dir + "enemy_attacks.csv.bak"), "Saving keeps the previous CSV pair as .bak")
+	# skip % rolls once per decision: a skipped attack waits its recovery instead of being re-rolled next frame
+	var rule: Dictionary = c.ordered_attacks("enemy_murkspore", "default")[0]
+	rule.skip_chance = "50"
+	var waits := {}
+	var picks := 0
+	for frame in 600:  # 10 s of frames; the shot's recovery spaces the rolls out
+		if c.select_attack("enemy_murkspore", "default", [], 1.0, Callable(), 1.0, waits, frame / 60.0) != "":
+			picks += 1
+			waits["shoot"] = frame / 60.0 + 1.0  # (the attack itself takes time too)
+	check(picks < 20, "A skipped attack sits out its recovery instead of being re-rolled every frame (%d attacks in 10 s)" % picks)
+	rule.skip_chance = "0"
 	# Esc asks before dropping unsaved edits, like Back
 	var menu = load("res://scripts/menu.gd").new()
 	add_child(menu)
@@ -333,7 +345,7 @@ func _review_fixes(path: String) -> void:
 	editor._select_enemy(hb)
 	var before: String = editor.summary.text
 	var keep: String = editor.catalog.attack("charge").windup_s
-	var boxes: Array = editor.form.find_children("*", "LineEdit", true, false).filter(func(x): return x.text == editor.catalog.format_cell("windup_s", keep))
+	var boxes: Array = editor.form.find_children("*", "LineEdit", true, false).filter(func(x): return x.text == editor._shown("windup_s", keep))
 	if not boxes.is_empty():
 		boxes[0].text = "1.5"
 		boxes[0].text_changed.emit("1.5")

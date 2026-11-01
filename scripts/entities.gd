@@ -742,6 +742,7 @@ class CombatEnemy extends Ent:
 	func attack_id() -> String:
 		return ""
 	var skip_cd := 0.0  # a skipped attack (its skip chance) waits this long before the next try
+	var skip_waits := {}  # attack -> clock time a skipped attack may be rolled again
 	func atk(field: String, fallback: float) -> float:
 		return fallback if attack_id() == "" else AttackCatalog.shared().value(attack_id(), field, fallback)
 	func _binding() -> Array:  # its row in enemy_attacks.csv (empty: removed in the Monster Editor, so it never attacks)
@@ -1325,7 +1326,7 @@ class ActionMonster extends CombatEnemy:
 				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
 					func(a):
 						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
-						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale)
+						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale, skip_waits, clock)
 				if not chosen.is_empty():
 					facing = -1 if w.player.center().x < center().x else 1
 					Game.play_sfx("enemy_alert")
@@ -2534,6 +2535,7 @@ class Ape extends Ent:
 	var stage := 0
 	var then_slam := false
 	var hops := 0  # in-place hops still to do after an enraged scream
+	var skip_waits := {}  # attack -> clock time a skipped attack may be rolled again
 	var retreat := false  # this leap goes away from a cornered player, then a volley follows
 	var volley := 0  # stones still to throw in a volley
 	var volley_gap := VOLLEY_GAP
@@ -2726,7 +2728,7 @@ class Ape extends Ent:
 				if id == "ape_retreat": return corner and not above  # cornered: away to the far side, then its follow-up
 				if id == "ape_throw": return allow_throw
 				if id == "ape_leap": return above or corner or distance_units >= near_limit  # (cornered too, if the retreat is skipped)
-				return id == "ape_scream" and not above and not corner)
+				return id == "ape_scream" and not above and not corner, 1.0, skip_waits, clock)
 	func _ape_param(id: String, field: String, fallback: float) -> float:
 		if attack_snapshot.get("name", "") == id:
 			var cell := str(attack_snapshot.get(field, ""))

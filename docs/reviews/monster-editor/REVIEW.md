@@ -9,6 +9,9 @@ systematic-debugging, verification-before-completion, godot-best-practices, pony
 save-systems, performance-optimization. **Headline: 3 blocking, 8 major, 6 minor, 2 questions.** Codex's
 `reports/monster-editor-review-2026-11-01/README.md` has the raw evidence for the findings marked (C).
 
+**Status (2026-11-01): fixed** 1-17 (Codex's 12 in `082e3e5`, the rest after it). Open: 18-19 (designer's questions);
+from 11 only the world cache and the lazy animation strip were done (the rest of the form is still rebuilt per click).
+
 ## Findings
 
 1. **[BLOCKING] Renaming an attack ID hijacks other attacks' bindings (C).** `_change("name")` runs on every

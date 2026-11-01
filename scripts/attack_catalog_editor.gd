@@ -25,6 +25,7 @@ var loaded_texts: Array = []
 var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy's attacks, ranges and scores)
 var enemy_index := 0
 var form_scroll: ScrollContainer
+var world_cache := {}
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
 	["enemy_skree", "default", "Dropwing · ceiling dive"], ["enemy_bat", "default", "Duskflit · swoop"], ["enemy_skeleton", "default", "Ossling · bone throw"],
@@ -161,11 +162,15 @@ func _filter_list() -> void:
 			label = str(entries[i].get("codex_online_name", entries[i].name))
 			detail = "%s · %s" % [entries[i].name, entries[i].type]
 		if not search.text.is_empty() and not (label + " " + detail).to_lower().contains(search.text.to_lower()): continue
+		if view == "enemies" and entries[i][1] == "" and (i == 0 or entries[i - 1][1] != "") and not list_indices.is_empty():
+			table.add_item("— Read only —", null, false)  # divider
+			table.set_item_custom_fg_color(table.item_count - 1, Color("6f7fa8"))
+			list_indices.append(-1)
 		list_indices.append(i)
 		table.add_item(label)
 		table.set_item_tooltip(table.item_count - 1, label + "\n" + detail)
 		if view == "enemies" and entries[i][1] == "": table.set_item_custom_fg_color(table.item_count - 1, Color("8d92a3"))
-	list_count.text = "%d %s" % [list_indices.size(), "enemies" if view == "enemies" else "attacks"] if not list_indices.is_empty() else "No matches"
+	list_count.text = "%d %s" % [list_indices.filter(func(k): return k >= 0).size(), "enemies" if view == "enemies" else "attacks"] if not list_indices.is_empty() else "No matches"
 	var active := enemy_index if view == "enemies" else selected
 	var visible_index := list_indices.find(active)
 	if visible_index >= 0: table.select(visible_index)
@@ -317,7 +322,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		cell.add_child(pick)
 		return
 	var edit := LineEdit.new()
-	edit.text = catalog.format_cell(column, str(_rows()[index].get(column, "")))
+	edit.text = _shown(column, str(_rows()[index].get(column, "")))
 	edit.custom_minimum_size.x = 110
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var in_code: bool = catalog.runtime_used(str(_rows()[index].get("name", "")))
@@ -344,7 +349,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	edit.text_changed.connect(func(value): _change(column, value))
 	edit.focus_exited.connect(func():
 		if selected != index or fields.get(column) != edit: return
-		var formatted: String = catalog.format_cell(column, edit.text)
+		var formatted: String = _shown(column, edit.text)
 		if formatted != edit.text:
 			edit.text = formatted
 			_change(column, formatted))
@@ -421,7 +426,9 @@ func _save() -> void:
 	if not saved.is_empty():
 		feedback.text = saved
 		return
-	catalog.reload()
+	if not catalog.reload():
+		feedback.text = "Saved, but reloading failed: " + catalog.error
+		return
 	if view == "enemies": _select_enemy(enemy_index)
 	else: _select_row(clampi(selected, 0, _rows().size() - 1))
 	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
@@ -511,11 +518,14 @@ func _select_enemy(i: int) -> void:
 	if not own.is_empty():
 		var own_row := HBoxContainer.new()
 		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		own_row.add_child(_frame_strip(own, 2.0))
 		own_row.visible = false
-		var gallery := Game.button("Animation reference", func(): own_row.visible = not own_row.visible)
+		var gallery := Game.button("+ Animation reference", func(): pass)
+		gallery.pressed.connect(func():
+			if own_row.get_child_count() == 0: own_row.add_child(_frame_strip(own, 2.0))  # built when first opened
+			own_row.visible = not own_row.visible
+			gallery.text = ("− " if own_row.visible else "+ ") + "Animation reference")
 		gallery.flat = true
-		gallery.add_theme_font_size_override("font_size", 12)
+		gallery.add_theme_font_size_override("font_size", 14)
 		gallery.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		gallery.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		form.add_child(gallery)
@@ -562,7 +572,7 @@ func _select_enemy(i: int) -> void:
 		block.add_child(binding_line)
 		for column in ["min_range_units", "max_range_units", "skip_chance"]:
 			var edit := _small_edit(writable)
-			edit.text = catalog.format_cell(column, str(row.get(column, "0")))
+			edit.text = _shown(column, str(row.get(column, "0")))
 			if column == "max_range_units" and float(str(row.get(column, "0"))) == 0:
 				edit.text = ""  # 0 = no maximum
 			if column == "max_range_units":
@@ -666,6 +676,11 @@ func _select_enemy(i: int) -> void:
 	_enemy_total(e)
 	_wrap_tips(form)
 
+# A value as shown in a box: the CSV's rounding, without trailing zeros (40, 0.5; the CSV keeps 40.00).
+func _shown(column: String, cell: String) -> String:
+	var v: String = catalog.format_cell(column, cell)
+	return v.rstrip("0").trim_suffix(".") if v.contains(".") and v.is_valid_float() else v
+
 # The enemy's total score line under its attacks (refreshed on every value edit).
 func _enemy_total(e: Array) -> void:
 	var score_details := _score_text(e)
@@ -717,7 +732,7 @@ func _small_edit(editable: bool) -> LineEdit:
 # One small edit box for an attack value (shared by every enemy with that attack); greying as in the Attacks tab.
 func _compact_field(parent: Control, attack: Dictionary, column: String, score: Label) -> LineEdit:
 	var edit := _small_edit(writable)
-	edit.text = catalog.format_cell(column, str(attack.get(column, "")))
+	edit.text = _shown(column, str(attack.get(column, "")))
 	if column == "follow_up":
 		edit.custom_minimum_size.x = 110  # an attack name
 	edit.tooltip_text = _help(column) + " · shared by every enemy with this attack"
@@ -931,7 +946,8 @@ func _code_enemy_info(e: Array, ent) -> void:
 		lines.append("Hit points: %d" % ent.hp)
 	if ent != null and "variant" in ent and str(ent.variant) != "":
 		lines.append("Variant: " + str(ent.variant))
-	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
+	if world_cache.is_empty(): world_cache = Game.Adventure.load_world(Game.world_path)  # once per editor session
+	var world: Dictionary = world_cache
 	var rooms := PackedStringArray()
 	var count := 0
 	for room in world.get("rooms", {}):

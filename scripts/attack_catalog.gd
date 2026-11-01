@@ -254,14 +254,18 @@ func move_binding(row: Dictionary, step: int) -> void:
 		rows[k].priority = str(rows.size() - 1 - k)
 
 # The first attack in priority order that's in range and eligible; each has a skip chance (percent): when it's rolled,
-# that attack passes and the next one is tried.
-func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0) -> String:
+# that attack passes and the next one is tried. With `waits` (the enemy's own {attack: time}) and its clock `now`, a
+# skipped attack sits out its recovery instead of being rolled again next frame.
+func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0, waits: Dictionary = {}, now: float = 0.0) -> String:
 	for row in ordered_attacks(enemy_id, phase, available):
 		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
 		if not performs(enemy_id, row.attack_name): continue  # added in the editor, not in its code yet
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue
+		if float(waits.get(row.attack_name, -1.0)) > now: continue  # skipped a moment ago
 		var skip := str(row.get("skip_chance", ""))
-		if skip != "" and randf() * 100.0 < float(skip): continue
+		if skip != "" and randf() * 100.0 < float(skip):
+			waits[row.attack_name] = now + maxf(0.5, value(row.attack_name, "recovery_s", 1.0))
+			continue
 		return row.attack_name
 	return ""
 
@@ -349,15 +353,13 @@ func save_all() -> String:
 	for ranges in [false, true]:
 		var staged := _stage_table(ranges)
 		if not staged.is_empty(): return staged
-	var old := FileAccess.get_file_as_string(attack_path) if FileAccess.file_exists(attack_path) else ""
-	var first := DirAccess.rename_absolute(ProjectSettings.globalize_path(attack_path + ".tmp"), ProjectSettings.globalize_path(attack_path))
-	if first != OK: return "Could not replace attack CSV: " + error_string(first)
-	var second := DirAccess.rename_absolute(ProjectSettings.globalize_path(assignment_path + ".tmp"), ProjectSettings.globalize_path(assignment_path))
-	if second != OK:
-		var restore := FileAccess.open(attack_path + ".restore", FileAccess.WRITE)
-		if restore == null: return "Range save failed; attack rollback could not be written"
-		restore.store_string(old)
-		restore.close()
-		var restored := DirAccess.rename_absolute(ProjectSettings.globalize_path(attack_path + ".restore"), ProjectSettings.globalize_path(attack_path))
-		return "Could not replace range CSV; " + ("attack CSV restored" if restored == OK else "attack rollback failed")
+	var g := func(p: String) -> String: return ProjectSettings.globalize_path(p)
+	for path in [attack_path, assignment_path]:  # keep the last good pair as .bak (a crash mid-save leaves it to restore)
+		if FileAccess.file_exists(path) and DirAccess.copy_absolute(g.call(path), g.call(path + ".bak")) != OK: return "Could not back up " + path
+	for path in [attack_path, assignment_path]:
+		var result := DirAccess.rename_absolute(g.call(path + ".tmp"), g.call(path))
+		if result != OK:  # put both back as they were
+			for back in [attack_path, assignment_path]:
+				if FileAccess.file_exists(back + ".bak"): DirAccess.copy_absolute(g.call(back + ".bak"), g.call(back))
+			return "Could not replace %s (%s); both CSVs restored from .bak" % [path, error_string(result)]
 	return ""
