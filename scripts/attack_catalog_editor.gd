@@ -597,6 +597,20 @@ func _select_enemy(i: int) -> void:
 		score.custom_minimum_size.x = widths[8]
 		line.add_child(score)
 		_show_score(score, attack)
+		if "follow_up" in _applicable(attack):  # its follow-up stays visible without opening Edit
+			var follow := HBoxContainer.new()
+			follow.add_theme_constant_override("separation", 8)
+			block.add_child(follow)
+			for column in ["follow_up", "follow_up_count", "follow_up_gap_s"]:  # same look as Min / Max / Skip above
+				var tag := Game.label(TAGS.get(column, column), 12)
+				tag.tooltip_text = _help(column)
+				follow.add_child(tag)
+				if column == "follow_up":
+					var picker := _follow_up_picker(attack)
+					picker.custom_minimum_size.x = 160
+					follow.add_child(picker)
+				else:
+					_compact_field(follow, attack, column, score).custom_minimum_size.x = widths[2]
 		var detail_key := "%s/%s/%s" % [e[0], e[1], row.attack_name]
 		var details := VBoxContainer.new()
 		details.visible = expanded_attacks.get(detail_key, false)
@@ -633,21 +647,8 @@ func _select_enemy(i: int) -> void:
 			for column in values:
 				mech.add_child(_value_tag(column))
 				_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
-			var follow := GridContainer.new()
-			follow.columns = 4
-			follow.add_theme_constant_override("h_separation", 6)
-			follow.add_theme_constant_override("v_separation", 6)
-			inner.add_child(follow)
-			if "follow_up" in _applicable(attack):
-				follow.add_child(_value_tag("follow_up"))
-				var picker := _follow_up_picker(attack)
-				picker.custom_minimum_size.x = 160
-				follow.add_child(picker)
-				for column in ["follow_up_count", "follow_up_gap_s"]:
-					follow.add_child(_value_tag(column))
-					_compact_field(follow, attack, column, score).custom_minimum_size.x = BOX_W
-			elif writable:  # no follow-up yet: one click adds one
-				follow.add_child(Game.button("+ Then…", func():
+			if writable and not "follow_up" in _applicable(attack):  # no follow-up yet: one click adds one (in Edit)
+				inner.add_child(Game.button("+ Then…", func():
 					attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
 					dirty = true
 					dirty_changed.emit()
