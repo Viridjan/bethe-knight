@@ -539,3 +539,4 @@ validated CSV editor in source builds; web includes gameplay tables only.
 - 2026-11-01: Attack type 'body' renamed 'body movement' (no attack uses it today).
 - 2026-11-01: cragjaw_leap merged into leap (leap's values: Cragjaw leaps a little faster and lower, wind-up 0.5, recovery 0.9); the Ape keeps ape_leap / ape_retreat. 13 attacks left.
 - 2026-11-01: Docs updated (README, ATTACK_CATALOG, ENEMIES, data/README) for the Monster Editor (Attack library / Enemy loadouts), the removed Monsters page and the merged attacks.
+- 2026-11-01: Monster Editor review (game-review skill) -> docs/reviews/monster-editor/REVIEW.md: 3 blocking (ID rename hijacks bindings, Esc drops unsaved edits, unbounded multishot hangs), 8 major, 6 minor, 2 questions, with a Codex fix prompt; Codex's probe review committed under reports/monster-editor-review-2026-11-01/.

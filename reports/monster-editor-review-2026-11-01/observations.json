@@ -1,0 +1,82 @@
+{
+	"delete_runtime_component_enabled": true,
+	"deleted_runtime_component_passes_validation": true,
+	"enemy_overview_min_width": 953.0,
+	"enemy_overview_viewport_width": 961.0,
+	"enemy_total_displayed": "Score 3.16",
+	"enemy_total_recomputed": "Score 2.24 (body 1.88 once, then each attack; its variants change speed, warning and recovery)",
+	"enemy_total_stays_stale_after_edit": true,
+	"escape_confirmation_count": 0,
+	"escape_discards_dirty_editor": true,
+	"followup_cycle_validates": true,
+	"hundred_million_shots_validate": true,
+	"layout_actual_width": 1193.0,
+	"layout_minimum_width": 1193.0,
+	"layout_requested_width": 1000,
+	"navigation": {
+		"Ape": {
+			"frame_lookup_ms_per_selection": 0.077375,
+			"max_ms": 59.35,
+			"median_ms": 56.294,
+			"node_count": 210,
+			"process_monitor_ms": 158.514,
+			"score_text_ms_per_selection": 0.3365,
+			"tooltip_ms_per_selection": 0.7535,
+			"validation_calls_per_selection": 5.0,
+			"validation_ms_per_selection": 1.268
+		},
+		"Guardian (boss)": {
+			"frame_lookup_ms_per_selection": 0.0,
+			"max_ms": 6.285,
+			"median_ms": 5.76,
+			"node_count": 5,
+			"process_monitor_ms": 158.514,
+			"score_text_ms_per_selection": 0.0,
+			"tooltip_ms_per_selection": 0.0,
+			"validation_calls_per_selection": 0.0,
+			"validation_ms_per_selection": 0.0
+		},
+		"Hornback · charge": {
+			"frame_lookup_ms_per_selection": 0.031875,
+			"max_ms": 33.311,
+			"median_ms": 20.302,
+			"node_count": 66,
+			"process_monitor_ms": 158.514,
+			"score_text_ms_per_selection": 0.36375,
+			"tooltip_ms_per_selection": 0.238375,
+			"validation_calls_per_selection": 2.0,
+			"validation_ms_per_selection": 0.5785
+		}
+	},
+	"original_shoot_bindings_before_rename": 2,
+	"persisted_followup_score": "33.06",
+	"readonly_enemy_rows": 28,
+	"recomputed_followup_score": "32.98",
+	"rename_hijack_final_state_validates": true,
+	"rename_hijacked_existing_shoot_bindings": 2,
+	"rename_runtime_component_enabled": true,
+	"retreat_with_scream_followup_enters": "throw",
+	"saved_score_mismatches_rounded_data": true,
+	"score_10000_shots_ms": 1.048,
+	"scroll_after_enemy_change": 180,
+	"scroll_before_enemy_change": 180,
+	"skeleton_attacks_below_minimum": true,
+	"skeleton_attacks_without_binding": true,
+	"skeleton_distance_units": 5.50035524368286,
+	"unscored_followup_claims_complete_score": true,
+	"unscored_followup_score": 17.442,
+	"wide_controls": [
+		{
+			"kind": "VBoxContainer",
+			"minimum_width": 953.0
+		},
+		{
+			"kind": "HBoxContainer",
+			"minimum_width": 953.0
+		},
+		{
+			"kind": "OptionButton",
+			"minimum_width": 777.0
+		}
+	]
+}
