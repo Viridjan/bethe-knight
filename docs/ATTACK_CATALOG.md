@@ -45,7 +45,7 @@ adding an unknown attack binding to CSV is rejected.
 
 Enemy families in the CSV (their behaviour code reads the values; variants share the family's attack): Dropwing
 (`dropwing_dive`), Duskflit (`charge`, flying), Ossling (`ossling_bone_throw`), Hornback (`charge`), Cragjaw
-(`cragjaw_leap`), Murkspore (`shoot`). Shared attacks: **charge** (a rush: walkers run along their floor, flyers fly
+(`leap`), Murkspore (`shoot`). Shared attacks: **charge** (a rush: walkers run along their floor, flyers fly
 straight at the player; library monsters, Hornback, Duskflit) and **shoot** (library monsters, Murkspore); each enemy
 keeps its own range. Thornmite, Fuzzbob and Mosstrot have no attack (they hurt on touch).
 A skipped family attack waits its recovery before trying again.

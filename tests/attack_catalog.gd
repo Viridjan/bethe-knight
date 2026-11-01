@@ -224,7 +224,7 @@ func _ready() -> void:
 			var k: Array = editor.fields.keys()
 			k.sort()
 			return k
-		check(boxes.call("charge") == boxes.call("cragjaw_leap") and boxes.call("shoot") == boxes.call("lob") and boxes.call("charge") != boxes.call("shoot"),
+		check(boxes.call("charge") == boxes.call("leap") and boxes.call("shoot") == boxes.call("lob") and boxes.call("charge") != boxes.call("shoot"),
 			"Attacks of the same type show the same boxes")
 		var temp: String = editor._new_attack()
 		editor._add_binding(editor.ENEMIES[0], temp)

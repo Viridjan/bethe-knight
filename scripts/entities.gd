@@ -1445,7 +1445,7 @@ class FuzzbobEnemy extends CombatEnemy:
 class CragjawEnemy extends CombatEnemy:
 	# Big brute: plods along its floor; a player in reach gets a warning, then a leap that slams down near them.
 	var velocity := Vector2.ZERO
-	func attack_id() -> String: return "cragjaw_leap"
+	func attack_id() -> String: return "leap"  # shared with library monsters
 	# Initialize CragjawEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()

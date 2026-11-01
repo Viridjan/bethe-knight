@@ -15,5 +15,5 @@ enemy_skree,default,dropwing_dive,0.00,14.00,0,0.00
 enemy_bat,default,charge,0.00,12.00,0,0.00
 enemy_skeleton,default,ossling_bone_throw,0.00,13.00,0,0.00
 enemy_hornback,default,charge,0.00,15.00,0,0.00
-enemy_cragjaw,default,cragjaw_leap,0.00,18.75,0,0.00
+enemy_cragjaw,default,leap,0.00,18.75,0,0.00
 enemy_murkspore,default,shoot,0.00,22.50,0,0.00

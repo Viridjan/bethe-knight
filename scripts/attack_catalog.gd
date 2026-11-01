@@ -6,7 +6,7 @@ const REFERENCE_DISTANCE := 20.0
 const TYPES := ["body movement", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
-	"enemy_hornback": ["charge"], "enemy_cragjaw": ["cragjaw_leap"], "enemy_murkspore": ["shoot"]}
+	"enemy_hornback": ["charge"], "enemy_cragjaw": ["leap"], "enemy_murkspore": ["shoot"]}
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "follow_up_count", "follow_up_gap_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
