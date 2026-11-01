@@ -585,8 +585,10 @@ func _select_enemy(i: int) -> void:
 			var label := Game.label({"min_range_units": "Min", "max_range_units": "Max", "skip_chance": "Skip %"}[column], 12)
 			binding_line.add_child(label)
 			binding_line.add_child(edit)
-		for b in [["▲", -1, k == 0], ["▼", 1, k == rows.size() - 1], ["✕", 0, false]]:
-			var btn := Game.button(b[0], (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
+		for b in [["up", -1, k == 0], ["down", 1, k == rows.size() - 1], ["cross", 0, false]]:
+			var btn := Game.button("", (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
+			btn.icon = _glyph(b[0])
+			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			btn.add_theme_font_size_override("font_size", 12)
 			btn.custom_minimum_size = Vector2(widths[5], 0)
 			btn.disabled = not writable or b[2]
@@ -603,57 +605,60 @@ func _select_enemy(i: int) -> void:
 		expand.add_theme_font_size_override("font_size", 12)
 		expand.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		expand.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		line.add_child(expand)
+		block.add_child(details)
+		var build := func():  # its values, frames and follow-up: built when first opened (most enemies stay closed)
+			var margin := MarginContainer.new()  # the attack's values: only those that apply, a short tag before each box
+			margin.add_theme_constant_override("margin_left", widths[0])
+			details.add_child(margin)
+			var inner := VBoxContainer.new()
+			inner.add_theme_constant_override("separation", 3)
+			margin.add_child(inner)
+			var shown: Array = _attack_frames(e, attack)
+			if not shown[0].is_empty():
+				var anim := HBoxContainer.new()
+				anim.add_child(_frame_strip(shown[0], 1.5))
+				if shown[1] != "":
+					var cap := Game.label(shown[1], 11)
+					cap.modulate = Color(1, 1, 1, 0.5)
+					anim.add_child(cap)
+				inner.add_child(anim)
+			# its values in a fixed grid (4 per row, same label and box sizes everywhere), the follow-up on its own row
+			var mech := GridContainer.new()
+			mech.columns = 4
+			mech.add_theme_constant_override("h_separation", 6)
+			mech.add_theme_constant_override("v_separation", 4)
+			inner.add_child(mech)
+			var values: Array = _applicable(attack).filter(func(c): return not c.begins_with("follow_up"))
+			for column in values:
+				mech.add_child(_value_tag(column))
+				_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
+			var follow := GridContainer.new()
+			follow.columns = 4
+			follow.add_theme_constant_override("h_separation", 6)
+			follow.add_theme_constant_override("v_separation", 6)
+			inner.add_child(follow)
+			if "follow_up" in _applicable(attack):
+				follow.add_child(_value_tag("follow_up"))
+				var picker := _follow_up_picker(attack)
+				picker.custom_minimum_size.x = 160
+				follow.add_child(picker)
+				for column in ["follow_up_count", "follow_up_gap_s"]:
+					follow.add_child(_value_tag(column))
+					_compact_field(follow, attack, column, score).custom_minimum_size.x = BOX_W
+			elif writable:  # no follow-up yet: one click adds one
+				follow.add_child(Game.button("+ Then…", func():
+					attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
+					dirty = true
+					dirty_changed.emit()
+					_select_enemy(enemy_index)
+					_update_feedback()))
+		if details.visible: build.call()
 		expand.pressed.connect(func():
+			if details.get_child_count() == 0: build.call()
 			details.visible = not details.visible
 			expanded_attacks[detail_key] = details.visible
 			expand.text = "Close" if details.visible else "Edit")
-		line.add_child(expand)
-		block.add_child(details)
-		var margin := MarginContainer.new()  # the attack's values: only those that apply, a short tag before each box
-		margin.add_theme_constant_override("margin_left", widths[0])
-		details.add_child(margin)
-		var inner := VBoxContainer.new()
-		inner.add_theme_constant_override("separation", 3)
-		margin.add_child(inner)
-		var shown: Array = _attack_frames(e, attack)
-		if not shown[0].is_empty():
-			var anim := HBoxContainer.new()
-			anim.add_child(_frame_strip(shown[0], 1.5))
-			if shown[1] != "":
-				var cap := Game.label(shown[1], 11)
-				cap.modulate = Color(1, 1, 1, 0.5)
-				anim.add_child(cap)
-			inner.add_child(anim)
-		# its values in a fixed grid (4 per row, same label and box sizes everywhere), the follow-up on its own row
-		var mech := GridContainer.new()
-		mech.columns = 4
-		mech.add_theme_constant_override("h_separation", 6)
-		mech.add_theme_constant_override("v_separation", 4)
-		inner.add_child(mech)
-		var values: Array = _applicable(attack).filter(func(c): return not c.begins_with("follow_up"))
-		for column in values:
-			mech.add_child(_value_tag(column))
-			_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
-		var follow := GridContainer.new()
-		follow.columns = 4
-		follow.add_theme_constant_override("h_separation", 6)
-		follow.add_theme_constant_override("v_separation", 6)
-		inner.add_child(follow)
-		if "follow_up" in _applicable(attack):
-			follow.add_child(_value_tag("follow_up"))
-			var picker := _follow_up_picker(attack)
-			picker.custom_minimum_size.x = 160
-			follow.add_child(picker)
-			for column in ["follow_up_count", "follow_up_gap_s"]:
-				follow.add_child(_value_tag(column))
-				_compact_field(follow, attack, column, score).custom_minimum_size.x = BOX_W
-		elif writable:  # no follow-up yet: one click adds one
-			follow.add_child(Game.button("+ Then…", func():
-				attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
-				dirty = true
-				dirty_changed.emit()
-				_select_enemy(enemy_index)
-				_update_feedback()))
 	if writable:  # any attack from the catalogue, or a brand-new one
 		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
 		free.sort_custom(func(a, b): return int(catalog.performs(e[0], a)) > int(catalog.performs(e[0], b)) or (catalog.performs(e[0], a) == catalog.performs(e[0], b) and a < b))
@@ -666,7 +671,7 @@ func _select_enemy(i: int) -> void:
 		for a in free:
 			pick.add_item("%s · %s%s" % [a, catalog.attack(a).get("codex_online_name", ""), "" if catalog.performs(e[0], a) else "  (not in game yet)"])
 			pick.set_item_metadata(pick.item_count - 1, a)
-		pick.add_item("＋ New attack…")
+		pick.add_item("+ New attack…")
 		pick.set_item_metadata(pick.item_count - 1, "")
 		add_row.add_child(pick)
 		add_row.add_child(Game.button("+ Add attack", func():
@@ -680,6 +685,24 @@ func _select_enemy(i: int) -> void:
 func _shown(column: String, cell: String) -> String:
 	var v: String = catalog.format_cell(column, cell)
 	return v.rstrip("0").trim_suffix(".") if v.contains(".") and v.is_valid_float() else v
+
+# Up / down arrows and a cross drawn as 7x7 pixel icons: the UI font lacks ▲ ▼ ✕, and the system-font fallback cost
+# ~2 ms per button (most of the Ape page's build time).
+static var _glyphs := {}
+static func _glyph(kind: String) -> Texture2D:
+	if not _glyphs.has(kind):
+		var img := Image.create(7, 7, false, Image.FORMAT_RGBA8)
+		for y in 7:
+			for x in 7:
+				var on: bool
+				match kind:
+					"up": on = y >= 1 and y <= 4 and absi(x - 3) <= y - 1
+					"down": on = y >= 2 and y <= 5 and absi(x - 3) <= 5 - y
+					_: on = x == y or x == 6 - y
+				if on: img.set_pixel(x, y, Color.WHITE)
+		img.resize(14, 14, Image.INTERPOLATE_NEAREST)  # 2x, crisp
+		_glyphs[kind] = ImageTexture.create_from_image(img)
+	return _glyphs[kind]
 
 # The enemy's total score line under its attacks (refreshed on every value edit).
 func _enemy_total(e: Array) -> void:

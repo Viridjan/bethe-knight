@@ -105,6 +105,7 @@ func _ready() -> void:
 	editor._show_enemies()
 	var hornback_index: int = editor.ENEMIES.map(func(entry): return entry[0]).find("enemy_hornback")
 	editor._select_enemy(hornback_index)
+	for b in collect(editor.form, func(node): return node is Button and node.text == "Edit"): b.pressed.emit()  # details build on open
 	var before := editor.summary.text
 	var windups := collect(editor.form, func(node): return node is LineEdit and node.tooltip_text.replace("\n", " ").contains("Warning before execution"))
 	windups[0].text_changed.emit("1.80")

@@ -21,6 +21,7 @@ func _ready() -> void:
 	if editors.size() == 1:
 		editors[0]._show_enemies()
 		editors[0]._select_enemy(0)
+		_open_details(editors[0])
 		var pics := func(node, f) -> int:
 			var n := 1 if node is TextureRect and node.texture != null else 0
 			for c in node.get_children(): n += f.call(c, f)
@@ -204,6 +205,7 @@ func _ready() -> void:
 		editor._show_enemies()
 		var ch: Dictionary = catalog.attack("charge")
 		editor._select_enemy(0)
+		_open_details(editor)
 		var adds: Array = []
 		var findb := func(node, f):
 			for c in node.get_children():
@@ -253,6 +255,7 @@ func _ready() -> void:
 			if str(x.get("follow_up", "")) == "": x.merge({"follow_up_count": "", "follow_up_gap_s": ""}, true)
 		var hb_i: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
 		editor._select_enemy(hb_i)
+		_open_details(editor)
 		var top: Dictionary = catalog.attack(catalog.ordered_attacks("enemy_hornback", "default")[0].attack_name)
 		var edits: Array = []
 		var collect := func(node, f):
@@ -343,6 +346,7 @@ func _review_fixes(path: String) -> void:
 	editor._show_enemies()
 	var hb: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
 	editor._select_enemy(hb)
+	_open_details(editor)
 	var before: String = editor.summary.text
 	var keep: String = editor.catalog.attack("charge").windup_s
 	var boxes: Array = editor.form.find_children("*", "LineEdit", true, false).filter(func(x): return x.text == editor._shown("windup_s", keep))
@@ -356,3 +360,8 @@ func _review_fixes(path: String) -> void:
 	await get_tree().process_frame
 	check(editor.get_combined_minimum_size().x <= 1000, "The Ape's loadout fits a 1000 px editor (min %d)" % editor.get_combined_minimum_size().x)
 	menu.queue_free()
+
+# Attack details are built when first opened: press every "Edit" so tests can reach the values and frames.
+func _open_details(editor) -> void:
+	for b in editor.form.find_children("*", "Button", true, false):
+		if b.text == "Edit": b.pressed.emit()
