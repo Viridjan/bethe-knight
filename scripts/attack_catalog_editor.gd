@@ -314,6 +314,12 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 			pick.add_item(t)
 		pick.select(catalog.TYPES.find(str(_rows()[index].get("type", ""))))
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		pick.custom_minimum_size.y = ROW_H
+		pick.add_theme_constant_override("arrow_margin", 6)
+		var flat := (pick.get_theme_stylebox("normal") as StyleBox).duplicate()  # its padding made it 5 px taller than the boxes
+		flat.content_margin_top = 2
+		flat.content_margin_bottom = 2
+		for state in ["normal", "hover", "pressed", "focus", "disabled"]: pick.add_theme_stylebox_override(state, flat)
 		pick.disabled = not writable
 		pick.tooltip_text = _help("type")
 		pick.item_selected.connect(func(i):
@@ -323,7 +329,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		return
 	var edit := LineEdit.new()
 	edit.text = _shown(column, str(_rows()[index].get(column, "")))
-	edit.custom_minimum_size.x = 110
+	edit.custom_minimum_size = Vector2(110, ROW_H)
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var in_code: bool = catalog.runtime_used(str(_rows()[index].get("name", "")))
 	edit.editable = writable and column not in ["score", "type", "status"] and not (column == "name" and (in_code or ranges))
@@ -648,12 +654,16 @@ func _select_enemy(i: int) -> void:
 				mech.add_child(_value_tag(column))
 				_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
 			if writable and not "follow_up" in _applicable(attack):  # no follow-up yet: one click adds one (in Edit)
-				inner.add_child(Game.button("+ Then…", func():
+				var add_then := Game.button("+ Then…", func():
 					attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
 					dirty = true
 					dirty_changed.emit()
 					_select_enemy(enemy_index)
-					_update_feedback()))
+					_update_feedback())
+				add_then.add_theme_font_size_override("font_size", 12)
+				add_then.custom_minimum_size.y = ROW_H
+				add_then.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+				inner.add_child(add_then)
 		if details.visible: build.call()
 		expand.pressed.connect(func():
 			if details.get_child_count() == 0: build.call()
@@ -667,7 +677,8 @@ func _select_enemy(i: int) -> void:
 		var pick := OptionButton.new()
 		pick.fit_to_longest_item = false  # long attack names must not widen the page
 		pick.clip_text = true
-		pick.custom_minimum_size.x = 260
+		pick.custom_minimum_size = Vector2(260, ROW_H)
+		pick.add_theme_font_size_override("font_size", 12)
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for a in free:
 			pick.add_item("%s · %s%s" % [a, catalog.attack(a).get("codex_online_name", ""), "" if catalog.performs(e[0], a) else "  (not in game yet)"])
@@ -675,9 +686,12 @@ func _select_enemy(i: int) -> void:
 		pick.add_item("+ New attack…")
 		pick.set_item_metadata(pick.item_count - 1, "")
 		add_row.add_child(pick)
-		add_row.add_child(Game.button("+ Add attack", func():
+		var add := Game.button("+ Add attack", func():
 			var chosen: String = pick.get_item_metadata(pick.selected)
-			_add_binding(e, chosen if chosen != "" else _new_attack())))
+			_add_binding(e, chosen if chosen != "" else _new_attack()))
+		add.add_theme_font_size_override("font_size", 12)
+		add.custom_minimum_size.y = ROW_H
+		add_row.add_child(add)
 		form.add_child(add_row)
 	_enemy_total(e)
 	_wrap_tips(form)
@@ -746,10 +760,13 @@ func _value_tag(column: String) -> Label:
 	tag.custom_minimum_size.x = TAG_W
 	return tag
 
+const ROW_H := 33  # every box and button in the Enemy loadout cards: one height (the buttons' natural one)
+
 func _small_edit(editable: bool) -> LineEdit:
 	var edit := LineEdit.new()
 	edit.add_theme_font_size_override("font_size", 12)
-	edit.custom_minimum_size.x = 56
+	edit.custom_minimum_size = Vector2(56, ROW_H)
+	edit.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	edit.editable = editable
 	return edit
 
