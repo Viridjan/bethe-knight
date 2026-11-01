@@ -132,7 +132,19 @@ func _ready() -> void:
 		editor.catalog = catalog
 		add_child(editor)
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
-		check(editor.form.get_children().filter(func(node): return node is GridContainer and node.columns == 4).size() == 4, "Attack form groups charge's fields into four sections, two per row (follow-ups are in Enemies)")
+		check(editor.get("search") != null, "Monster editor provides searchable navigation")
+		editor.search.text = "ape_scream"
+		editor._filter_list()
+		check(editor.table.item_count == 1 and editor.list_indices[0] == catalog.attacks.find(catalog.attack("ape_scream")), "Search maps visible choices to the correct CSV rows")
+		editor.table.item_selected.emit(0)
+		check(editor.selected == catalog.attacks.find(catalog.attack("ape_scream")), "Selecting a filtered result opens the correct attack")
+		editor._select_row(0)
+		editor.search.text = "no-such-attack"
+		editor._filter_list()
+		check(editor.table.item_count == 0 and editor.list_count.text == "No matches", "Search explains an empty result")
+		editor.search.text = ""
+		editor._filter_list()
+		check(editor.form.get_children().any(func(node): return node is PanelContainer), "Attack settings are grouped in cards")
 		check(editor.fields.windup_s.text == "0.50", "Numeric edit fields show two decimal places")
 		check(not editor.fields.has("score") and not editor.fields.has("notes") and editor.fields.has("base_weight") and editor.fields.has("initial_speed_units_s"),
 			"The Attacks tab holds what makes an attack work, plus its score weight")
@@ -259,6 +271,8 @@ func _ready() -> void:
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Repertoire score"),
 			"Enemies tab shows the Ape (enraged) with its repertoire score")
+		editor._save()
+		check(editor.view == "enemies" and editor.enemy_index == 1 and not editor.dirty, "Save preserves the active enemy loadout view")
 		editor.queue_free()
 	else: check(false, "Monsters CSV editor is implemented")
 	print("ATTACK CATALOG OK" if failures == 0 else "ATTACK CATALOG FAILED")

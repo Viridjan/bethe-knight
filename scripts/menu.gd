@@ -33,6 +33,7 @@ func _ready() -> void:
 # Remove the previous menu page controls before building another page.
 func _clear() -> void:
 	for c in body.get_children():
+		body.remove_child(c)
 		c.queue_free()
 
 # Create the main navigation buttons and world selection controls.
@@ -83,7 +84,7 @@ func _options() -> void:
 func _monster_editor() -> void:
 	_clear()
 	var editor = load("res://scripts/attack_catalog_editor.gd").new()
-	editor.custom_minimum_size = Vector2(1100, 600)
+	editor.custom_minimum_size = Vector2(minf(1140, get_viewport_rect().size.x - 48), minf(760, get_viewport_rect().size.y - 130))
 	editor.theme = Game.theme.duplicate()
 	editor.theme.default_font_size = 15
 	body.add_child(editor)
@@ -96,6 +97,9 @@ func _monster_editor() -> void:
 		confirm.confirmed.connect(_main)
 		add_child(confirm)
 		confirm.popup_centered())
+	back.add_theme_font_size_override("font_size", 16)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.custom_minimum_size.x = 100
 	body.add_child(back)
 
 # Every piece of game art, by folder (scripts/art_gallery.gd).

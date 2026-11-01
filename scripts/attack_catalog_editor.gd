@@ -2,6 +2,14 @@ extends VBoxContainer
 # The Monsters catalogue edits a private draft; only validated, explicitly saved CSV affects gameplay.
 const Catalog := preload("res://scripts/attack_catalog.gd")
 var catalog = null
+var search: LineEdit
+var list_indices: Array = []
+var list_count: Label
+var attack_tab: Button
+var enemy_tab: Button
+var score_value: Label
+var detail_title: Label
+var expanded_attacks := {}
 var table: ItemList
 var form: VBoxContainer
 var feedback: Label
@@ -43,49 +51,141 @@ func _ready() -> void:
 	writable = OS.has_feature("editor") and not OS.has_feature("web")
 	ENEMIES = _all_enemies()
 	theme = _soft_theme(theme)
-	add_theme_constant_override("separation", 8)
-	var bar := HBoxContainer.new()
-	add_child(bar)
-	bar.add_child(Game.button("Attacks", func(): _show_table(false)))
-	bar.add_child(Game.button("Enemies", _show_enemies))
-	save_button = Game.button("Save CSV", _save)
+	add_theme_constant_override("separation", 12)
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 12)
+	add_child(heading)
+	var title := Game.label("Monster Editor", 25)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(title)
+	reload_button = Game.button("Reload", _reload_requested)
+	reload_button.tooltip_text = "Reload the CSV files from disk."
+	heading.add_child(reload_button)
+	save_button = Game.button("Save changes", _save)
 	save_button.disabled = not writable
-	save_button.tooltip_text = "Validate and save this CSV. Changes apply to the next attack selection. Current attacks finish normally."
-	bar.add_child(save_button)
-	reload_button = Game.button("Reload CSV", _reload_requested)
-	bar.add_child(reload_button)
-	var location := Game.label("Source CSVs · tiles (8 px), seconds" if writable else "Read-only catalogue · tiles (8 px), seconds", 14)
-	location.tooltip_text = "res://data/attacks.csv and res://data/enemy_attacks.csv. Editing is available in the desktop source version."
-	bar.add_child(location)
+	save_button.tooltip_text = "Validate and save both CSVs. New attack selections use the saved changes."
+	save_button.add_theme_stylebox_override("normal", _surface("294862", "476b88", 10))
+	heading.add_child(save_button)
+	var tabs := HBoxContainer.new()
+	tabs.add_theme_constant_override("separation", 6)
+	add_child(tabs)
+	attack_tab = Game.button("Attack library", func(): _show_table(false))
+	enemy_tab = Game.button("Enemy loadouts", _show_enemies)
+	for tab in [attack_tab, enemy_tab]:
+		tab.toggle_mode = true
+		tab.add_theme_stylebox_override("pressed", _surface("26364b", "44638b", 10))
+		tabs.add_child(tab)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_child(spacer)
+	var location := Game.label("Tiles · seconds" if writable else "Read only · tiles · seconds", 12)
+	location.tooltip_text = "Source: data/attacks.csv and data/enemy_attacks.csv. One tile = 8 pixels."
+	tabs.add_child(location)
 	var panes := HSplitContainer.new()
 	panes.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panes.split_offset = 240
+	panes.split_offset = 230
 	add_child(panes)
+	var sidebar := VBoxContainer.new()
+	sidebar.custom_minimum_size.x = 220
+	panes.add_child(sidebar)
+	search = LineEdit.new()
+	search.placeholder_text = "Search attacks…"
+	search.clear_button_enabled = true
+	search.text_changed.connect(func(_value): _filter_list())
+	sidebar.add_child(search)
+	list_count = Game.label("", 12)
+	list_count.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	list_count.modulate = Color("8496ad")
+	sidebar.add_child(list_count)
 	table = ItemList.new()
-	table.custom_minimum_size.x = 235
 	table.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	panes.add_child(table)
-	table.item_selected.connect(func(i): _select_enemy(i) if view == "enemies" else _select_row(i))
+	table.add_theme_constant_override("v_separation", 8)
+	sidebar.add_child(table)
+	table.item_selected.connect(func(i): _select_enemy(list_indices[i]) if view == "enemies" else _select_row(list_indices[i]))
 	var scroll := ScrollContainer.new()
 	scroll.mouse_force_pass_scroll_events = false
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	panes.add_child(scroll)
 	form = VBoxContainer.new()
-	form.add_theme_constant_override("separation", 8)
+	form.add_theme_constant_override("separation", 12)
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
-	summary = Game.label("", 14)
+	summary = Game.label("", 12)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(summary)
-	feedback = Game.label("", 14)
+	feedback = Game.label("", 12)
+	feedback.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(feedback)
 	_show_table(false)
+
+static func _surface(background: String, border: String, padding: int = 10) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(background)
+	style.border_color = Color(border)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = padding
+	style.content_margin_right = padding
+	style.content_margin_top = padding
+	style.content_margin_bottom = padding
+	return style
+
+func _card(parent: Node) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", _surface("1c2330", "303c4c"))
+	parent.add_child(panel)
+	var content := VBoxContainer.new()
+	content.add_theme_constant_override("separation", 10)
+	panel.add_child(content)
+	return content
+
+func _filter_list() -> void:
+	table.clear()
+	list_indices.clear()
+	var entries: Array = ENEMIES if view == "enemies" else _rows()
+	for i in entries.size():
+		var label: String
+		var detail: String
+		if view == "enemies":
+			label = str(entries[i][2])
+			detail = str(entries[i][0])
+		elif ranges:
+			label = "%s · %s" % [entries[i].enemy_id, entries[i].attack_name]
+			detail = entries[i].phase
+		else:
+			label = str(entries[i].get("codex_online_name", entries[i].name))
+			detail = "%s · %s" % [entries[i].name, entries[i].type]
+		if not search.text.is_empty() and not (label + " " + detail).to_lower().contains(search.text.to_lower()): continue
+		list_indices.append(i)
+		table.add_item(label)
+		table.set_item_tooltip(table.item_count - 1, label + "\n" + detail)
+		if view == "enemies" and entries[i][1] == "": table.set_item_custom_fg_color(table.item_count - 1, Color("8d92a3"))
+	list_count.text = "%d %s" % [list_indices.size(), "enemies" if view == "enemies" else "attacks"] if not list_indices.is_empty() else "No matches"
+	var active := enemy_index if view == "enemies" else selected
+	var visible_index := list_indices.find(active)
+	if visible_index >= 0: table.select(visible_index)
+
+func _tabs() -> void:
+	attack_tab.set_pressed_no_signal(view != "enemies")
+	enemy_tab.set_pressed_no_signal(view == "enemies")
+	search.text = ""
+	search.placeholder_text = "Search enemies…" if view == "enemies" else "Search attacks…"
 
 # Softer contrast than the game's pure white on dark: off-white text, dimmer labels, darker boxes with a thin border.
 static func _soft_theme(base: Theme) -> Theme:
 	var t: Theme = base.duplicate() if base != null else Game.theme.duplicate()
 	var text := Color("d4d7e0")
+	t.set_stylebox("normal", "Button", _surface("242e3e", "35445a", 8))
+	t.set_stylebox("hover", "Button", _surface("304159", "5b779b", 8))
+	t.set_stylebox("pressed", "Button", _surface("304a65", "6d92ba", 8))
+	t.set_stylebox("disabled", "Button", _surface("1b2230", "2c3543", 8))
+	t.set_stylebox("panel", "ItemList", _surface("171e2a", "2c3747", 8))
+	t.set_stylebox("selected", "ItemList", _surface("2b425c", "476b8c", 6))
+	t.set_stylebox("selected_focus", "ItemList", _surface("2b425c", "638bb3", 6))
+
 	t.set_color("font_color", "Label", Color("b9bdca"))
 	t.set_color("font_color", "Button", text)
 	t.set_color("font_color", "ItemList", Color("b9bdca"))
@@ -119,70 +219,88 @@ func _rows() -> Array:
 func _show_table(show_ranges: bool) -> void:
 	view = "ranges" if show_ranges else "attacks"
 	ranges = show_ranges
-	table.clear()
-	for row in _rows():
-		table.add_item("%s · %s · %s" % [row.enemy_id, row.phase, row.attack_name] if ranges else "%s · %s" % [row.name, row.type])
-	if table.item_count > 0:
-		table.select(0)
-		_select_row(0)
+	_tabs()
+	_filter_list()
+	if not _rows().is_empty(): _select_row(clampi(selected, 0, _rows().size() - 1))
 	_update_feedback()
 
 func _select_row(index: int) -> void:
 	selected = index
+	var visible_index := list_indices.find(index)
+	if visible_index >= 0: table.select(visible_index)
 	fields.clear()
 	for node in form.get_children():
 		form.remove_child(node)
 		node.queue_free()
+	score_value = null
+	var row: Dictionary = _rows()[index]
+	var hero := HBoxContainer.new()
+	form.add_child(hero)
+	var name_label := Game.label(str(row.get("codex_online_name", row.get("attack_name", "Attack"))), 23)
+	detail_title = name_label
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.clip_text = true
+	name_label.tooltip_text = str(row.get("notes", ""))
+	hero.add_child(name_label)
+	if not ranges:
+		score_value = Game.label("", 20)
+		score_value.modulate = Color("a4d4df")
+		hero.add_child(score_value)
 	var groups: Array = [
-		["Identity", ["codex_online_name", "name", "type"]],
-		["Timing · seconds", ["windup_s", "animation_s", "recovery_s", "flight_time_s"]],
-		["Shape · tile units", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "base_weight"]],
-		["Movement · tile units / seconds", ["horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2", "max_distance_units", "shockwave_s"]]
+		["Definition", ["codex_online_name", "type"], false],
+		["Timing", ["windup_s", "animation_s", "recovery_s"], false],
+		["Attack shape", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s"], false],
+		["Trajectory", ["flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"], true],
+		["Advanced", ["name", "base_weight"], true]
 	]
-	if ranges:
-		groups = [["Assignment", ["enemy_id", "phase", "attack_name"]], ["Distance · tiles", ["min_range_units", "max_range_units", "priority"]]]
+	if ranges: groups = [["Assignment", ["enemy_id", "phase", "attack_name"], false], ["Distance", ["min_range_units", "max_range_units", "priority"], false]]
+	var keep: Array = _applicable(row) + ["codex_online_name", "name", "type", "base_weight"] if not ranges else []
 	for group in groups:
-		var heading := Game.label(group[0], 15)
-		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		heading.modulate = Color("a8c6e6")
-		form.add_child(heading)
+		var columns: Array = group[1].filter(func(column): return row.has(column) and (ranges or column in keep))
+		if columns.is_empty(): continue
+		var section := _card(form)
 		var grid := GridContainer.new()
-		grid.columns = 2 if group[0] == "Reference" else 4
-		grid.add_theme_constant_override("h_separation", 12)
-		form.add_child(grid)
-		var keep: Array = _applicable(_rows()[index]) + ["codex_online_name", "name", "type", "base_weight"] if not ranges else []
-		for column in group[1]:
-			if _rows()[index].has(column) and (ranges or column in keep):  # only the values that mean something for this attack
-				_add_field(grid, column, index)
-		if grid.get_child_count() == 0:  # nothing that applies in this section: drop its heading too
-			form.remove_child(heading)
-			heading.queue_free()
-			form.remove_child(grid)
-			grid.queue_free()
-			continue
-		# Fill an incomplete pair so both field columns retain consistent widths.
-		if grid.columns == 4 and grid.get_child_count() % 4 != 0:
-			grid.add_child(Control.new())
-			var filler := Control.new()
-			filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			grid.add_child(filler)
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 18)
+		grid.add_theme_constant_override("v_separation", 10)
+		if group[2]:
+			var toggle := Game.button("+ " + group[0], func(): pass)
+			toggle.flat = true
+			toggle.alignment = HORIZONTAL_ALIGNMENT_LEFT
+			toggle.pressed.connect(func():
+				grid.visible = not grid.visible
+				toggle.text = ("− " if grid.visible else "+ ") + group[0])
+			section.add_child(toggle)
+			grid.visible = false
+		else:
+			var heading := Game.label(group[0], 14)
+			heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			heading.modulate = Color("91b2d3")
+			section.add_child(heading)
+		section.add_child(grid)
+		for column in columns: _add_field(grid, column, index)
 	if not ranges and writable:
 		var name: String = str(_rows()[index].get("name", ""))
 		var used: bool = catalog.EXECUTABLE.values().any(func(list): return name in list)
 		var del := Game.button("Delete attack", func(): _delete_attack(name))
 		del.disabled = used
+		del.visible = not used
 		del.tooltip_text = "The game code uses this attack: it can't be deleted." if used else "Remove this attack from the catalogue and from every enemy that has it."
 		form.add_child(del)
 	_update_summary()
 	_wrap_tips(form)
 
 func _add_field(grid: GridContainer, column: String, index: int) -> void:
+	var cell := VBoxContainer.new()
+	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cell.add_theme_constant_override("separation", 4)
+	grid.add_child(cell)
 	var labels := {"codex_online_name": "Name", "name": "ID", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	label.custom_minimum_size.x = 150  # the same in every section, so the boxes line up
 	label.tooltip_text = _help(column)
-	grid.add_child(label)
+	cell.add_child(label)
 	if column == "type" and not ranges:  # a choice, not free text
 		var pick := OptionButton.new()
 		for t in catalog.TYPES:
@@ -194,11 +312,11 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		pick.item_selected.connect(func(i):
 			_change("type", catalog.TYPES[i])
 			_select_row(index))  # its type's boxes
-		grid.add_child(pick)
+		cell.add_child(pick)
 		return
 	var edit := LineEdit.new()
 	edit.text = catalog.format_cell(column, str(_rows()[index].get(column, "")))
-	edit.custom_minimum_size.x = 125
+	edit.custom_minimum_size.x = 110
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var in_code: bool = catalog.EXECUTABLE.values().any(func(list): return str(_rows()[index].get("name", "")) in list)
 	edit.editable = writable and column not in ["score", "type", "status"] and not (column == "name" and (in_code or ranges))
@@ -213,7 +331,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		edit.tooltip_text = "Movement attacks last as long as the move (a charge until a wall or ledge, a leap until it lands): the value here is only a time limit / reference."
 	if catalog.error_at.table == ("ranges" if ranges else "attacks") and catalog.error_at.index == index and catalog.error_at.field == column:
 		edit.add_theme_color_override("font_color", Color("ff7070"))  # the value the validation stopped at
-	grid.add_child(edit)
+	cell.add_child(edit)
 	fields[column] = edit
 	edit.text_changed.connect(func(value): _change(column, value))
 	edit.focus_exited.connect(func():
@@ -230,10 +348,9 @@ func _change(column: String, value: String) -> void:
 			if b.attack_name == old: b.attack_name = value
 		for a in catalog.attacks:
 			if str(a.get("follow_up", "")) == old: a.follow_up = value
-		table.set_item_text(selected, "%s · %s" % [value, _rows()[selected].get("type", "")])
-	if column == "type" and not ranges:
-		table.set_item_text(selected, "%s · %s" % [_rows()[selected].get("name", ""), value])
 	_rows()[selected][column] = value
+	if column in ["name", "codex_online_name", "type"]: _filter_list()
+	if column == "codex_online_name" and view == "attacks" and is_instance_valid(detail_title): detail_title.text = value
 	dirty = true
 	dirty_changed.emit()
 	_update_summary()
@@ -243,13 +360,20 @@ func _update_summary() -> void:
 	if _rows().is_empty(): return
 	var invalid: String = catalog.validate()
 	if not invalid.is_empty():
-		summary.text = invalid
+		summary.text = ""
+		if is_instance_valid(score_value):
+			score_value.text = "Score  —"
+			score_value.tooltip_text = invalid
 		return
 	var row: Dictionary = _rows()[selected]
 	if ranges:
 		summary.text = "Check maximum range descending, then priority descending. Use [minimum, maximum); execute only the first eligible attack."
 	else:
 		summary.text = ""
+		if is_instance_valid(score_value):
+			var result: Dictionary = catalog.score_attack(row)
+			score_value.text = "Score  %.2f" % result.score if result.valid else "Score  —"
+			score_value.tooltip_text = "Raw %.2f / warning factor %.2f" % [result.raw, result.penalty] if result.valid else result.reason
 
 func _update_feedback() -> void:
 	if feedback == null: return
@@ -257,7 +381,7 @@ func _update_feedback() -> void:
 	feedback.text = invalid if not invalid.is_empty() else ("Unsaved draft" if dirty else "CSV loaded")
 	feedback.tooltip_text = catalog.range_warnings()
 	if invalid.is_empty() and not feedback.tooltip_text.is_empty(): feedback.text += " · Overlapping ranges (hover for details)"
-	save_button.disabled = not writable or not invalid.is_empty()
+	save_button.disabled = not writable or not dirty or not invalid.is_empty()
 
 func _save() -> void:
 	if not writable: return
@@ -277,7 +401,8 @@ func _save() -> void:
 		feedback.text = saved
 		return
 	catalog.reload()
-	_select_row(selected)
+	if view == "enemies": _select_enemy(enemy_index)
+	else: _select_row(clampi(selected, 0, _rows().size() - 1))
 	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
 	if catalog.attack_path == "res://data/attacks.csv": Catalog.shared().reload()
 	dirty = false
@@ -304,19 +429,16 @@ func _reload() -> bool:
 	dirty = false
 	dirty_changed.emit()
 	if catalog.attack_path == "res://data/attacks.csv": Catalog.shared().reload()
-	_show_table(ranges)
+	if view == "enemies": _show_enemies()
+	else: _show_table(ranges)
 	return true
 
 # ---- Enemies tab: pick an enemy; its sprite, its attacks in priority order (move up / down, skip chance), scores ----
 func _show_enemies() -> void:
 	view = "enemies"
 	ranges = true
-	table.clear()
-	for e in ENEMIES:
-		table.add_item(e[2] if e[1] != "" else "   " + e[2])  # indented: attacks in the game code, read-only
-		if e[1] == "":
-			table.set_item_custom_fg_color(table.item_count - 1, Color("8d92a3"))
-	table.select(enemy_index)
+	_tabs()
+	_filter_list()
 	_select_enemy(enemy_index)
 	_update_feedback()
 
@@ -329,7 +451,7 @@ class SpritePreview extends Control:  # the enemy drawn 5x, animated (through a 
 		if ent == null: return
 		if "clock" in ent:
 			ent.clock += dt
-		var k := 5.0
+		var k := minf(3.0, (size.y - 12.0) / maxf(ent.rect.size.x, ent.rect.size.y))
 		canvas.ent = ent
 		canvas.scale = Vector2(k, k)
 		canvas.position = size / 2.0 - Vector2(ent.rect.get_center()) * k
@@ -349,15 +471,20 @@ func _sample_monster() -> Dictionary:  # the first saved library-monster build i
 func _select_enemy(i: int) -> void:
 	enemy_index = i
 	selected = i
-	if view == "enemies" and table.item_count > i and not table.is_selected(i):
-		table.select(i)
+	var visible_index := list_indices.find(i)
+	if visible_index >= 0: table.select(visible_index)
 	fields.clear()
 	for node in form.get_children():
 		form.remove_child(node)
 		node.queue_free()
+	score_value = null
+	var enemy_title := Game.label(str(ENEMIES[i][2]), 24)
+	enemy_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	form.add_child(enemy_title)
 	var e: Array = ENEMIES[i]
 	var preview := SpritePreview.new()
-	preview.custom_minimum_size = Vector2(0, 170)
+	preview.custom_minimum_size = Vector2(0, 70)
+	preview.clip_contents = true
 	var data: Dictionary = _sample_monster() if e[0] == "enemy_monster" else {"t": e[0]}
 	if e[0] == "boss_guardian":
 		data.merge({"w": 96, "h": 64})
@@ -370,28 +497,29 @@ func _select_enemy(i: int) -> void:
 		var own_row := HBoxContainer.new()
 		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
 		own_row.add_child(_frame_strip(own, 2.0))
+		own_row.visible = false
+		var gallery := Game.button("Animation reference", func(): own_row.visible = not own_row.visible)
+		gallery.flat = true
+		gallery.add_theme_font_size_override("font_size", 12)
+		gallery.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		gallery.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		form.add_child(gallery)
 		form.add_child(own_row)
 	if e[1] == "":  # attacks in the game code: what it is and does, read-only
 		_code_enemy_info(e, preview.ent)
 		return
 	# one block per attack: its binding line (rank, name, ranges, skip, order, score), its mechanics, its notes
 	var widths := [22, 190, 62, 62, 62, 30, 30, 30, 56]
-	var header := HBoxContainer.new()
-	for k in widths.size():
-		var l := Game.label(["#", "Attack", "Min", "Max", "Skip %", "", "", "", "Score"][k], 12)
-		l.mouse_filter = Control.MOUSE_FILTER_PASS
-		l.tooltip_text = {2: _help("min_range_units"), 3: _help("max_range_units"), 4: _help("skip_chance"), 8: "The attack's reference score (with its follow-up)."}.get(k, "")
-		l.custom_minimum_size.x = widths[k]
-		l.modulate = Color(1, 1, 1, 0.6)
-		header.add_child(l)
-	form.add_child(header)
+	var caption := Game.label("ATTACK ORDER", 12)
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	caption.modulate = Color("91b2d3")
+	caption.tooltip_text = "The first eligible attack executes. Use the arrows to change priority."
+	form.add_child(caption)
 	var rows: Array = catalog.ordered_attacks(e[0], e[1])
 	for k in rows.size():
 		var row: Dictionary = rows[k]
 		var attack: Dictionary = catalog.attack(row.attack_name)
-		var block := VBoxContainer.new()
-		block.add_theme_constant_override("separation", 2)
-		form.add_child(block)
+		var block := _card(form)
 		var line := HBoxContainer.new()
 		block.add_child(line)
 		var rank := Game.label(str(k + 1), 13)
@@ -400,7 +528,8 @@ func _select_enemy(i: int) -> void:
 		var score := Game.label("", 13)
 		var title := _compact_field(line, attack, "codex_online_name", score)  # the research name, editable here
 		var tagged: bool = attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name)
-		title.custom_minimum_size.x = widths[1] - 26 - (46 if tagged else 0)
+		title.custom_minimum_size.x = 150
+		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
 		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
 		info.add_theme_font_size_override("font_size", 12)
@@ -413,6 +542,9 @@ func _select_enemy(i: int) -> void:
 			tag.custom_minimum_size.x = 46
 			tag.modulate = Color(1, 1, 1, 0.5)
 			line.add_child(tag)
+		var binding_line := HBoxContainer.new()
+		binding_line.add_theme_constant_override("separation", 8)
+		block.add_child(binding_line)
 		for column in ["min_range_units", "max_range_units", "skip_chance"]:
 			var edit := _small_edit(writable)
 			edit.text = catalog.format_cell(column, str(row.get(column, "0")))
@@ -425,7 +557,9 @@ func _select_enemy(i: int) -> void:
 			if catalog.error_at.table == "ranges" and catalog.assignments.find(row) == catalog.error_at.index and catalog.error_at.field == column:
 				edit.add_theme_color_override("font_color", Color("ff7070"))
 			edit.text_changed.connect(func(v): _binding_change(row, column, v))
-			line.add_child(edit)
+			var label := Game.label({"min_range_units": "Min", "max_range_units": "Max", "skip_chance": "Skip %"}[column], 12)
+			binding_line.add_child(label)
+			binding_line.add_child(edit)
 		for b in [["▲", -1, k == 0], ["▼", 1, k == rows.size() - 1], ["✕", 0, false]]:
 			var btn := Game.button(b[0], (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
 			btn.add_theme_font_size_override("font_size", 12)
@@ -436,9 +570,23 @@ func _select_enemy(i: int) -> void:
 		score.custom_minimum_size.x = widths[8]
 		line.add_child(score)
 		_show_score(score, attack)
+		var detail_key := "%s/%s/%s" % [e[0], e[1], row.attack_name]
+		var details := VBoxContainer.new()
+		details.visible = expanded_attacks.get(detail_key, false)
+		var expand := Game.button("Close" if details.visible else "Edit", func(): pass)
+		expand.tooltip_text = "Show or hide this attack's mechanics, animation frames, and follow-up settings."
+		expand.add_theme_font_size_override("font_size", 12)
+		expand.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		expand.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		expand.pressed.connect(func():
+			details.visible = not details.visible
+			expanded_attacks[detail_key] = details.visible
+			expand.text = "Close" if details.visible else "Edit")
+		line.add_child(expand)
+		block.add_child(details)
 		var margin := MarginContainer.new()  # the attack's values: only those that apply, a short tag before each box
 		margin.add_theme_constant_override("margin_left", widths[0])
-		block.add_child(margin)
+		details.add_child(margin)
 		var inner := VBoxContainer.new()
 		inner.add_theme_constant_override("separation", 3)
 		margin.add_child(inner)
@@ -453,7 +601,7 @@ func _select_enemy(i: int) -> void:
 			inner.add_child(anim)
 		# its values in a fixed grid (4 per row, same label and box sizes everywhere), the follow-up on its own row
 		var mech := GridContainer.new()
-		mech.columns = 8
+		mech.columns = 4
 		mech.add_theme_constant_override("h_separation", 6)
 		mech.add_theme_constant_override("v_separation", 4)
 		inner.add_child(mech)
@@ -461,13 +609,15 @@ func _select_enemy(i: int) -> void:
 		for column in values:
 			mech.add_child(_value_tag(column))
 			_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
-		var follow := HBoxContainer.new()
-		follow.add_theme_constant_override("separation", 6)
+		var follow := GridContainer.new()
+		follow.columns = 4
+		follow.add_theme_constant_override("h_separation", 6)
+		follow.add_theme_constant_override("v_separation", 6)
 		inner.add_child(follow)
 		if "follow_up" in _applicable(attack):
 			follow.add_child(_value_tag("follow_up"))
 			var picker := _follow_up_picker(attack)
-			picker.custom_minimum_size.x = BOX_W * 2 + 6 + TAG_W
+			picker.custom_minimum_size.x = 160
 			follow.add_child(picker)
 			for column in ["follow_up_count", "follow_up_gap_s"]:
 				follow.add_child(_value_tag(column))
@@ -479,7 +629,6 @@ func _select_enemy(i: int) -> void:
 				dirty_changed.emit()
 				_select_enemy(enemy_index)
 				_update_feedback()))
-		block.add_child(HSeparator.new())
 	if writable:  # any attack from the catalogue, or a brand-new one
 		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
 		free.sort_custom(func(a, b): return int(catalog.performs(e[0], a)) > int(catalog.performs(e[0], b)) or (catalog.performs(e[0], a) == catalog.performs(e[0], b) and a < b))
@@ -528,7 +677,9 @@ func _select_enemy(i: int) -> void:
 					l.mouse_filter = Control.MOUSE_FILTER_PASS
 				table_g.add_child(l)
 	else:
-		summary.text = "\n".join(score_lines)  # pinned below the list, always visible
+		var score_details := "\n".join(score_lines)
+		summary.text = score_details.get_slice(" (", 0).get_slice(";", 0) + (" · incomplete" if score_details.contains("unavailable") else "")
+		summary.tooltip_text = squarish(score_details)
 	_wrap_tips(form)
 
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
@@ -539,7 +690,7 @@ const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": 
 
 # The boxes each attack type shows (the same for every attack of that type).
 const TYPE_FIELDS := {
-	"body": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s"],
+	"body movement": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s"],
 	"melee": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
 	"area": ["windup_s", "animation_s", "recovery_s", "coverage_area_units2"],
 	"ranged": ["windup_s", "recovery_s", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg",
@@ -554,7 +705,7 @@ func _applicable(attack: Dictionary) -> Array:  # its type's boxes (Enemies tab:
 			return str(attack.get("follow_up", "")) != "" or str(attack.get("follow_up_count", "")) != ""
 		return c in mine)
 
-const TAG_W := 116  # value labels and boxes in the Enemies tab: one size, so they line up across attacks
+const TAG_W := 96  # value labels and boxes in the Enemies tab: one size, so they line up across attacks
 const BOX_W := 72
 
 func _value_tag(column: String) -> Label:
@@ -855,7 +1006,7 @@ func _score_text(e: Array) -> String:
 
 func _help(field: String) -> String:
 	match field:
-		"type": return "What kind of attack it is: it decides which values it has and how it's scored (body, melee, ranged, area, movement). What the game does is still up to the enemy's code."
+		"type": return "What kind of attack it is: it decides which values it has and how it's scored (body movement, melee, ranged, area, movement). What the game does is still up to the enemy's code."
 		"name": return "The attack's ID. The game code refers to some attacks by ID: those can't be renamed. Renaming another one updates every enemy and follow-up that uses it."
 		"codex_online_name": return "The attack's name, as shown in the Enemies tab."
 		"score": return "Derived reference score; recalculated when saved. Not editable."

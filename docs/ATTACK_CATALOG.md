@@ -1,29 +1,31 @@
 # Attack CSVs and the Monsters editor
 
-Open **Monsters → Attacks CSV** from the main menu, or **Map → Monsters → Attacks
-CSV** during a desktop run. The window has attack definitions, enemy range
-assignments, and an inspector for reference scores of saved library-monster builds.
-The original bestiary still shows appearances, discoveries, and kills.
+Open **Monster Editor** from the desktop main menu. The in-game map's Monsters
+view also provides access to the catalogue.
 
 ## Editing
 
-**Attacks** holds only what makes an attack work (type, timings, shape, movement). **Enemies** shows, under each of
-the selected enemy's attacks, a compact editable line of that attack's values (only the ones that apply, with short
-tags: wind, exec, rec, flight, area, spd, ×, aim, spr, h-spd, v-spd, grav, dist, wave, wgt), its research name, notes
-and score. Those values are shared by every enemy with the attack.
+- **Attack library**: search by name, ID, or type. Common settings are grouped in
+  cards; Trajectory and Advanced settings expand when needed. The selected
+  attack's score is shown beside its name, with the calculation in hover help.
+- **Enemy loadouts**: search enemies, inspect their preview, and review attacks
+  in priority order. Range, skip chance, and ordering controls remain visible.
+  Use its **Edit** button for mechanics, frames, and follow-up settings.
+  Animation reference sheets expand separately.
+- **Save changes** and **Reload** stay at the top right. Save validates the draft;
+  saving/reloading preserves the selected enemy view. Long score explanations
+  are available on hover.
 
-Select an attack or binding on the left and edit its fields on the right.
-Fields are grouped into Identity, Timing, Scoring, and Movement, with two fields
-per row; reference notes and links use full-width rows. CSV float inputs and
-displayed values use two decimals; intermediate calculations keep full precision.
+Attack values are shared by every enemy that uses that attack. CSV float inputs
+and displayed values use two decimals; calculations keep full precision.
 The first six attack columns are name, research label, type, wind-up seconds,
 execution seconds, and calculated score. Extra columns hold the scoring inputs
 and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
 
-- **Save CSV** validates and stages both tables before replacing them. Only saving
+- **Save changes** validates and stages both tables before replacing them. Only saving
   changes the shared runtime catalogue. Edits to a running attack do not change
   its captured parameters; new selections use the saved values.
-- **Reload CSV** rereads disk, refreshes the shared catalogue, and asks before
+- **Reload** rereads disk, refreshes the shared catalogue, and asks before
   discarding a draft. Saving refuses to overwrite files changed externally since
   they were loaded.
 - **Enemies** lists the CSV-driven enemies (library monster, Ape, Ape enraged). Pick one to see its sprite and
@@ -54,7 +56,7 @@ right after this one, that many times, that far apart; its score is added that m
 not above or below) lands at the far end of its range, then throws `ape_throw` 3 times, 0.35 s apart. With the retreat
 skipped or removed, a cornered Ape does a plain leap instead.
 
-Attack types: body, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
+Attack types: body movement, melee, ranged, area and **movement** (charge, leap, dive, the Ape's leap and landing slam: the move
 decides how long they last). Execution is read-only for ranged attacks (they spawn a projectile) and movement attacks
 (the move sets the time). Movement values instead: **Max distance** (tiles) for charge and dive, which stop sooner at a
 wall, a ledge or anything they hit; **Shockwave time** (seconds) for the landing slam. Leaps end on landing.
