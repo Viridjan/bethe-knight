@@ -37,8 +37,13 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
   play). **Skip %** is the chance an attack passes its turn to the next one. Under each attack: its frames, its
   values (the same boxes for every attack of a type) and its follow-up (Then / Times / Every, or "+ Then…"). The
   score line stays pinned below the list. An invalid value shows in red.
-- **Attack library** holds what defines each attack: Name, ID (renamable when no code uses it), Type, Weight and the
-  boxes of its type; **Delete attack** for attacks no code uses.
+- **Attack library** holds what defines each attack: Name, ID (renamed on Enter or leaving the box; refused when
+  empty, taken, or used by the game code, including the Ape's slam, split stone and log), Type, Weight and the boxes of
+  its type; **Delete attack** for attacks no code uses. Multishot is 1-64 and follow-up Times 1-10; follow-ups can't
+  loop back. Esc and Back both ask before dropping unsaved edits.
+- Family loadouts rule the fight: an enemy attacks only inside [minimum, maximum) and never once its attack is
+  removed. Follow-ups the game can't run yet are marked "not in game yet" (today only the Ape's retreat → stone
+  throw runs); an attack whose follow-up can't be scored shows its score as incomplete.
 
 Editing is available only in the desktop source version. Exported desktop games
 can inspect the catalogue; the web keeps the development editor hidden and out

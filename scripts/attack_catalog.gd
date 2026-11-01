@@ -7,6 +7,10 @@ const TYPES := ["body movement", "melee", "ranged", "area", "movement"]  # movem
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
 	"enemy_hornback": ["charge"], "enemy_cragjaw": ["leap"], "enemy_murkspore": ["shoot"]}
+# Attacks the game reads by ID outside the selector (the Ape's slam, split stones and logs): never renamed or deleted.
+const RUNTIME_ONLY := ["ape_slam", "ape_split", "ape_log"]
+const MAX_SHOTS := 64  # authoring limits: a typo can't make the editor or a fight loop millions of times
+const MAX_FOLLOW_UPS := 10
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "follow_up_count", "follow_up_gap_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
@@ -94,7 +98,7 @@ func validate() -> String:
 		for field in ["animation_s", "initial_speed_units_s", "flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "max_distance_units", "shockwave_s"]:
 			if str(row.get(field, "")) != "" and float(row[field]) <= 0: return _fail("attacks", i, field, "Must be positive: " + id + "." + field)
 		var shots := str(row.get("multishot", ""))
-		if shots != "" and (not shots.is_valid_int() or int(shots) < 1): return _fail("attacks", i, "multishot", "Multishot must be a whole number, 1 or more: " + id)
+		if shots != "" and (not shots.is_valid_int() or int(shots) < 1 or int(shots) > MAX_SHOTS): return _fail("attacks", i, "multishot", "Multishot must be a whole number, 1 to %d: %s" % [MAX_SHOTS, id])
 		var aimed := str(row.get("aimed_shot", ""))
 		if aimed != "" and (not aimed.is_valid_int() or int(aimed) >= maxi(1, int(shots) if shots != "" else 1)):
 			return _fail("attacks", i, "aimed_shot", "Aimed shot is a shot number, 0 to multishot - 1: " + id)
@@ -102,7 +106,13 @@ func validate() -> String:
 		if then != "":
 			if not attacks.any(func(o): return o.get("name", "") == then) or then == id: return _fail("attacks", i, "follow_up", "Follow-up must be another attack: " + id)
 			var times := str(row.get("follow_up_count", ""))
-			if not times.is_valid_int() or int(times) < 1: return _fail("attacks", i, "follow_up_count", "Follow-up count must be 1 or more: " + id)
+			if not times.is_valid_int() or int(times) < 1 or int(times) > MAX_FOLLOW_UPS: return _fail("attacks", i, "follow_up_count", "Follow-up count must be 1 to %d: %s" % [MAX_FOLLOW_UPS, id])
+			var seen := {id: true}  # no loops: A then B then A
+			var next := then
+			while next != "":
+				if seen.has(next): return _fail("attacks", i, "follow_up", "Follow-ups loop back to an earlier attack: " + id)
+				seen[next] = true
+				next = str(attack(next).get("follow_up", ""))
 			if not str(row.get("follow_up_gap_s", "")).is_valid_float() or float(row.get("follow_up_gap_s", "0")) <= 0: return _fail("attacks", i, "follow_up_gap_s", "Follow-up gap must be over 0 s: " + id)
 		var spread := str(row.get("spread_deg", ""))
 		if spread != "" and float(spread) >= 360: return _fail("attacks", i, "spread_deg", "Spread must be under 360 degrees: " + id)
@@ -127,7 +137,19 @@ func validate() -> String:
 	for enemy_id in EXECUTABLE:
 		for id in EXECUTABLE[enemy_id]:
 			if not ids.has(id): return "Missing implemented attack: " + id
+	for id in RUNTIME_ONLY:
+		if not ids.has(id): return "Missing attack the game uses: " + id
 	return ""
+
+# Follow-ups the game actually runs, per attack (others are kept and scored but are plans: "not in game yet").
+const FOLLOW_UPS := {"ape_retreat": ["ape_throw"]}
+
+static func follow_up_runs(attack_name: String, then: String) -> bool:
+	return then in FOLLOW_UPS.get(attack_name, [])
+
+# Whether gameplay code refers to this attack ID (so it can't be renamed or deleted).
+static func runtime_used(id: String) -> bool:
+	return id in RUNTIME_ONLY or EXECUTABLE.values().any(func(list): return id in list)
 
 func attack(id: String) -> Dictionary:
 	for row in attacks:
@@ -138,7 +160,7 @@ func value(id: String, field: String, fallback: float) -> float:
 	var cell := str(attack(id).get(field, ""))
 	return fallback if cell.is_empty() else float(cell)
 
-func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0) -> Dictionary:
+func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0, depth: int = 0) -> Dictionary:
 	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if uses_body(row) else float(row.get("coverage_area_units2", "0")))
 	var wave := str(row.get("shockwave_s", "")) if row.get("type", "") == "movement" else ""  # a landing shockwave: how long it hits
 	var time := float(wave if wave != "" else str(row.get("animation_s", "0")))
@@ -157,12 +179,11 @@ func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: flo
 	if not is_finite(raw): return {"valid": false, "reason": "Score exceeds numeric limits"}
 	var total := raw / penalty
 	var then := str(row.get("follow_up", ""))  # its follow-up, as many times as it comes
-	if then != "" and then != str(row.get("name", "")):
-		var once: Dictionary = attack(then).duplicate()
-		once.follow_up = ""  # one level: a chain that loops back can't recurse
-		var follow := score_attack(once, -1.0, speed_scale, warning_scale)
-		if follow.get("valid", false):
-			total += follow.score * maxi(1, int(str(row.get("follow_up_count", "1")) if str(row.get("follow_up_count", "")) != "" else "1"))
+	if then != "":
+		if depth >= MAX_FOLLOW_UPS or then == str(row.get("name", "")): return {"valid": false, "reason": "Follow-ups loop"}  # a draft mid-edit
+		var follow := score_attack(attack(then), -1.0, speed_scale, warning_scale, depth + 1)
+		if not follow.get("valid", false): return {"valid": false, "reason": "Follow-up %s: %s" % [then, follow.get("reason", "unscored")]}
+		total += follow.score * clampi(int(str(row.get("follow_up_count", "1")) if str(row.get("follow_up_count", "")) != "" else "1"), 1, MAX_FOLLOW_UPS)
 	return {"valid": true, "score": total, "raw": raw, "penalty": penalty, "time": time, "area": area, "count": count}
 
 func enemy_score(ids: Array, body_area: float, speed_scale: float = 1.0, warning_scale: float = 1.0, size_scale: float = 1.0) -> Dictionary:
@@ -194,7 +215,7 @@ func ordered_attacks(enemy_id: String, phase: String, available: Array = []) -> 
 # Multishot: the angles (degrees) of the shots relative to the one aimed at the player, in shot order. Shot 0 is the
 # lowest; numbers go upward. spread_deg between neighbours; 0 spaces them evenly around the full circle.
 static func shot_angles(row: Dictionary) -> Array:
-	var n := maxi(1, int(str(row.get("multishot", "1")) if str(row.get("multishot", "")) != "" else "1"))
+	var n := clampi(int(str(row.get("multishot", "1")) if str(row.get("multishot", "")) != "" else "1"), 1, MAX_SHOTS)
 	var aimed := clampi(int(str(row.get("aimed_shot", "0")) if str(row.get("aimed_shot", "")) != "" else "0"), 0, n - 1)
 	var spread := float(str(row.get("spread_deg", "0")) if str(row.get("spread_deg", "")) != "" else "0")
 	var step := spread if spread > 0 else 360.0 / n
@@ -292,9 +313,13 @@ func _stage_table(ranges: bool) -> String:
 	var path := assignment_path if ranges else attack_path
 	var columns := assignment_columns if ranges else attack_columns
 	var rows := _rounded_rows(assignments if ranges else attacks)
+	var live := attacks
+	if not ranges: attacks = rows  # scores (and follow-up lookups) from exactly what gets written
 	var temp := path + ".tmp"
 	var file := FileAccess.open(temp, FileAccess.WRITE)
-	if file == null: return "Cannot write " + temp
+	if file == null:
+		attacks = live
+		return "Cannot write " + temp
 	file.store_csv_line(columns)
 	for row in rows:
 		var cells := PackedStringArray()
@@ -305,6 +330,7 @@ func _stage_table(ranges: bool) -> String:
 				cell = "%.2f" % calculated.score if calculated.valid else ""
 			cells.append(cell)
 		file.store_csv_line(cells)
+	attacks = live
 	file.flush()
 	var write_error := file.get_error()
 	file.close()

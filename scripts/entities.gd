@@ -744,13 +744,18 @@ class CombatEnemy extends Ent:
 	var skip_cd := 0.0  # a skipped attack (its skip chance) waits this long before the next try
 	func atk(field: String, fallback: float) -> float:
 		return fallback if attack_id() == "" else AttackCatalog.shared().value(attack_id(), field, fallback)
-	func atk_range(fallback_px: float) -> float:  # its range binding's maximum, in px
-		var rules: Array = AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
-		return fallback_px if rules.is_empty() else AttackCatalog.max_range(rules[0]) * T
-	func atk_ready() -> bool:  # the skip chance: a skipped attack waits its recovery, then may try again
+	func _binding() -> Array:  # its row in enemy_attacks.csv (empty: removed in the Monster Editor, so it never attacks)
+		return AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
+	func atk_range(fallback_px: float) -> float:  # its range binding's maximum, in px (0 without a binding)
+		if AttackCatalog.shared().assignments.is_empty(): return fallback_px  # catalogue failed to load
+		var rules := _binding()
+		return 0.0 if rules.is_empty() else AttackCatalog.max_range(rules[0]) * T
+	func atk_ready() -> bool:  # bound, past its minimum range, and not skipped (a skipped attack waits its recovery)
 		if skip_cd > 0: return false
-		var rules: Array = AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
-		var skip := str(rules[0].get("skip_chance", "")) if not rules.is_empty() else ""
+		var rules := _binding()
+		if rules.is_empty(): return AttackCatalog.shared().assignments.is_empty()
+		if w != null and w.player != null and center().distance_to(w.player.center()) < float(rules[0].min_range_units) * T * scale: return false
+		var skip := str(rules[0].get("skip_chance", ""))
 		if skip != "" and randf() * 100.0 < float(skip):
 			skip_cd = maxf(0.5, atk("recovery_s", 1.0))
 			return false
@@ -2794,13 +2799,14 @@ class Ape extends Ent:
 		_drop_log()  # every landing shakes one log loose, the hops in place too
 		if hops > 0:
 			_go("crouch", 0.25)
-		elif retreat:  # landed away from a cornered player: the retreat's follow-up (CSV: 3 stones, 0.35 s apart)
-			retreat = false
+		elif retreat and AttackCatalog.follow_up_runs("ape_retreat", str(AttackCatalog.shared().attack("ape_retreat").get("follow_up", ""))):
+			retreat = false  # landed away from a cornered player: its follow-up, stones (CSV: 3, 0.35 s apart)
 			var row: Dictionary = AttackCatalog.shared().attack("ape_retreat")
 			volley = int(str(row.get("follow_up_count", ""))) if str(row.get("follow_up_count", "")).is_valid_int() else VOLLEY
 			volley_gap = float(str(row.get("follow_up_gap_s", ""))) if str(row.get("follow_up_gap_s", "")).is_valid_float() else VOLLEY_GAP
 			_go("throw", volley_gap)
 		else:
+			retreat = false  # a retreat whose follow-up isn't in the game yet just ends
 			_go("idle", _ape_param("ape_leap", "recovery_s", 0.6 * PAUSE))
 	# Remove boss health, select the hurt/dying phase and reveal the next arena hazards when applicable.
 	func _hit() -> void:

@@ -1,5 +1,10 @@
 # Monster Editor review — 2026-11-01
 
+**Status: findings 1-12 fixed** (same day; re-running `probes.tscn` shows every defect key flipped, and
+`tests/attack_catalog.gd` `_review_fixes` / `tests/test_runner.gd` cover them). Follow-ups: only the Ape retreat's
+stone throw runs; other choices are labelled "not in game yet" rather than executed. The workflow, performance and
+code-organization suggestions below are still open.
+
 Reviewed commit `2f64b3a`, covering the editor, CSV model, menu exit paths, and the
 runtime consumers in `entities.gd`. Production code and source CSVs were not changed.
 The existing catalogue suite passes, but the targeted probes reproduce defects it

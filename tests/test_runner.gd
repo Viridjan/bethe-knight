@@ -1116,6 +1116,24 @@ func check_combat_enemies() -> void:
 	enemy.bones = [[Vector2(10, 80), Vector2(-180, 0), 1.0]]
 	for i in 10: enemy.update_bones(DT)
 	check(enemy.bones.is_empty(), "Ossling projectiles are removed at room bounds")
+	# its binding rules the fight (Monster Editor): past its minimum range, and never once the binding is removed
+	var cat = E.AttackCatalog.shared()
+	var bone_rule: Dictionary = cat.ordered_attacks("enemy_skeleton", "default")[0]
+	var keep_min: String = bone_rule.min_range_units
+	var keep_rules: Array = cat.assignments
+	var throws_after := func() -> bool:
+		make_world([{"t": "enemy_skeleton", "x": 180, "y": 204}])
+		var o = w.ents.filter(func(e): return e.d.t == "enemy_skeleton")[0]
+		p().pos = Vector2(80, 216)
+		for i in 100: o.update(DT)
+		return not o.bones.is_empty() or o.phase == "windup"
+	bone_rule.min_range_units = "20"  # the player is ~12 tiles away
+	var below_min: bool = throws_after.call()
+	bone_rule.min_range_units = keep_min
+	cat.assignments = keep_rules.filter(func(b): return b != bone_rule)
+	var unbound: bool = throws_after.call()
+	cat.assignments = keep_rules
+	check(not below_min and not unbound, "Ossling respects its binding: no throw under its minimum range (%s) or with the binding removed (%s)" % [below_min, unbound])
 	make_world([{"t": "enemy_skeleton", "x": 180, "y": 204}], [[25, 18], [25, 19]])
 	enemy = w.ents.filter(func(e): return e.d.t == "enemy_skeleton")[0]
 	enemy.bones = [[Vector2(195, 150), Vector2(180, 0), 1.0]]
@@ -1943,6 +1961,26 @@ func check_ape() -> void:
 	var no_retreat: bool = ape.phase == "crouch" and not ape.retreat
 	retreat_rules[0].skip_chance = "0.00"
 	check(two == 2 and no_retreat, "the retreat is a CSV attack: Times sets the volley (%d stones), Skip 100%% passes it to a plain leap" % two)
+	# a follow-up the Ape can't run yet (scream) is a plan: the retreat just ends, no stones
+	retreat_row.follow_up = "ape_scream"
+	make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
+	ape = find.call(E.Ape)[0]
+	p().pos = Vector2(30 * 8 - 5, floor_y)
+	ape.phase = "idle"
+	ape.timer = 0.0
+	ape.update(0.0)
+	var after_land := ""
+	var was_air := false
+	Game.settings.invincible = true
+	for k in 300:
+		step()
+		if was_air and ape.phase != "air":
+			after_land = ape.phase
+			break
+		was_air = ape.phase == "air"
+	Game.settings.invincible = keep_inv
+	retreat_row.follow_up = "ape_throw"
+	check(after_land != "" and after_land != "throw", "a retreat whose follow-up isn't in the game yet throws nothing (after landing: %s)" % after_land)
 	make_world([{"t": "boss_ape", "x": 200, "y": floor_y - 32}])
 	ape = find.call(E.Ape)[0]
 	p().pos = Vector2(200 + 32 + 10, floor_y)

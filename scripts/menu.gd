@@ -88,19 +88,26 @@ func _monster_editor() -> void:
 	editor.theme = Game.theme.duplicate()
 	editor.theme.default_font_size = 15
 	body.add_child(editor)
-	var back := Game.button("Back", func():
-		if not editor.dirty:
-			_main()
-			return
-		var confirm := ConfirmationDialog.new()
-		confirm.dialog_text = "Discard unsaved CSV edits?"
-		confirm.confirmed.connect(_main)
-		add_child(confirm)
-		confirm.popup_centered())
+	var back := Game.button("Back", _leave)
 	back.add_theme_font_size_override("font_size", 16)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	back.custom_minimum_size.x = 100
 	body.add_child(back)
+
+# Leave the current page; the Monster Editor asks first when it has unsaved edits (Back and Esc both come here).
+func _leave() -> void:
+	var editors := body.get_children().filter(func(n): return n.has_method("_show_enemies"))
+	if editors.is_empty() or not editors[0].dirty:
+		_main()
+		return
+	if get_children().any(func(n): return n is ConfirmationDialog and n.visible): return
+	var confirm := ConfirmationDialog.new()
+	confirm.dialog_text = "Discard unsaved CSV edits?"
+	confirm.confirmed.connect(_main)
+	confirm.visibility_changed.connect(func():
+		if not confirm.visible: confirm.queue_free())
+	add_child(confirm)
+	confirm.popup_centered()
 
 # Every piece of game art, by folder (scripts/art_gallery.gd).
 func _art() -> void:
@@ -123,4 +130,4 @@ func _credits() -> void:
 # Return from a subpage on cancel after the active controls handled their own input.
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		_main()
+		_leave()

@@ -24,6 +24,7 @@ var writable := false
 var loaded_texts: Array = []
 var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy's attacks, ranges and scores)
 var enemy_index := 0
+var form_scroll: ScrollContainer
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
 	["enemy_skree", "default", "Dropwing · ceiling dive"], ["enemy_bat", "default", "Duskflit · swoop"], ["enemy_skeleton", "default", "Ossling · bone throw"],
@@ -104,6 +105,7 @@ func _ready() -> void:
 	sidebar.add_child(table)
 	table.item_selected.connect(func(i): _select_enemy(list_indices[i]) if view == "enemies" else _select_row(list_indices[i]))
 	var scroll := ScrollContainer.new()
+	form_scroll = scroll
 	scroll.mouse_force_pass_scroll_events = false
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -282,7 +284,7 @@ func _select_row(index: int) -> void:
 		for column in columns: _add_field(grid, column, index)
 	if not ranges and writable:
 		var name: String = str(_rows()[index].get("name", ""))
-		var used: bool = catalog.EXECUTABLE.values().any(func(list): return name in list)
+		var used: bool = catalog.runtime_used(name)
 		var del := Game.button("Delete attack", func(): _delete_attack(name))
 		del.disabled = used
 		del.visible = not used
@@ -318,7 +320,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	edit.text = catalog.format_cell(column, str(_rows()[index].get(column, "")))
 	edit.custom_minimum_size.x = 110
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var in_code: bool = catalog.EXECUTABLE.values().any(func(list): return str(_rows()[index].get("name", "")) in list)
+	var in_code: bool = catalog.runtime_used(str(_rows()[index].get("name", "")))
 	edit.editable = writable and column not in ["score", "type", "status"] and not (column == "name" and (in_code or ranges))
 	if column == "animation_s" and _rows()[index].get("type", "") in ["ranged", "movement"]:  # a projectile / the move sets the time
 		edit.editable = false
@@ -333,6 +335,12 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		edit.add_theme_color_override("font_color", Color("ff7070"))  # the value the validation stopped at
 	cell.add_child(edit)
 	fields[column] = edit
+	if column == "name":  # an ID is renamed once, on Enter / leaving the box, never per keystroke
+		var commit := func(_v = ""):
+			if selected == index and fields.get(column) == edit: _rename(index, edit)
+		edit.text_submitted.connect(commit)
+		edit.focus_exited.connect(commit)
+		return
 	edit.text_changed.connect(func(value): _change(column, value))
 	edit.focus_exited.connect(func():
 		if selected != index or fields.get(column) != edit: return
@@ -341,13 +349,26 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 			edit.text = formatted
 			_change(column, formatted))
 
+# Rename an attack: every enemy and follow-up that uses it follows. Refused (box reset) when empty, taken, or used by code.
+func _rename(index: int, edit: LineEdit) -> void:
+	var old: String = str(_rows()[index].get("name", ""))
+	var value := edit.text.strip_edges()
+	if value == old: return
+	var problem := ""
+	if value.is_empty(): problem = "An attack ID can't be empty"
+	elif catalog.attacks.any(func(a): return a.name == value): problem = "Another attack already has the ID " + value
+	elif catalog.runtime_used(old): problem = "The game code uses %s: it can't be renamed" % old
+	if problem != "":
+		edit.text = old
+		feedback.text = problem
+		return
+	for b in catalog.assignments:
+		if b.attack_name == old: b.attack_name = value
+	for a in catalog.attacks:
+		if str(a.get("follow_up", "")) == old: a.follow_up = value
+	_change("name", value)
+
 func _change(column: String, value: String) -> void:
-	if column == "name" and not ranges:  # renaming an attack: every enemy and follow-up that uses it follows
-		var old: String = str(_rows()[selected].get("name", ""))
-		for b in catalog.assignments:
-			if b.attack_name == old: b.attack_name = value
-		for a in catalog.attacks:
-			if str(a.get("follow_up", "")) == old: a.follow_up = value
 	_rows()[selected][column] = value
 	if column in ["name", "codex_online_name", "type"]: _filter_list()
 	if column == "codex_online_name" and view == "attacks" and is_instance_valid(detail_title): detail_title.text = value
@@ -367,7 +388,7 @@ func _update_summary() -> void:
 		return
 	var row: Dictionary = _rows()[selected]
 	if ranges:
-		summary.text = "Check maximum range descending, then priority descending. Use [minimum, maximum); execute only the first eligible attack."
+		summary.text = "Highest priority first; an attack starts when the distance is in [minimum, maximum) and it isn't skipped."
 	else:
 		summary.text = ""
 		if is_instance_valid(score_value):
@@ -461,14 +482,8 @@ class SpritePreview extends Control:  # the enemy drawn 5x, animated (through a 
 		func _draw() -> void:
 			if ent != null: ent.draw(self)
 
-func _sample_monster() -> Dictionary:  # the first saved library-monster build in the world, else a plain one
-	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
-	for room in world.get("rooms", {}).values():
-		for d in room.level.entities:
-			if d.t == "enemy_monster": return d.duplicate(true)
-	return {"t": "enemy_monster", "move": "patrol", "attacks": ["charge"], "traits": [], "tier": 0, "look": "enemy_hornback"}
-
 func _select_enemy(i: int) -> void:
+	if i != enemy_index and is_instance_valid(form_scroll): form_scroll.scroll_vertical = 0  # a new enemy starts at its top
 	enemy_index = i
 	selected = i
 	var visible_index := list_indices.find(i)
@@ -485,14 +500,14 @@ func _select_enemy(i: int) -> void:
 	var preview := SpritePreview.new()
 	preview.custom_minimum_size = Vector2(0, 70)
 	preview.clip_contents = true
-	var data: Dictionary = _sample_monster() if e[0] == "enemy_monster" else {"t": e[0]}
+	var data: Dictionary = {"t": e[0]}
 	if e[0] == "boss_guardian":
 		data.merge({"w": 96, "h": 64})
 	data.x = 0
 	data.y = 0
 	preview.ent = load("res://scripts/entities.gd").make(null, data)
 	form.add_child(preview)
-	var own: Array = _look_frames(str(data.get("look", ""))) if e[0] == "enemy_monster" else (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
+	var own: Array = (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
 	if not own.is_empty():
 		var own_row := HBoxContainer.new()
 		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -634,6 +649,10 @@ func _select_enemy(i: int) -> void:
 		free.sort_custom(func(a, b): return int(catalog.performs(e[0], a)) > int(catalog.performs(e[0], b)) or (catalog.performs(e[0], a) == catalog.performs(e[0], b) and a < b))
 		var add_row := HBoxContainer.new()
 		var pick := OptionButton.new()
+		pick.fit_to_longest_item = false  # long attack names must not widen the page
+		pick.clip_text = true
+		pick.custom_minimum_size.x = 260
+		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for a in free:
 			pick.add_item("%s · %s%s" % [a, catalog.attack(a).get("codex_online_name", ""), "" if catalog.performs(e[0], a) else "  (not in game yet)"])
 			pick.set_item_metadata(pick.item_count - 1, a)
@@ -644,43 +663,14 @@ func _select_enemy(i: int) -> void:
 			var chosen: String = pick.get_item_metadata(pick.selected)
 			_add_binding(e, chosen if chosen != "" else _new_attack())))
 		form.add_child(add_row)
-	var score_lines: PackedStringArray = _score_text(e).split("\n")
-	if e[0] == "enemy_monster":  # the monsters placed in the story: each a random build of this recipe (tools/populate.gd)
-		var rows_t: Array = Array(score_lines).filter(func(l): return l.contains("\t"))
-		var nums: Array = []
-		var placed := 0
-		for line in rows_t:
-			var cells: PackedStringArray = line.split("\t")
-			placed += int(cells[1].trim_prefix("×"))
-			if cells[2].is_valid_float(): nums.append(float(cells[2]))
-		summary.text = ("%d placed in the story, %d different builds · scores %.2f to %.2f" % [placed, rows_t.size(), nums.min(), nums.max()]) if not nums.is_empty() else score_lines[0]
-		var title := Game.label("Placed in the story (each one a random build: move, attacks, traits)", 13)
-		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		title.modulate = Color("a8c6e6")
-		form.add_child(title)
-		var table_g := GridContainer.new()
-		table_g.columns = 3
-		table_g.add_theme_constant_override("h_separation", 18)
-		form.add_child(table_g)
-		for h in ["Build", "Placed", "Score"]:
-			var l := Game.label(h, 12)
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-			l.modulate = Color(1, 1, 1, 0.5)
-			table_g.add_child(l)
-		for line in rows_t:
-			var cells: PackedStringArray = line.split("\t")
-			for k in 3:
-				var l := Game.label(cells[k], 12)
-				l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if k == 0 else HORIZONTAL_ALIGNMENT_RIGHT
-				if k == 2 and cells.size() > 3 and cells[3] != "":
-					l.tooltip_text = cells[3]
-					l.mouse_filter = Control.MOUSE_FILTER_PASS
-				table_g.add_child(l)
-	else:
-		var score_details := "\n".join(score_lines)
-		summary.text = score_details.get_slice(" (", 0).get_slice(";", 0) + (" · incomplete" if score_details.contains("unavailable") else "")
-		summary.tooltip_text = squarish(score_details)
+	_enemy_total(e)
 	_wrap_tips(form)
+
+# The enemy's total score line under its attacks (refreshed on every value edit).
+func _enemy_total(e: Array) -> void:
+	var score_details := _score_text(e)
+	summary.text = score_details.get_slice(" (", 0).get_slice(";", 0) + (" · incomplete" if score_details.contains("unavailable") else "")
+	summary.tooltip_text = squarish(score_details)
 
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
 const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
@@ -742,6 +732,7 @@ func _compact_field(parent: Control, attack: Dictionary, column: String, score: 
 		dirty = true
 		dirty_changed.emit()
 		_show_score(score, attack)
+		if view == "enemies": _enemy_total(ENEMIES[enemy_index])
 		_update_feedback())
 	parent.add_child(edit)
 	return edit
@@ -834,11 +825,10 @@ func _attack_frames(e: Array, attack: Dictionary) -> Array:
 		return [[0, 1, 2, 3].map(func(f): return art.impact_texture(24, 8, f)), "shockwave"]
 	if attack.get("type", "") == "ranged":
 		var img := Image.create(5, 5, false, Image.FORMAT_RGBA8)  # (a placeholder dot: projectiles are drawn in code)
-		img.fill_rect(Rect2i(1, 1, 3, 3), Color("e070b0") if e[0] == "enemy_monster" else Color("8a7a6a"))
+		img.fill_rect(Rect2i(1, 1, 3, 3), Color("8a7a6a"))
 		return [[ImageTexture.create_from_image(img)], "projectile"]
 	if e[0].begins_with("enemy_"):
-		var look: String = str(_sample_monster().get("look", "enemy_hornback")) if e[0] == "enemy_monster" else str(e[0])
-		return [_look_frames(look), "walk frames (no attack art yet)"]
+		return [_look_frames(e[0]), "walk frames (no attack art yet)"]
 	return [[], ""]
 
 func _show_score(label: Label, attack: Dictionary) -> void:
@@ -889,8 +879,10 @@ func _follow_up_picker(attack: Dictionary) -> OptionButton:
 	pick.add_item("none")
 	var names: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(n): return n != attack.name)
 	for n in names:
-		pick.add_item(n)
+		pick.add_item(n if catalog.follow_up_runs(str(attack.name), n) else n + "  (not in game yet)")
 	pick.select(names.find(str(attack.get("follow_up", ""))) + 1)
+	pick.fit_to_longest_item = false
+	pick.clip_text = true
 	pick.disabled = not writable
 	pick.tooltip_text = _help("follow_up")
 	pick.item_selected.connect(func(i):
@@ -963,34 +955,11 @@ func _code_enemy_info(e: Array, ent) -> void:
 	form.add_child(info)
 	summary.text = ""
 
-# Scores for the selected enemy: each saved library-monster build, or the Ape phase's repertoire.
+# Scores for the selected enemy: a family's body and attacks, or the Ape phase's repertoire.
 func _score_text(e: Array) -> String:
 	if not catalog.validate().is_empty(): return "Scores: fix the invalid value first."
 	var lines := PackedStringArray()
-	if e[0] == "enemy_monster":
-		var build_scores: Array = []
-		var world: Dictionary = Game.Adventure.load_world(Game.world_path)
-		var entities = load("res://scripts/entities.gd")
-		var library = load("res://scripts/monster_library.gd")
-		var seen := {}
-		for room_id in world.get("rooms", {}):
-			for data in world.rooms[room_id].level.entities:
-				if data.t != "enemy_monster": continue
-				var enemy = entities.make(null, data.duplicate(true))
-				var key: String = library.describe(enemy.d)  # builds that read the same count as one kind
-				if seen.has(key):
-					seen[key][1] += 1
-					continue
-				var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
-				var result: Dictionary = catalog.enemy_score(enemy.d.attacks, area, enemy.speed_multiplier, enemy.warning_multiplier)
-				seen[key] = [result, 1]
-				if result.valid: build_scores.append(result.score)
-		var kinds: Array = seen.keys()
-		kinds.sort_custom(func(a, b): return seen[a][0].score > seen[b][0].score)
-		for k in kinds:  # build | how many placed | score
-			var res: Dictionary = seen[k][0]
-			lines.append("%s\t×%d\t%s\t%s" % [k, seen[k][1], "%.2f" % res.score if res.valid else "–", "" if res.valid else res.reason])
-	elif e[0] != "boss_ape":  # an enemy family: its body once, then its attacks
+	if e[0] != "boss_ape":  # an enemy family: its body once, then its attacks
 		var enemy = load("res://scripts/entities.gd").make(null, {"t": e[0], "x": 0, "y": 0})
 		var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
 		var result: Dictionary = catalog.enemy_score(catalog.ordered_attacks(e[0], e[1]).map(func(b): return b.attack_name), area)
@@ -1019,13 +988,13 @@ func _help(field: String) -> String:
 		"multishot": return "How many projectiles the attack fires at once (library monsters' shoot and lob fire them all)."
 		"aimed_shot": return "Which shot points at the player: 0 is the lowest one, numbers go upward."
 		"spread_deg": return "Degrees between neighbouring shots. 0 spaces them evenly around the full circle."
-		"priority": return "Higher values are checked first when maximum ranges match."
+		"priority": return "Higher values are checked first, whatever their ranges."
 		"skip_chance": return "Percent chance this attack passes its turn when it could be used; the next one in the list is tried."
 		"max_range_units": return "Center-to-center radial distance in tiles, exclusive. Empty (0) = no maximum."
 		"follow_up": return "Another attack done right after this one (e.g. ape_throw). Empty = none."
 		"follow_up_count": return "How many times the follow-up comes."
 		"follow_up_gap_s": return "Seconds between one follow-up and the next."
 		"base_weight": return "Score multiplier for this kind of attack (1 = as the formula says, 2 = counts double). Only affects the score."
-		"min_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive. Large maximum ranges are checked first."
+		"min_range_units": return "Center-to-center radial distance in tiles. Minimum inclusive; maximum exclusive."
 		"notes": return str(_rows()[selected].get("notes", ""))
 	return field.replace("_", " ") + ". Blank means unspecified, not zero. See docs/ATTACK_SCORING_PLAN.md."

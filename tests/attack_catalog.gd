@@ -232,8 +232,13 @@ func _ready() -> void:
 		editor._select_row(catalog.attacks.find(catalog.attack(temp)))
 		var id_box: LineEdit = editor.fields.name
 		var id_open: bool = id_box.editable
-		editor._change("name", "test_renamed")
-		var followed: bool = catalog.assignments.any(func(b): return b.attack_name == "test_renamed")
+		id_box.text = "shoo"; id_box.text_changed.emit("shoo")  # typing doesn't rename; only Enter / leaving the box does
+		id_box.text = "shoot"; id_box.text_changed.emit("shoot")
+		id_box.text_submitted.emit("shoot")  # taken: refused, box reset
+		var shoot_kept: bool = catalog.assignments.filter(func(b): return b.attack_name == "shoot").size() >= 2 and id_box.text == temp
+		id_box.text = "test_renamed"
+		id_box.text_submitted.emit("test_renamed")
+		var followed: bool = shoot_kept and catalog.assignments.any(func(b): return b.attack_name == "test_renamed")
 		editor._change("type", "ranged")
 		editor._select_row(catalog.attacks.find(catalog.attack("test_renamed")))
 		var now_ranged: bool = editor.fields.has("multishot")
@@ -275,5 +280,67 @@ func _ready() -> void:
 		check(editor.view == "enemies" and editor.enemy_index == 1 and not editor.dirty, "Save preserves the active enemy loadout view")
 		editor.queue_free()
 	else: check(false, "Monsters CSV editor is implemented")
+	await _review_fixes(path)
 	print("ATTACK CATALOG OK" if failures == 0 else "ATTACK CATALOG FAILED")
 	Game.quit_game(failures)
+
+# Fixes from reports/monster-editor-review-2026-11-01 (rename, Esc, runtime IDs, scores, limits, layout).
+func _review_fixes(path: String) -> void:
+	var c = load(path).new()
+	c.reload()
+	c.attack("shoot").multishot = "100000000"
+	check(not c.validate().is_empty(), "Multishot has an upper limit (a typo can't freeze the editor)")
+	c.reload()
+	c.attacks = c.attacks.filter(func(a): return a.name != "ape_slam")
+	check(not c.validate().is_empty() and c.runtime_used("ape_log") and c.runtime_used("ape_split"), "Attacks the Ape reads by ID (slam, log, split) can't be removed")
+	c.reload()
+	c.attack("ape_throw").merge({"follow_up": "ape_retreat", "follow_up_count": "1", "follow_up_gap_s": "0.5"}, true)
+	check(c.validate().contains("loop"), "Follow-up loops are rejected")
+	c.reload()
+	c.attack("ape_retreat").follow_up = "ape_log"
+	check(not c.score_attack(c.attack("ape_retreat")).valid, "An unscored follow-up makes its attack's score incomplete")
+	# saved scores match what's written (computed from the rounded values)
+	var dir := "user://review_fix/"
+	DirAccess.make_dir_recursive_absolute(dir)
+	for f in ["attacks", "enemy_attacks"]:
+		var out := FileAccess.open(dir + f + ".csv", FileAccess.WRITE)
+		out.store_string(FileAccess.get_file_as_string("res://data/%s.csv" % f))
+		out.close()
+	c.attack_path = dir + "attacks.csv"
+	c.assignment_path = dir + "enemy_attacks.csv"
+	c.reload()
+	c.attack("ape_throw").base_weight = "1.0049"
+	var saved: String = c.save_all()
+	c.reload()
+	check(saved == "" and str(c.attack("ape_retreat").score) == "%.2f" % c.score_attack(c.attack("ape_retreat")).score, "Saved scores match the saved values")
+	# Esc asks before dropping unsaved edits, like Back
+	var menu = load("res://scripts/menu.gd").new()
+	add_child(menu)
+	menu._monster_editor()
+	for frame in 3: await get_tree().process_frame
+	var editor = menu.body.get_children().filter(func(n): return n.has_method("_show_enemies"))[0]
+	editor.dirty = true
+	var esc := InputEventAction.new()
+	esc.action = "ui_cancel"
+	esc.pressed = true
+	menu._unhandled_input(esc)
+	check(is_instance_valid(editor) and editor.get_parent() == menu.body and menu.get_children().any(func(n): return n is ConfirmationDialog and n.visible), "Esc with unsaved edits asks first")
+	editor.dirty = false
+	# the enemy total follows value edits; the page fits its requested width
+	editor.custom_minimum_size.x = 1000
+	editor._show_enemies()
+	var hb: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
+	editor._select_enemy(hb)
+	var before: String = editor.summary.text
+	var keep: String = editor.catalog.attack("charge").windup_s
+	var boxes: Array = editor.form.find_children("*", "LineEdit", true, false).filter(func(x): return x.text == editor.catalog.format_cell("windup_s", keep))
+	if not boxes.is_empty():
+		boxes[0].text = "1.5"
+		boxes[0].text_changed.emit("1.5")
+	check(not boxes.is_empty() and editor.summary.text != before, "Editing a value refreshes the enemy's total (%s -> %s)" % [before, editor.summary.text])
+	editor.catalog.attack("charge").windup_s = keep
+	editor.dirty = false
+	editor._select_enemy(0)
+	await get_tree().process_frame
+	check(editor.get_combined_minimum_size().x <= 1000, "The Ape's loadout fits a 1000 px editor (min %d)" % editor.get_combined_minimum_size().x)
+	menu.queue_free()
