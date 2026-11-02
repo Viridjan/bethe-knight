@@ -157,3 +157,8 @@ The web-package check verifies both CSVs load and the editor script is excluded.
 
 In the desktop source version, **Monster Editor** on the main menu opens the CSV
 editor directly. Restart the game after updating the source to see the new entry.
+
+Expanded enemy attack settings use the card width in two columns of groups:
+Timing, Damage & speed, Projectile pattern, and Trajectory. Numeric controls
+stretch within each group; animation references and follow-up controls remain
+available. This is a layout change and does not change attack parameters.

@@ -26,7 +26,7 @@ Run, variable jump, coyote time, input buffering, wall jump, wall slide, climb +
 climb hop, 8-way dash, super/hyper jump, wavedash, super wall jump, corner correction, duck, fast fall.
 
 **Stamina (adventure):** a base of 32 that always regenerates, plus 20 per stamina block; a jump or wall jump costs 5,
-climbing drains it, water drains 40/s. Regeneration: 2/s empty, 9/s at half, 3/s full (`scripts/adventure.gd`).
+climbing drains it, water drains 40/s. Regeneration: 2/s empty, 6/s at half, 3/s full (`scripts/adventure.gd`).
 A fall of 10+ tiles is a hard landing: stamina to 0 and a 1 s stun (stars over the head; regeneration restarts with the
 second star). F3 shows a stamina recap.
 

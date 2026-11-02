@@ -20,7 +20,7 @@ const ABILITIES := ["dash", "climb", "attack"]
 # run.blocks counts the base as the first block (so 1 = just the base).
 const BASE_STAMINA := 32.0  # 40 until 2026-10-29 (-20%: too much for the first part); whole numbers (a jump costs 5)
 const STAMINA_PER_BLOCK := 20.0  # what an stamina block pickup adds
-const STAMINA_REGEN_MAX := 9.0  # per second at half full (see regen_factor), only inside a partly spent block
+const STAMINA_REGEN_MAX := 6.0  # per second at half full (see regen_factor), only inside a partly spent block
 const STAMINA_REGEN_EMPTY := 2.0  # per second with the bar empty
 const STAMINA_REGEN_FULL := 3.0  # per second with the bar full
 const WATER_DRAIN := 40.0  # per second while in water (4 every 0.1 s); no regeneration there
@@ -219,7 +219,7 @@ static func regen_stamina(run: Dictionary, dt: float) -> void:
 	run.stamina = minf(maxf(top, run.stamina), run.stamina + rate * dt)
 
 # Regeneration speed as a share of STAMINA_REGEN_MAX, by how full the bar is (0..1): from 2/s empty, linearly up
-# to 9/s at half full, then linearly down to 3/s full.
+# to 6/s at half full, then linearly down to 3/s full.
 static func regen_factor(fill: float) -> float:
 	fill = clampf(fill, 0.0, 1.0)
 	var low := STAMINA_REGEN_EMPTY / STAMINA_REGEN_MAX

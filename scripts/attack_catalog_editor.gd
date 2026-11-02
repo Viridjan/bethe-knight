@@ -643,16 +643,7 @@ func _select_enemy(i: int) -> void:
 					cap.modulate = Color(1, 1, 1, 0.5)
 					anim.add_child(cap)
 				inner.add_child(anim)
-			# its values in a fixed grid (4 per row, same label and box sizes everywhere), the follow-up on its own row
-			var mech := GridContainer.new()
-			mech.columns = 4
-			mech.add_theme_constant_override("h_separation", 6)
-			mech.add_theme_constant_override("v_separation", 4)
-			inner.add_child(mech)
-			var values: Array = _applicable(attack).filter(func(c): return not c.begins_with("follow_up"))
-			for column in values:
-				mech.add_child(_value_tag(column))
-				_compact_field(mech, attack, column, score).custom_minimum_size.x = BOX_W
+			_build_grouped_values(inner, attack, score)
 			if writable and not "follow_up" in _applicable(attack):  # no follow-up yet: one click adds one (in Edit)
 				var add_then := Game.button("+ Then…", func():
 					attack.merge({"follow_up_count": "1", "follow_up_gap_s": "0.50"}, true)
@@ -695,6 +686,54 @@ func _select_enemy(i: int) -> void:
 		form.add_child(add_row)
 	_enemy_total(e)
 	_wrap_tips(form)
+
+# Use the card's width: two groups side by side, with aligned, stretching numeric fields.
+func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) -> void:
+	var groups := GridContainer.new()
+	groups.columns = 2
+	groups.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	groups.add_theme_constant_override("h_separation", 12)
+	groups.add_theme_constant_override("v_separation", 10)
+	parent.add_child(groups)
+	var applicable := _applicable(attack)
+	var definitions := [
+		["Timing", ["windup_s", "animation_s", "recovery_s"]],
+		["Damage & speed", ["coverage_area_units2", "initial_speed_units_s", "max_distance_units", "shockwave_s"]],
+		["Projectile pattern", ["multishot", "aimed_shot", "spread_deg"]],
+		["Trajectory", ["flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"]]
+	]
+	for definition in definitions:
+		var columns: Array = definition[1].filter(func(column): return column in applicable)
+		if columns.is_empty(): continue
+		var panel := PanelContainer.new()
+		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		panel.add_theme_stylebox_override("panel", _surface("18202b", "2c3b4e", 10))
+		groups.add_child(panel)
+		var content := VBoxContainer.new()
+		content.add_theme_constant_override("separation", 8)
+		panel.add_child(content)
+		var heading := Game.label(definition[0], 12)
+		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		heading.modulate = Color("91b2d3")
+		content.add_child(heading)
+		var grid := GridContainer.new()
+		grid.columns = 4
+		grid.add_theme_constant_override("h_separation", 6)
+		grid.add_theme_constant_override("v_separation", 4)
+		content.add_child(grid)
+		for column in columns:
+			var tag := _value_tag(column)
+			tag.custom_minimum_size.x = 0
+			tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			grid.add_child(tag)
+			var edit := _compact_field(grid, attack, column, score)
+			edit.custom_minimum_size.x = 64
+			edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		if columns.size() % 2 == 1:
+			grid.add_child(Control.new())
+			var filler := Control.new()
+			filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			grid.add_child(filler)
 
 # A value as shown in a box: the CSV's rounding, without trailing zeros (40, 0.5; the CSV keeps 40.00).
 func _shown(column: String, cell: String) -> String:
