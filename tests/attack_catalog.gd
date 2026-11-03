@@ -278,7 +278,7 @@ func _ready() -> void:
 		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
 		editor._select_enemy(1)
 		await get_tree().process_frame
-		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Repertoire score"),
+		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Selected attacks"),
 			"Enemies tab shows the Ape (enraged) with its repertoire score")
 		editor._save()
 		check(editor.view == "enemies" and editor.enemy_index == 1 and not editor.dirty, "Save preserves the active enemy loadout view")

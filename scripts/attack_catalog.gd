@@ -11,7 +11,7 @@ const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
 	"enemy_hornback": ["charge"], "enemy_cragjaw": ["leap"], "enemy_murkspore": ["shoot"]}
 # Attacks the game reads by ID outside the selector (the Ape's slam, split stones and logs): never renamed or deleted.
-const RUNTIME_ONLY := ["ape_slam", "ape_split", "ape_log"]
+const RUNTIME_ONLY := ["ape_slam", "ape_split", "ape_log", "ape_spikes"]
 const MAX_SHOTS := 64  # authoring limits: a typo can't make the editor or a fight loop millions of times
 const MAX_FOLLOW_UPS := 10
 const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s", "follow_up_count", "follow_up_gap_s", "recovery_s", "horizontal_speed_units_s", "vertical_speed_units_s", "flight_time_s", "gravity_units_s2"]
@@ -23,6 +23,26 @@ var assignments: Array = []
 var attack_columns := PackedStringArray()
 var assignment_columns := PackedStringArray()
 var error := ""
+var enemy_profiles: Dictionary = {}
+
+func profile_path() -> String:
+	return attack_path.get_base_dir().path_join("enemy_profiles.json")
+
+func source_texts() -> Array:
+	return [FileAccess.get_file_as_string(attack_path), FileAccess.get_file_as_string(assignment_path),
+		FileAccess.get_file_as_string(profile_path()) if FileAccess.file_exists(profile_path()) else ""]
+
+func enemy_profile(id: String) -> Dictionary:
+	return enemy_profiles.get(id, {})
+
+func _rounded_profiles() -> Dictionary:
+	var result := enemy_profiles.duplicate(true)
+	if result.has("boss_ape"):
+		result.boss_ape.phase2_wave_scales = result.boss_ape.phase2_wave_scales.map(func(v): return roundf(float(v) * 100.0) / 100.0)
+	return result
+
+static func triggered(row: Dictionary) -> bool:
+	return row.get("activation_mode", "selected") == "triggered"
 
 static func shared():
 	if _shared == null:
@@ -55,7 +75,12 @@ func reload() -> bool:
 	if not a.error.is_empty() or not b.error.is_empty():
 		error = a.error if not a.error.is_empty() else b.error
 		return false
-	var previous := [attacks, assignments, attack_columns, assignment_columns]
+	var profiles: Variant = JSON.parse_string(FileAccess.get_file_as_string(profile_path())) if FileAccess.file_exists(profile_path()) else {"version": 1}
+	if not profiles is Dictionary:
+		error = "Invalid enemy profiles JSON"
+		return false
+	var previous := [attacks, assignments, attack_columns, assignment_columns, enemy_profiles]
+	enemy_profiles = profiles
 	attacks = a.rows
 	assignments = b.rows
 	attack_columns = a.columns
@@ -64,6 +89,7 @@ func reload() -> bool:
 	if not error.is_empty():
 		attacks = previous[0]; assignments = previous[1]
 		attack_columns = previous[2]; assignment_columns = previous[3]
+		enemy_profiles = previous[4]
 		return false
 	return true
 
@@ -76,6 +102,8 @@ func _fail(table: String, index: int, field: String, message: String) -> String:
 
 func validate() -> String:
 	error_at = {"table": "", "index": -1, "field": ""}
+	var profile_error := _validate_profiles()
+	if not profile_error.is_empty(): return profile_error
 	for field in ["name", "codex_online_name", "type", "windup_s", "animation_s", "score"]:
 		if field not in attack_columns: return "Missing attack column: " + field
 	for field in ["enemy_id", "phase", "attack_name", "min_range_units", "max_range_units", "priority"]:
@@ -128,6 +156,8 @@ func validate() -> String:
 		if not EXECUTABLE.has(row.enemy_id): return _fail("ranges", i, "enemy_id", "Attack has no implementation for " + str(row.enemy_id) + ": " + str(row.attack_name))
 		if row.phase not in (["normal", "enraged"] if row.enemy_id == "boss_ape" else ["default"]): return _fail("ranges", i, "phase", "Unknown phase for " + str(row.enemy_id))
 		var key := "%s/%s/%s" % [row.enemy_id, row.phase, row.attack_name]
+		if row.get("activation_mode", "selected") not in ["", "selected", "triggered"]: return _fail("ranges", i, "activation_mode", "Activation must be selected or triggered: " + key)
+		if triggered(row) and (row.enemy_id != "boss_ape" or row.attack_name not in RUNTIME_ONLY): return _fail("ranges", i, "activation_mode", "Unknown triggered effect: " + key)
 		if bindings.has(key): return _fail("ranges", i, "attack_name", "Duplicate range binding: " + key)
 		bindings[key] = true
 		for field in ["min_range_units", "max_range_units", "priority"]:
@@ -142,6 +172,32 @@ func validate() -> String:
 			if not ids.has(id): return "Missing implemented attack: " + id
 	for id in RUNTIME_ONLY:
 		if not ids.has(id): return "Missing attack the game uses: " + id
+	return ""
+
+func _validate_profiles() -> String:
+	if enemy_profiles.get("version", 1) != 1: return "Unsupported enemy profile version"
+	if not enemy_profiles.has("boss_ape"): return ""  # legacy CSV-only fixtures/world tooling
+	var p: Variant = enemy_profiles.boss_ape
+	if not p is Dictionary: return "Ape profile must be an object"
+	for field in ["max_hp", "phase2_hp"]:
+		var value: Variant = p.get(field, null)
+		if not (value is int or value is float) or not is_finite(float(value)) or float(value) != floorf(float(value)) or float(value) < 1 or float(value) > 10000:
+			return "Ape " + field + " must be a whole number from 1 to 10000"
+	if p.phase2_hp >= p.max_hp: return "Ape phase-two HP must be below maximum HP"
+	var scales: Variant = p.get("phase2_wave_scales", null)
+	if not scales is Array or scales.is_empty() or scales.size() > MAX_FOLLOW_UPS: return "Ape needs 1 to 10 phase-entry wave scales"
+	for scale in scales:
+		if not (scale is int or scale is float) or not is_finite(float(scale)) or float(scale) < 0.1 or float(scale) > 10:
+			return "Wave scales must be between 0.1 and 10"
+	var landing: Variant = p.get("landing_effects", null)
+	if not landing is Array or landing.any(func(id): return id not in ["ape_slam", "ape_log"]):
+		return "Landing effects must be distinct shockwave/log references"
+	var seen := {}
+	for id in landing:
+		if seen.has(id): return "Landing effect cannot occur twice"
+		seen[id] = true
+	for pair in [["throw_effect", ["ape_log"]], ["phase2_throw_effect", ["ape_split", "ape_log"]], ["log_impact_effect", ["ape_spikes"]]]:
+		if p.get(pair[0], "") not in pair[1]: return "Unsupported Ape effect reference: " + str(pair[0])
 	return ""
 
 # Follow-ups the game actually runs, per attack (others are kept and scored but are plans: "not in game yet").
@@ -164,6 +220,7 @@ func value(id: String, field: String, fallback: float) -> float:
 	return fallback if cell.is_empty() else float(cell)
 
 func score_attack(row: Dictionary, area_override: float = -1.0, speed_scale: float = 1.0, warning_scale: float = 1.0, depth: int = 0) -> Dictionary:
+	if row.get("status", "") == "reference_pending": return {"valid": false, "reason": "Reference scoring model pending"}
 	var area := area_override if area_override >= 0 else (body_area(str(row.get("name", ""))) if uses_body(row) else float(row.get("coverage_area_units2", "0")))
 	var wave := str(row.get("shockwave_s", "")) if row.get("type", "") == "movement" else ""  # a landing shockwave: how long it hits
 	var time := float(wave if wave != "" else str(row.get("animation_s", "0")))
@@ -211,7 +268,8 @@ func ordered_attacks(enemy_id: String, phase: String, available: Array = []) -> 
 	var result: Array = []
 	for row in assignments:
 		if row.enemy_id == enemy_id and row.phase == phase and (available.is_empty() or row.attack_name in available): result.append(row)
-	result.sort_custom(func(a, b):  # priority decides (highest first); ties keep the CSV order
+	result.sort_custom(func(a, b):  # effects last; priority decides selected attacks, ties keep CSV order
+		if triggered(a) != triggered(b): return not triggered(a)
 		if float(a.priority) != float(b.priority): return float(a.priority) > float(b.priority)
 		return assignments.find(a) < assignments.find(b))
 	return result
@@ -262,6 +320,7 @@ func move_binding(row: Dictionary, step: int) -> void:
 # skipped attack sits out its recovery instead of being rolled again next frame.
 func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0, waits: Dictionary = {}, now: float = 0.0) -> String:
 	for row in ordered_attacks(enemy_id, phase, available):
+		if triggered(row): continue
 		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
 		if not performs(enemy_id, row.attack_name): continue  # added in the editor, not in its code yet
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue
@@ -280,7 +339,9 @@ const CHOSEN_BY_RULE := ["ape_retreat", "ape_throw", "ape_leap"]
 func range_warnings() -> String:
 	var warnings := PackedStringArray()
 	for row in assignments:
+		if triggered(row): continue
 		for other in ordered_attacks(row.enemy_id, row.phase):
+			if triggered(other): continue
 			if other == row: break
 			if other.attack_name in CHOSEN_BY_RULE: continue
 			if row.enemy_id == "enemy_monster": continue  # each build has only some of these attacks: overlaps are expected
@@ -357,13 +418,23 @@ func save_all() -> String:
 	for ranges in [false, true]:
 		var staged := _stage_table(ranges)
 		if not staged.is_empty(): return staged
+	var paths := [attack_path, assignment_path]
+	if not enemy_profiles.is_empty():
+		var file := FileAccess.open(profile_path() + ".tmp", FileAccess.WRITE)
+		if file == null: return "Cannot stage enemy profiles"
+		file.store_string(JSON.stringify(_rounded_profiles(), "\t") + "\n")
+		file.flush()
+		var write_error := file.get_error()
+		file.close()
+		if write_error != OK: return "Cannot finish writing enemy profiles"
+		paths.append(profile_path())
 	var g := func(p: String) -> String: return ProjectSettings.globalize_path(p)
-	for path in [attack_path, assignment_path]:  # keep the last good pair as .bak (a crash mid-save leaves it to restore)
+	for path in paths:  # keep the last good content set as .bak
 		if FileAccess.file_exists(path) and DirAccess.copy_absolute(g.call(path), g.call(path + ".bak")) != OK: return "Could not back up " + path
-	for path in [attack_path, assignment_path]:
+	for path in paths:
 		var result := DirAccess.rename_absolute(g.call(path + ".tmp"), g.call(path))
 		if result != OK:  # put both back as they were
-			for back in [attack_path, assignment_path]:
+			for back in paths:
 				if FileAccess.file_exists(back + ".bak"): DirAccess.copy_absolute(g.call(back + ".bak"), g.call(back))
-			return "Could not replace %s (%s); both CSVs restored from .bak" % [path, error_string(result)]
+			return "Could not replace %s (%s); catalogue restored from .bak" % [path, error_string(result)]
 	return ""

@@ -1,5 +1,8 @@
 # TODO
 
+- [ ] Modular mechanics programme: start with the Ape attack/effect and phase decomposition, then shared triggers/patrols/traps, inventory/keys, isolated story events, player abilities, hidden terrain, and teaching routes. See [implementation plan and acceptance gates](docs/MECHANICS_ARCHITECTURE_PLAN.md).
+- [x] First Ape composition slice: shared log effects, trigger-only bindings, editable health/phase entry, anchored waves, and regression checks. See [implementation and verification](reports/ape-composition-2026-11-03/README.md).
+
 - [ ] Web version: install Godot export templates (~1 GB), add a Web export preset, export to HTML5, publish as a private claude.ai page so the game is playable from a link.
 - [ ] Adventure backlog (hurt/knockback state, more abilities, event flags, ability gates, map stations, camera zones, room-transition polish, save slots, areas): see `docs/METROID_NOTES.md` section 6.
 - [ ] Replace the three placeholder adventure rooms with real ones (World Editor).

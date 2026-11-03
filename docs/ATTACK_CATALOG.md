@@ -22,7 +22,7 @@ The first six attack columns are name, research label, type, wind-up seconds,
 execution seconds, and calculated score. Extra columns hold the scoring inputs
 and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
 
-- **Save changes** validates and stages both tables before replacing them. Only saving
+- **Save changes** validates and stages both tables and enemy profiles before replacing them. Only saving
   changes the shared runtime catalogue. Edits to a running attack do not change
   its captured parameters; new selections use the saved values.
 - **Reload** rereads disk, refreshes the shared catalogue, and asks before
@@ -38,11 +38,11 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
   values (the same boxes for every attack of a type) and its follow-up (Then / Times / Every, or "+ Then…"). The
   score line stays pinned below the list. An invalid value shows in red.
 - **Attack library** holds what defines each attack: Name, ID (renamed on Enter or leaving the box; refused when
-  empty, taken, or used by the game code, including the Ape's slam, split stone and log), Type, Weight and the boxes of
+  empty, taken, or used by the game code, including the Ape's shockwave, splitting log, ordinary log and spikes), Type, Weight and the boxes of
   its type; **Delete attack** for attacks no code uses. Multishot is 1-64 and follow-up Times 1-10; follow-ups can't
   loop back. Esc and Back both ask before dropping unsaved edits.
 - Family loadouts rule the fight: an enemy attacks only inside [minimum, maximum) and never once its attack is
-  removed. Follow-ups the game can't run yet are marked "not in game yet" (today only the Ape's retreat → stone
+  removed. Follow-ups the game can't run yet are marked "not in game yet" (today only the Ape's retreat → log
   throw runs); an attack whose follow-up can't be scored shows its score as incomplete.
 
 Editing is available only in the desktop source version. Exported desktop games
@@ -78,6 +78,40 @@ The source tables are [attacks.csv](../data/attacks.csv) and
 [enemy_attacks.csv](../data/enemy_attacks.csv). A blank means unspecified, not zero.
 External spreadsheet edits take effect after Reload CSV or restarting the game.
 
+## Ape phases and consequences
+
+The Ape's **Health & phase entry** card edits maximum health, phase-two HP threshold,
+and a comma-separated list of shockwave scales. One in-place leap is performed for
+each scale, once when phase two begins. Defaults: 4 HP, phase two at 2 HP, scales
+1.3 and 1.7. Later screams do not repeat the phase-entry sequence. These settings
+live in [enemy_profiles.json](../data/enemy_profiles.json), shared by both phase
+pages. They apply to newly created encounters. Save/Reload and external-change
+checks include this file, and saved wave scales use at most two decimals.
+
+`activation_mode` in the binding CSV distinguishes `selected` attacks from
+`triggered` effects (a missing/empty value retains the old selected behavior).
+The **Triggered effects** section is always last. Its entries have no editable
+range, skip, or order controls and never perform AI eligibility/chance checks.
+Their mechanics remain editable. The profile's validated effect references
+describe landing → shockwave/log and log floor impact → spikes.
+
+Ordinary falling and thrown logs use the same projectile implementation and floor
+impact behavior. The shared log area controls their dimensions; launch velocity,
+gravity, and warning can differ. Phase-two throws spawn a splitting log: at its
+apex it produces two ordinary logs, which cannot split again and each make a
+spike on valid tile ground. Walls, player hits, and leaving the room do not create
+floor spikes. Encounter death cancels transient effects; permanent arena aftermath
+continues to use the existing boss flags and spike restoration.
+
+The Enemy-tab total now labels **Selected attacks** separately. Triggered chains
+are excluded from that total until a consequence-scoring policy is agreed;
+individual reference-pending effects must not be treated as a complete encounter
+score. The pixel physics and public attack IDs are preserved. Shared projectile
+and area primitives live in `scripts/effects/attack_effects.gd`; arena decisions,
+rewards, and gates remain in the encounter implementation.
+
+Regression scene: `godot --headless --path . res://tests/ape_composition.tscn`.
+
 ## What currently controls gameplay
 
 Library monsters read CSV wind-up and recovery. Charge reads speed and max distance (walkers along the floor, flyers
@@ -88,10 +122,11 @@ modifiers remain applied as before. Body size and the 3×3 pixel small-projectil
 hitbox remain defined by the entity implementation.
 
 The Ape reads ordinary attack wind-ups, recovery, scream coverage/duration,
-leap flight-time/gravity, stone flight-time/gravity parameters, split-stone
-components, log warning/gravity, and slam area/duration. Its ordinary attack choice
+leap flight-time/gravity, thrown-log flight-time/gravity parameters, split-child
+velocity components, shared log area/warning/gravity, and slam area/duration. Its ordinary attack choice
 uses normal/enraged range rows. Random throw eligibility and scripted wake-up,
-hurt, corner escape, trunk transitions, volleys, and follow-up hops remain boss logic.
+hurt, corner escape, trunk transitions, and volleys remain boss logic; phase-entry
+hops use the enemy profile. Ground shockwaves remain at their landing location.
 
 For targeted ballistic movement, `initial_speed_units_s` is the documented scoring
 reference; the launch itself is calculated from component/flight parameters and

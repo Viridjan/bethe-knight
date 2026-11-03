@@ -20,6 +20,7 @@ const ButtonArt := preload("res://scripts/button_art.gd")
 const IslandArt := preload("res://scripts/island_art.gd")
 const MonsterLib := preload("res://scripts/monster_library.gd")
 const AttackCatalog := preload("res://scripts/attack_catalog.gd")
+const AttackEffects := preload("res://scripts/effects/attack_effects.gd")
 
 # The entity registry: the one place a type is declared.
 # type id (saved in level JSON) -> [editor label, sized (drag a rect in the editor), palette color, class]
@@ -2495,7 +2496,7 @@ class AutoWalk extends Ent:
 # Arena boss: choose a stone throw, leap/slam or scream according to player distance and fight state.
 class Ape extends Ent:
 	const PHASE_HELP := {"sleep": "asleep; wakes when you come near", "idle": "pausing before its next attack",
-		"throw": "about to throw a stone at you", "crouch": "winding up a leap: it lands past you", "air": "leaping; the landing shockwave hurts",
+		"throw": "about to throw a log at you", "crouch": "winding up a leap: it lands past you", "air": "leaping; the landing shockwave hurts",
 		"scream": "screaming: the circle around it is deadly", "hurt": "landed on spikes: hurt", "dying": "beaten", "gone": "gone",
 		"wait": "waiting out of sight", "off": "not here yet", "roar": "roaring before the chase", "chase": "chasing: if it passes you, you die"}
 	func describe() -> String:
@@ -2508,19 +2509,17 @@ class Ape extends Ent:
 	const LEAP_TIME := 0.75
 	const OVERSHOOT := 24.0  # the slam lands this far past the player
 	const STONE_G := 400.0
-	const STONE := 16  # stone size = its hitbox
 	const SCREAM_REACH := 24  # 3 units around the body
 	const SLAM_REACH := 14  # landing shockwave (60 px wide in all): this far out on both sides, along the ground
 	const SLAM_HEIGHT := 8
 	const SLAM_TIME := 0.2
 	const THROW_CHANCE := 0.2  # each attack: a stone throw at random; otherwise distance picks scream or leap
-	const VOLLEY := 3  # a cornered player: the Ape leaps to the far side and throws this many stones...
+	const VOLLEY := 3  # a cornered player: the Ape leaps to the far side and throws this many logs...
 	const VOLLEY_GAP := 0.35  # ...this far apart (a single throw winds up 0.7 s)
 	const NEAR := 44.0
 	const WAKE := 220.0
 	const PAUSE := 0.765  # idle waits between attacks are scaled by this (0.85, then 10% less)
-	const ENRAGED_HP := HP - 2  # from 2 hits on: stones split, screams add 2 hops in place
-	const HOP_SCALE := [1.7, 1.3]  # shockwave width of the 2nd and 1st hop (indexed by hops left)
+	const ENRAGED_HP := HP - 2  # legacy fallback; authored threshold lives in enemy_profiles.json
 	const LOG := Vector2i(19, 6)  # 20% smaller than the first 24x8
 	const LOG_G := 200.0  # logs fall at half the stones' gravity
 	const LOG_MAX_FALL := 140.0
@@ -2537,15 +2536,23 @@ class Ape extends Ent:
 	var hops := 0  # in-place hops still to do after an enraged scream
 	var skip_waits := {}  # attack -> clock time a skipped attack may be rolled again
 	var retreat := false  # this leap goes away from a cornered player, then a volley follows
-	var volley := 0  # stones still to throw in a volley
+	var volley := 0  # logs still to throw in a volley
 	var volley_gap := VOLLEY_GAP
 	var throw_chance := THROW_CHANCE  # tests pin it to 0 or 1
 	var slam_scale := 1.0
-	var logs: Array = []  # [top-left, vy, wait]
-	var stones: Array = []  # [centre, velocity, size]
+	var effects := AttackEffects.new()
+	var logs: Array:
+		get: return effects.projectiles
+	var profile: Dictionary = {}
+	var phase2_pending := false
+	var phase2_entered := false
+	var hop_index := 0
 	var flash := 0.0
 	var clock := 0.0
-	var slam_t := 0.0  # the landing shockwave is live while > 0
+	var ground_wave := AttackEffects.Area.new()
+	var slam_t: float:
+		get: return ground_wave.remaining
+		set(value): ground_wave.remaining = value
 	var id := ""
 	var x_min := 0.0
 	var x_max := 0.0
@@ -2562,6 +2569,8 @@ class Ape extends Ent:
 		return phase != "gone" and phase != "dying"
 	# Initialize Ape dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
+		profile = AttackCatalog.shared().enemy_profile("boss_ape").duplicate(true)
+		hp = int(profile.get("max_hp", HP))
 		rect.size = Vector2i(SIZE, SIZE)
 		var r: Array = d.get("range", [rect.position.x - 200, rect.end.x + 200])
 		x_min = float(r[0])
@@ -2601,9 +2610,7 @@ class Ape extends Ent:
 		return sqrt(_ape_param("ape_scream", "coverage_area_units2", PI * 25.0) / PI) * T
 	# Measure the nearest point of a rectangle against the circular scream, avoiding square-corner false hits.
 	func scream_hits(area: Rect2i) -> bool:
-		var c := center()
-		var nearest := c.clamp(Vector2(area.position),Vector2(area.end))
-		return area.has_area() and c.distance_squared_to(nearest) < scream_radius() * scream_radius()
+		return AttackEffects.circle_hits(center(), scream_radius(), area)
 	# Expose active circular hazards; an empty list means no circular damage is active.
 	func damage_circles() -> Array:
 		return [[center(),scream_radius()]] if phase == "scream" and timer <= 0.0 and timer > -_ape_param("ape_scream", "animation_s", 0.35) else []
@@ -2611,19 +2618,18 @@ class Ape extends Ent:
 	func touch(p) -> void:
 		if hurts() and body_hits(p.damage_rect()):
 			p.die((p.center() - center()).normalized())
-	# Advance boss timers, stones and phases; select attacks by distance and test circular scream damage only in its active window.
+	# Advance boss timers, effects and action states; select attacks by distance and test circular scream damage only in its active window.
 	func update(dt: float) -> void:
 		clock += dt
 		flash = maxf(0.0, flash - dt)
-		_update_stones(dt)
 		_update_logs(dt)
 		if phase == "gone":
 			if not restored and w.kept_spikes.has(w.room):
 				_restore_aftermath()
 			return
 		if slam_t > 0:
-			slam_t -= dt
-			if not w.player.dead and slam_box().intersects(w.player.damage_rect()):
+			ground_wave.advance(dt)
+			if not w.player.dead and ground_wave.hits(w.player.damage_rect()):
 				w.player.die(Vector2(signf(w.player.center().x - center().x), -1).normalized())
 		var p = w.player
 		var dx: float = p.center().x - center().x
@@ -2672,9 +2678,11 @@ class Ape extends Ent:
 					if retreat:  # to the end of its range away from the player
 						tx = r.x + SIZE / 2.0 if side > 0 else r.y - SIZE / 2.0
 					slam_scale = 1.0
-					if hops > 0:  # enraged: hop straight up and down where it stands, a wider shockwave each time
+					if hops > 0:  # phase entry: hop in place with its authored shockwave scale
 						tx = center().x
-						slam_scale = HOP_SCALE[hops - 1]
+						var scales: Array = profile.get("phase2_wave_scales", [1.3, 1.7])
+						slam_scale = float(scales[mini(hop_index, scales.size() - 1)])
+						hop_index += 1
 						hops -= 1
 					var leap_id := "ape_retreat" if retreat else "ape_leap"
 					var duration := _ape_param(leap_id, "flight_time_s", LEAP_TIME)
@@ -2692,19 +2700,23 @@ class Ape extends Ent:
 					if not p.dead and scream_hits(p.damage_rect()):
 						p.die((p.center() - center()).normalized())
 				elif timer <= -_ape_param("ape_scream", "animation_s", 0.35):
-					if enraged():
-						then_slam = false
-						hops = 2
-						_go("crouch", 0.3)
-					elif then_slam:
+					if then_slam:
 						then_slam = false
 						_go("crouch", 0.3)
 					else:
 						_go("idle", _ape_param("ape_scream", "recovery_s", 0.8 * PAUSE))
 			"hurt":
 				if timer <= 0:
-					then_slam = true
-					_go("scream", 0.3)
+					if phase2_pending:
+						phase2_pending = false
+						phase2_entered = true
+						hops = profile.get("phase2_wave_scales", [1.3, 1.7]).size()
+						hop_index = 0
+						then_slam = false
+						_go("crouch", 0.3)
+					else:
+						then_slam = true
+						_go("scream", 0.3)
 			"dying":
 				if timer <= 0:
 					_beaten()
@@ -2712,6 +2724,7 @@ class Ape extends Ent:
 	# dodge it, so it leaps instead.
 	func _cornered(p) -> bool:
 		var side := signf(p.center().x - center().x)
+		if side == 0.0: return false  # vertically aligned: there is no horizontal gap to search
 		var c := center()
 		var x := c.x
 		while absf(x - c.x) <= scream_radius() and w.collide_solid(Rect2i(int(x), int(c.y), 1, 1)) == null:
@@ -2736,6 +2749,7 @@ class Ape extends Ent:
 		return AttackCatalog.shared().value(id, field, fallback)
 	func _go(ph: String, t: float) -> void:
 		var id: String = {"scream": "ape_scream", "crouch": "ape_leap", "throw": "ape_throw"}.get(ph, "")
+		if ph == "crouch" and retreat: id = "ape_retreat"
 		if not id.is_empty(): attack_snapshot = AttackCatalog.shared().attack(id).duplicate(true)
 		if ph == "scream":
 			Game.play_sfx("ape_scream")
@@ -2743,13 +2757,18 @@ class Ape extends Ent:
 			Game.play_sfx("enemy_hit", 0.6)
 		phase = ph
 		timer = t
-	# Create a ballistic stone velocity aimed toward a target, including gravity over its planned flight time.
+	# Launch the ordinary/splitting log with a ballistic trajectory toward the target.
 	func _throw(target: Vector2) -> void:
 		Game.play_sfx("projectile", 0.6)
 		var from := Vector2(center().x + facing * 10, rect.position.y)
 		var t := clampf(absf(target.x - from.x) / (_ape_param("ape_throw", "horizontal_speed_units_s", 27.5) * T), _ape_param("ape_throw", "flight_time_s", 0.7), 1.3)
 		var gravity := _ape_param("ape_throw", "gravity_units_s2", STONE_G / T) * T
-		stones.append([from, Vector2((target.x - from.x) / t, (target.y - from.y) / t - 0.5 * gravity * t), STONE, gravity])
+		var splitting: bool = enraged() and profile.get("phase2_throw_effect", "ape_split") == "ape_split"
+		effects.spawn(from - Vector2(_log_size()) / 2.0, Vector2((target.x - from.x) / t, (target.y - from.y) / t - 0.5 * gravity * t), {
+			"gravity": gravity, "split": splitting, "size": _log_size(),
+			"child_velocity": Vector2(AttackCatalog.shared().value("ape_split", "horizontal_speed_units_s", 11.25) * T, -AttackCatalog.shared().value("ape_split", "vertical_speed_units_s", 18.75) * T),
+			"child_gravity": AttackCatalog.shared().value("ape_log", "gravity_units_s2", LOG_G / T) * T,
+			"impact_effect": profile.get("log_impact_effect", "ape_spikes")})
 	# Resolve boss displacement in whole pixels and trigger the landing reaction on downward impact.
 	func _move(dt: float) -> void:
 		rem += vel * dt  # whole pixels move, the rest carries over (Ent.rem)
@@ -2770,27 +2789,26 @@ class Ape extends Ent:
 		else:
 			vel.y = 0
 	# Expose active rectangular damage regions to the hitbox overlay and shared inspection tools.
-	func damage_boxes() -> Array:  # stones, and the scream and the landing shockwave while they're live
+	func damage_boxes() -> Array:  # logs and the landing shockwave while active
 		var out := []
-		for s in stones:
-			out.append(Rect2i(Vector2i(s[0]) - Vector2i(s[2] / 2, s[2] / 2), Vector2i(s[2], s[2])))
-		for l in logs:
-			out.append(Rect2i(Vector2i(l[0]), LOG))
+		for projectile in logs:
+			if projectile.wait <= 0: out.append(projectile.box())
 		if slam_t > 0:
 			out.append(slam_box())
 		return out
 	# The landing shockwave along the ground, both sides of the body.
 	# Return the ground-level shockwave rectangle used by both damage and its visual overlay.
 	func slam_box() -> Rect2i:
-		var area := float(slam_snapshot.get("coverage_area_units2", "7.5"))
-		var wide := roundi(area * T * T / SLAM_HEIGHT * slam_scale)
-		return Rect2i(rect.position.x + (SIZE - wide) / 2, rect.end.y - SLAM_HEIGHT, wide, SLAM_HEIGHT)
+		return ground_wave.rect
 	# Stop the leap, create the shockwave and check whether the landing feet overlap an arena spike patch.
 	func _land() -> void:
 		Game.play_sfx("impact")
 		vel = Vector2.ZERO
 		slam_snapshot = AttackCatalog.shared().attack("ape_slam").duplicate(true)
-		slam_t = float(slam_snapshot.get("shockwave_s", str(SLAM_TIME)))
+		var area := float(slam_snapshot.get("coverage_area_units2", "7.5"))
+		var wide := roundi(area * T * T / SLAM_HEIGHT * slam_scale)
+		ground_wave.rect = Rect2i(rect.position.x + (SIZE - wide) / 2, rect.end.y - SLAM_HEIGHT, wide, SLAM_HEIGHT)
+		slam_t = float(slam_snapshot.get("shockwave_s", str(SLAM_TIME))) if "ape_slam" in profile.get("landing_effects", ["ape_slam", "ape_log"]) else 0.0
 		w.shake_dir(Vector2.DOWN, 0.2)
 		w.dust(Vector2(center().x, rect.end.y), Vector2.UP, 10)
 		var feet := Rect2i(rect.position.x, rect.end.y - 4, rect.size.x, 4)
@@ -2798,11 +2816,11 @@ class Ape extends Ent:
 			if e is Spikes and e.collidable and e.rect.intersects(feet):
 				_hit()
 				return
-		_drop_log()  # every landing shakes one log loose, the hops in place too
+		if "ape_log" in profile.get("landing_effects", ["ape_slam", "ape_log"]): _drop_log()
 		if hops > 0:
 			_go("crouch", 0.25)
 		elif retreat and AttackCatalog.follow_up_runs("ape_retreat", str(AttackCatalog.shared().attack("ape_retreat").get("follow_up", ""))):
-			retreat = false  # landed away from a cornered player: its follow-up, stones (CSV: 3, 0.35 s apart)
+			retreat = false  # landed away from a cornered player: its follow-up logs (CSV: 3, 0.35 s apart)
 			var row: Dictionary = AttackCatalog.shared().attack("ape_retreat")
 			volley = int(str(row.get("follow_up_count", ""))) if str(row.get("follow_up_count", "")).is_valid_int() else VOLLEY
 			volley_gap = float(str(row.get("follow_up_gap_s", ""))) if str(row.get("follow_up_gap_s", "")).is_valid_float() else VOLLEY_GAP
@@ -2812,7 +2830,9 @@ class Ape extends Ent:
 			_go("idle", _ape_param("ape_leap", "recovery_s", 0.6 * PAUSE))
 	# Remove boss health, select the hurt/dying phase and reveal the next arena hazards when applicable.
 	func _hit() -> void:
+		var was_enraged := enraged()
 		hp -= 1
+		if not was_enraged and enraged() and not phase2_entered: phase2_pending = true
 		hops = 0
 		retreat = false
 		volley = 0
@@ -2820,6 +2840,8 @@ class Ape extends Ent:
 		flash = 0.8
 		w.burst(center(), Color("ff6040"), 14)
 		if hp <= 0:
+			effects.clear()
+			slam_t = 0.0
 			_go("dying", 1.2)
 			return
 		stage += 1
@@ -2834,6 +2856,8 @@ class Ape extends Ent:
 		phase = "gone"
 		collidable = false
 		restored = true
+		effects.clear()
+		slam_t = 0.0
 		var kept := []  # the spikes as the fight left them: a death before leaving the room keeps them
 		for e in w.touchables:
 			if e is Spikes and e.collidable:
@@ -2869,7 +2893,7 @@ class Ape extends Ent:
 			ci.draw_line(c - d * WAKE, c + d * WAKE, Color(1, 0.8, 0.3, 0.5), 1.0)
 	# From 2 hits on.
 	func enraged() -> bool:
-		return hp <= ENRAGED_HP
+		return hp <= int(profile.get("phase2_hp", ENRAGED_HP))
 	# A gentle red light pulse marks phase two while preserving the original sprites.
 	func sprite_tint() -> Color:
 		var alpha := clampf(timer / 1.2, 0.0, 1.0) if phase == "dying" else 1.0
@@ -2880,26 +2904,35 @@ class Ape extends Ent:
 		if flash > 0 and int(flash * 20) % 2 == 0:
 			tint = Color(1.8, 1.5, 1.3, alpha)
 		return tint
+	func _log_size() -> Vector2i:
+		var area: float = AttackCatalog.shared().value("ape_log", "coverage_area_units2", 1.78)
+		var scale := sqrt(area * T * T / float(LOG.x * LOG.y))
+		return Vector2i(maxi(1, roundi(LOG.x * scale)), maxi(1, roundi(LOG.y * scale)))
 	# A log shakes loose from the ceiling at a random spot across the arena, never overlapping a log still falling.
 	func _drop_log() -> void:
 		var r := leap_range()
+		var log_size := _log_size()
+		if r.y - r.x < log_size.x: return
 		var lx := NAN
 		var spikes: Array = w.touchables.filter(func(e): return e is Spikes and e.collidable)
 		var pr: Rect2i = w.player.hitbox()
 		for tries in 40:  # ponytail: rejection sampling, fine for an arena much wider than a log
-			var x := randf_range(r.x, r.y - LOG.x)
-			var span := Vector2(x, x + LOG.x)
+			var x := randf_range(r.x, r.y - log_size.x)
+			var span := Vector2(x, x + log_size.x)
 			var clear := func(a: float, b: float) -> bool: return b <= span.x or a >= span.y
-			if logs.all(func(l): return absf(l[0].x - x) >= LOG.x) and clear.call(pr.position.x, pr.end.x) \
+			if logs.all(func(l): return l.position.x + l.size.x <= x or l.position.x >= x + log_size.x) and clear.call(pr.position.x, pr.end.x) \
 					and spikes.all(func(e): return clear.call(e.rect.position.x, e.rect.end.x)):
 				lx = x  # not onto another log, the player's column, or a spike already there
 				break
 		if is_nan(lx):
 			return  # no free spot this time: no log
 		var y := 0
-		while y < w.gh * T and w.collide_solid(Rect2i(int(lx), y, LOG.x, LOG.y)) != null:
+		while y < w.gh * T and w.collide_solid(Rect2i(int(lx), y, log_size.x, log_size.y)) != null:
 			y += T
-		logs.append([Vector2(lx, y), 0.0, AttackCatalog.shared().value("ape_log", "windup_s", LOG_WAIT), AttackCatalog.shared().value("ape_log", "gravity_units_s2", LOG_G / T) * T])
+		effects.spawn(Vector2(lx, y), Vector2.ZERO, {
+			"size": log_size, "wait": AttackCatalog.shared().value("ape_log", "windup_s", LOG_WAIT),
+			"gravity": AttackCatalog.shared().value("ape_log", "gravity_units_s2", LOG_G / T) * T,
+			"terminal_speed": LOG_MAX_FALL, "impact_effect": profile.get("log_impact_effect", "ape_spikes")})
 	# Where a log breaks on the ground it leaves a 1-tile spike (the only spikes the fight makes).
 	func _log_spike(box: Rect2i) -> void:
 		var tx := int(box.get_center().x) / T
@@ -2911,64 +2944,31 @@ class Ape extends Ent:
 			if e is Spikes and e.collidable and e.rect.intersects(cell):
 				return
 		w.spawn_entity({"t": "spikes_up", "x": tx * T, "y": (ty - 1) * T})
-	# Logs wait, then fall; they kill on contact and break on the ground.
+	# Detached effects own their motion; the encounter applies explicit one-shot outcomes.
 	func _update_logs(dt: float) -> void:
-		for i in range(logs.size() - 1, -1, -1):
-			var l: Array = logs[i]
-			l[2] -= dt
-			if l[2] > 0:
-				continue
-			l[1] = minf(l[1] + (float(l[3]) if l.size() > 3 else LOG_G) * dt, LOG_MAX_FALL)
-			l[0].y += l[1] * dt
-			var box := Rect2i(Vector2i(l[0]), LOG)
-			if not w.player.dead and box.intersects(w.player.damage_rect()):
-				w.player.die(Vector2.DOWN)
-			elif w.collide_solid(box) == null and l[0].y < w.gh * T + 64:
-				continue
-			else:
-				_log_spike(box)
-			w.burst(Vector2(box.get_center()), Color("6b4a2a"), 8)
-			logs.remove_at(i)
-	# Move thrown stones, then resolve player, trunk and solid-terrain impacts.
-	func _update_stones(dt: float) -> void:
+		if logs.is_empty(): return
 		var t = trunk() if w != null else null
-		for i in range(stones.size() - 1, -1, -1):
-			var s: Array = stones[i]
-			s[1].y += (float(s[3]) if s.size() > 3 else STONE_G) * dt
-			s[0] += s[1] * dt
-			var box := Rect2i(Vector2i(s[0]) - Vector2i(s[2] / 2, s[2] / 2), Vector2i(s[2], s[2]))
-			var gone := false
-			if not w.player.dead and box.intersects(w.player.damage_rect()):
-				w.player.die(s[1].normalized())
-				gone = true
-			elif t != null and not t.down() and not t.falling and box.intersects(t.standing):
-				t.fell()
-				gone = true
-			elif w.collide_solid(box) != null or s[0].y > w.gh * T + 64:
-				gone = true
-				if s[2] == STONE and enraged() and s[1].y > 0:  # enraged: the stone splits in two on the ground
-					var back: Vector2 = s[0] - s[1] * dt
-					for side in [-1.0, 1.0]:
-						stones.append([back + Vector2(side * 4, -4), Vector2(side * AttackCatalog.shared().value("ape_split", "horizontal_speed_units_s", 11.25) * T, -AttackCatalog.shared().value("ape_split", "vertical_speed_units_s", 18.75) * T), STONE / 2, AttackCatalog.shared().value("ape_split", "gravity_units_s2", STONE_G / T) * T])
-			if gone:
-				w.burst(s[0], Color("9a9080"), 8)
-				stones.remove_at(i)
+		var trunk_box: Rect2i = t.standing if t != null and not t.down() and not t.falling else Rect2i()
+		var player_box: Rect2i = w.player.damage_rect() if not w.player.dead else Rect2i()
+		for event in effects.update(dt, w.collide_solid, player_box, Rect2i(0, 0, w.gw * T, w.gh * T), trunk_box):
+			match event.event:
+				"player_hit":
+					if not w.player.dead: w.player.die(event.direction)
+				"trunk_hit":
+					if t != null: t.fell()
+				"floor_impact":
+					if event.effect == "ape_spikes": _log_spike(event.box)
+			w.burst(Vector2(event.box.get_center()), Color("6b4a2a"), 8)
 	# Return conservative visible bounds including Ape effects so camera culling does not hide them.
 	func vis_rect() -> Rect2i:
 		return rect.grow(400)
 	# Draw Ape at its current pose; this must also work for an editor preview with no World.
 	func draw(ci: CanvasItem) -> void:
-		for s in stones:  # preserve the original Ape projectile artwork
-			var k: float = s[2] / 16.0
-			var at: Vector2 = s[0] - Vector2(s[2] / 2.0, s[2] / 2.0)
-			ci.draw_rect(Rect2(at + Vector2(2, 0) * k, Vector2(12, 16) * k), Color("8a8478"))
-			ci.draw_rect(Rect2(at + Vector2(0, 2) * k, Vector2(16, 12) * k), Color("8a8478"))
-			ci.draw_rect(Rect2(at + Vector2(3, 3) * k, Vector2(5, 3) * k), Color("b0aa9c"))
-		for l in logs:  # logs: exactly their hitbox, shaking at the top before they drop
-			var at: Vector2 = l[0] + (Vector2(sin(clock * 60.0), 0) if l[2] > 0 else Vector2.ZERO)
-			ci.draw_rect(Rect2(at, Vector2(LOG)), Color("6b4a2a"))
-			ci.draw_rect(Rect2(at + Vector2(1, 1), Vector2(LOG.x - 2, 2)), Color("8c6a40"))
-			ci.draw_rect(Rect2(at + Vector2(LOG.x - 4, 2), Vector2(3, LOG.y - 3)), Color("c9a46a"))
+		for projectile in logs:
+			var at: Vector2 = projectile.position + (Vector2(sin(clock * 60.0), 0) if projectile.wait > 0 else Vector2.ZERO)
+			ci.draw_rect(Rect2(at, Vector2(projectile.size)), Color("6b4a2a"))
+			ci.draw_rect(Rect2(at + Vector2(1, 1), Vector2(projectile.size.x - 2, 2)), Color("8c6a40"))
+			ci.draw_rect(Rect2(at + Vector2(projectile.size.x - 4, 2), Vector2(3, projectile.size.y - 3)), Color("c9a46a"))
 		if phase == "gone":
 			return
 		if w != null and Game.settings.hitboxes and not self is ApeChase:
@@ -2989,8 +2989,8 @@ class Ape extends Ent:
 		ci.draw_set_transform(o + Vector2(SIZE / 2.0, 0), 0.0, Vector2(facing, 1))
 		ci.draw_texture_rect(art.texture(pose, int(clock * 10.0)), Rect2(-SIZE / 2.0, 0, SIZE, SIZE), false, sprite_tint())
 		if phase == "throw":
-			ci.draw_rect(Rect2(3, -5, 8, 6), Color("8a8478"))
-			ci.draw_rect(Rect2(4, -4, 4, 2), Color("b0aa9c"))
+			ci.draw_rect(Rect2(0, -5, 12, 5), Color("6b4a2a"))
+			ci.draw_rect(Rect2(1, -4, 9, 1), Color("c9a46a"))
 		ci.draw_set_transform(Vector2.ZERO)
 		if slam_t > 0:  # textured impact stays inside the unchanged damage bounds
 			var sb := Rect2(slam_box())

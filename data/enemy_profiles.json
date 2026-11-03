@@ -1,0 +1,18 @@
+{
+	"boss_ape": {
+		"landing_effects": [
+			"ape_slam",
+			"ape_log"
+		],
+		"log_impact_effect": "ape_spikes",
+		"max_hp": 4.0,
+		"phase2_hp": 2.0,
+		"phase2_throw_effect": "ape_split",
+		"phase2_wave_scales": [
+			1.3,
+			1.7
+		],
+		"throw_effect": "ape_log"
+	},
+	"version": 1.0
+}

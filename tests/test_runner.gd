@@ -1527,7 +1527,7 @@ func check_ape_hitbox_shapes() -> void:
 			bad += 1
 		cols[int(bape.center().x / 8)] = true
 		rows[bape.rect.end.y / 8] = true
-		bape.stones.clear()
+		bape.logs.clear()
 	aw.free()
 	w = keep_world
 	Game.level = keep_lv
@@ -1885,11 +1885,11 @@ func check_ape() -> void:
 	var thrown := false
 	for k in 120:
 		step()
-		if not ape.stones.is_empty():
-			thrown = ape.stones[0][1].x < 0 and ape.stones[0][1].y < 0
+		if not ape.logs.is_empty():
+			thrown = ape.logs[0].velocity.x < 0 and ape.logs[0].velocity.y < 0
 			break
-	check(thrown, "the Ape throws a stone in an arc at a far player")
-	check(ape.damage_boxes().size() == 1 and ape.damage_boxes()[0].size == Vector2i(16, 16), "the hitbox overlay sees the flying stone (%s)" % [ape.damage_boxes()])
+	check(thrown, "the Ape throws a log in an arc at a far player")
+	check(ape.damage_boxes().size() == 1 and ape.damage_boxes()[0].size == Vector2i(19, 6), "the hitbox overlay sees the flying log (%s)" % [ape.damage_boxes()])
 	# the throw is random (20% of attacks); distance only picks scream or leap
 	ape.throw_chance = E.Ape.THROW_CHANCE
 	var throws := 0
@@ -1914,14 +1914,13 @@ func check_ape() -> void:
 	Game.settings.invincible = true  # follow it through: a leap away to the far side, then a volley of 3 stones
 	var away := false
 	var volley_n := 0
-	var had_stones := 0
+	var previous_volley := 0
 	for k in 300:
 		step()
 		if ape.phase != "air" and ape.phase != "crouch" and not away:
 			away = ape.center().x < p().center().x - 120
-		if ape.stones.size() > had_stones:
-			volley_n += ape.stones.size() - had_stones
-		had_stones = ape.stones.size()
+		if previous_volley > ape.volley: volley_n += previous_volley - ape.volley
+		previous_volley = ape.volley
 		if ape.phase == "idle" and volley_n > 0:
 			break
 	Game.settings.invincible = keep_inv
@@ -1937,13 +1936,12 @@ func check_ape() -> void:
 		ape.timer = 0.0
 		ape.update(0.0)
 		var n_thrown := 0
-		var n_had := 0
+		var last_volley := 0
 		Game.settings.invincible = true
 		for k in 300:
 			step()
-			if ape.stones.size() > n_had:
-				n_thrown += ape.stones.size() - n_had
-			n_had = ape.stones.size()
+			if last_volley > ape.volley: n_thrown += last_volley - ape.volley
+			last_volley = ape.volley
 			if ape.phase == "idle" and n_thrown > 0:
 				break
 		Game.settings.invincible = keep_inv
@@ -2092,7 +2090,7 @@ func check_ape() -> void:
 	check(gate.collidable, "boss gates stay shut while the Ape lives")
 	ape.hp = 1
 	ape.rect.position = Vector2i(92, floor_y - 32)  # onto the lone spike
-	ape.stones.clear()
+	ape.logs.clear()
 	var keep_inv3: bool = Game.settings.invincible
 	Game.settings.invincible = true  # the boss's defeat, not the player's dodging (a volley could still be in the air)
 	ape._land()
@@ -2131,10 +2129,10 @@ func check_ape() -> void:
 	Game.settings.invincible = true
 	make_world([{"t": "boss_ape", "x": 200, "y": floor_y - 32}])
 	ape = find.call(E.Ape)[0]
-	ape.hp = E.Ape.ENRAGED_HP
+	ape.hp = E.Ape.ENRAGED_HP + 1
 	p().pos = Vector2(60, floor_y)
-	ape.phase = "scream"
-	ape.timer = -0.34
+	ape._hit()
+	ape.timer = 0.0
 	var widths := []
 	var xs := []
 	var logs_seen := 0
@@ -2144,7 +2142,7 @@ func check_ape() -> void:
 			widths.append(ape.slam_box().size.x)
 			xs.append(ape.rect.position.x)
 		logs_seen = maxi(logs_seen, ape.logs.size())
-	check(widths.size() >= 2 and widths[0] == 78 and widths[1] == 102 and xs[0] == 200 and xs[1] == 200, "enraged scream: 2 hops in place, shockwaves 78 then 102 wide (%s at %s)" % [widths, xs])
+	check(widths.size() >= 2 and widths[0] == 78 and widths[1] == 102 and xs[0] == 200 and xs[1] == 200, "phase-two entry: 2 hops in place, shockwaves 78 then 102 wide (%s at %s)" % [widths, xs])
 	check(logs_seen >= 2, "each hop in place drops a log too (%d)" % logs_seen)
 	# from the start, every leap drops one log at a random spot; logs never overlap; where one breaks, a 1-tile spike
 	make_world([{"t": "boss_ape", "x": 200, "y": floor_y - 32, "range": [16, 460]}])
@@ -2161,7 +2159,7 @@ func check_ape() -> void:
 		ape.logs.clear()
 		ape._drop_log()
 		for l in ape.logs:
-			var lx: float = l[0].x
+			var lx: float = l.position.x
 			var hb: Rect2i = p().hitbox()
 			avoids = avoids and (lx + E.Ape.LOG.x <= hb.position.x or lx >= hb.end.x) and (lx + E.Ape.LOG.x <= sp.position.x or lx >= sp.end.x)
 	check(avoids, "logs never fall onto the player's column or a spike already there")
@@ -2178,10 +2176,11 @@ func check_ape() -> void:
 		ape.logs.clear()
 		ape._drop_log()
 		ape._drop_log()
-		apart = apart and absf(ape.logs[0][0].x - ape.logs[1][0].x) >= E.Ape.LOG.x
-		spread[int(ape.logs[0][0].x / 64)] = true
+		apart = apart and absf(ape.logs[0].position.x - ape.logs[1].position.x) >= E.Ape.LOG.x
+		spread[int(ape.logs[0].position.x / 64)] = true
 	check(apart and spread.size() >= 4, "logs fall at random spots across the arena and never overlap (%d zones)" % spread.size())
-	ape.logs = [[Vector2(300, 40), 0.0, 0.0]]
+	ape.logs.clear()
+	ape.effects.spawn(Vector2(300, 40), Vector2.ZERO, {})
 	ape.phase = "gone"
 	for k in 120:
 		step()
@@ -2193,12 +2192,12 @@ func check_ape() -> void:
 	ape = find.call(E.Ape)[0]
 	ape.hp = E.Ape.ENRAGED_HP
 	ape.phase = "gone"
-	ape.stones.append([Vector2(120, floor_y - 40), Vector2(0, 100), E.Ape.STONE])
+	ape.effects.spawn(Vector2(120, floor_y - 40), Vector2(0, -5), {"split": true})
 	var halves := 0
 	for k in 60:
 		step()
-		halves = maxi(halves, ape.stones.filter(func(st): return st[2] == E.Ape.STONE / 2).size())
-	check(halves == 2, "an enraged stone splits in two on the ground (%d halves)" % halves)
+		halves = maxi(halves, ape.logs.filter(func(log): return not log.split).size())
+	check(halves == 2, "an enraged log splits into two ordinary logs at its apex (%d halves)" % halves)
 	Game.settings.invincible = false
 	# near: the scream reaches around its body
 	Game.settings.invincible = keep_inv

@@ -198,6 +198,9 @@ In the desktop **Monsters** screen (also available from the map's Monsters tab),
 **Monster Editor** (main menu, desktop source version) edits `data/attacks.csv` and `data/enemy_attacks.csv`:
 **Attack library** (each attack's values by type) and **Enemy loadouts** (each enemy's attacks in priority order,
 ranges, skip %, follow-ups, frames, scores). See [the attack catalogue guide](docs/ATTACK_CATALOG.md).
+The Ape also exposes health, phase threshold, and phase-entry hop scales in
+`data/enemy_profiles.json`. Its triggered effects appear below its selected attacks;
+falling and thrown logs share floor-spike behavior, and phase-two logs split at their apex.
 
 In the desktop source version, **Monster Editor** on the main menu opens the CSV
 editor directly. Restart the game after updating the source to see the new entry.

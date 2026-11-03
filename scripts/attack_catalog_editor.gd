@@ -49,7 +49,7 @@ func _ready() -> void:
 	if catalog == null:
 		catalog = Catalog.new()
 		catalog.reload()
-	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
+	loaded_texts = catalog.source_texts()
 	writable = OS.has_feature("editor") and not OS.has_feature("web")
 	ENEMIES = _all_enemies()
 	theme = _soft_theme(theme)
@@ -417,7 +417,7 @@ func _update_feedback() -> void:
 
 func _save() -> void:
 	if not writable: return
-	# Save both drafts after joint validation so switching tables cannot lose edits.
+	# Save all drafts after joint validation so switching tables cannot lose edits.
 	var invalid: String = catalog.validate_for_save()
 	if not invalid.is_empty():
 		feedback.text = invalid
@@ -425,8 +425,8 @@ func _save() -> void:
 	if not dirty:
 		feedback.text = "No unsaved changes"
 		return
-	if loaded_texts != [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]:
-		feedback.text = "CSV changed on disk. Reload before saving to avoid overwriting external edits."
+	if loaded_texts != catalog.source_texts():
+		feedback.text = "Catalogue changed on disk. Reload before saving to avoid overwriting external edits."
 		return
 	var saved: String = catalog.save_all()
 	if not saved.is_empty():
@@ -437,18 +437,18 @@ func _save() -> void:
 		return
 	if view == "enemies": _select_enemy(enemy_index)
 	else: _select_row(clampi(selected, 0, _rows().size() - 1))
-	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
+	loaded_texts = catalog.source_texts()
 	if catalog.attack_path == "res://data/attacks.csv": Catalog.shared().reload()
 	dirty = false
 	dirty_changed.emit()
-	feedback.text = "Saved CSVs · new selections use the updated catalogue"
+	feedback.text = "Saved catalogue · new selections use the updated catalogue"
 
 func _reload_requested() -> void:
 	if not dirty:
 		_reload()
 		return
 	var confirm := ConfirmationDialog.new()
-	confirm.dialog_text = "Discard unsaved CSV edits and reload?"
+	confirm.dialog_text = "Discard unsaved catalogue edits and reload?"
 	confirm.confirmed.connect(_reload)
 	confirm.visibility_changed.connect(func():
 		if not confirm.visible: confirm.queue_free())
@@ -459,7 +459,7 @@ func _reload() -> bool:
 	if not catalog.reload():
 		feedback.text = catalog.error
 		return false
-	loaded_texts = [FileAccess.get_file_as_string(catalog.attack_path), FileAccess.get_file_as_string(catalog.assignment_path)]
+	loaded_texts = catalog.source_texts()
 	dirty = false
 	dirty_changed.emit()
 	if catalog.attack_path == "res://data/attacks.csv": Catalog.shared().reload()
@@ -520,6 +520,7 @@ func _select_enemy(i: int) -> void:
 	data.y = 0
 	preview.ent = load("res://scripts/entities.gd").make(null, data)
 	form.add_child(preview)
+	if e[0] == "boss_ape": _ape_profile_fields()
 	var own: Array = (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
 	if not own.is_empty():
 		var own_row := HBoxContainer.new()
@@ -547,35 +548,45 @@ func _select_enemy(i: int) -> void:
 	caption.tooltip_text = "The first eligible attack executes. Use the arrows to change priority."
 	form.add_child(caption)
 	var rows: Array = catalog.ordered_attacks(e[0], e[1])
+	var effects_heading := false
 	for k in rows.size():
 		var row: Dictionary = rows[k]
+		if catalog.triggered(row) and not effects_heading:
+			effects_heading = true
+			var label := Game.label("TRIGGERED EFFECTS", 12)
+			label.tooltip_text = "Consequences of attacks: never selected by distance or chance. Landing: shockwave + log. Log impact: spikes. Phase-two throw: splitting log."
+			form.add_child(label)
 		var attack: Dictionary = catalog.attack(row.attack_name)
 		var block := _card(form)
 		var line := HBoxContainer.new()
 		block.add_child(line)
 		var rank := Game.label(str(k + 1), 13)
+		rank.text = "FX" if catalog.triggered(row) else str(k + 1)
 		rank.custom_minimum_size.x = widths[0]
 		line.add_child(rank)
 		var score := Game.label("", 13)
 		var title := _compact_field(line, attack, "codex_online_name", score)  # the research name, editable here
-		var tagged: bool = attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name)
+		var is_effect: bool = catalog.triggered(row)
 		title.custom_minimum_size.x = 150
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
+		if is_effect:
+			title.tooltip_text = {"ape_slam": "Triggered by leap landing", "ape_log": "Triggered by leap landing or an ordinary throw", "ape_split": "Spawned by phase-two throw; splits at apex", "ape_spikes": "Triggered by ordinary log floor impact"}.get(row.attack_name, "Triggered effect") + "\n" + title.tooltip_text
 		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
 		info.add_theme_font_size_override("font_size", 12)
 		info.custom_minimum_size.x = 22
 		info.tooltip_text = str(attack.get("notes", "")) if str(attack.get("notes", "")) != "" else "No notes yet: click to add"
 		info.disabled = not writable and str(attack.get("notes", "")) == ""
 		line.add_child(info)
-		if attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name):
-			var tag := Game.label("not in game yet" if not catalog.performs(e[0], row.attack_name) else str(attack.get("status", "")), 11)
+		if is_effect or attack.get("status", "") != "implemented" or not catalog.performs(e[0], row.attack_name):
+			var tag := Game.label("triggered effect" if is_effect else ("not in game yet" if not catalog.performs(e[0], row.attack_name) else str(attack.get("status", ""))), 11)
 			tag.custom_minimum_size.x = 46
 			tag.modulate = Color(1, 1, 1, 0.5)
 			line.add_child(tag)
 		var binding_line := HBoxContainer.new()
 		binding_line.add_theme_constant_override("separation", 8)
 		block.add_child(binding_line)
+		binding_line.visible = not is_effect
 		for column in ["min_range_units", "max_range_units", "skip_chance"]:
 			var edit := _small_edit(writable)
 			edit.text = _shown(column, str(row.get(column, "0")))
@@ -592,12 +603,13 @@ func _select_enemy(i: int) -> void:
 			binding_line.add_child(label)
 			binding_line.add_child(edit)
 		for b in [["up", -1, k == 0], ["down", 1, k == rows.size() - 1], ["cross", 0, false]]:
+			if is_effect: continue
 			var btn := Game.button("", (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
 			btn.icon = _glyph(b[0])
 			btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			btn.add_theme_font_size_override("font_size", 12)
 			btn.custom_minimum_size = Vector2(widths[5], 0)
-			btn.disabled = not writable or b[2]
+			btn.disabled = not writable or b[2] or is_effect
 			btn.tooltip_text = {-1: "Raise priority", 1: "Lower priority", 0: "Remove this attack from the enemy"}[b[1]]
 			line.add_child(btn)
 		score.custom_minimum_size.x = widths[8]
@@ -686,6 +698,37 @@ func _select_enemy(i: int) -> void:
 		form.add_child(add_row)
 	_enemy_total(e)
 	_wrap_tips(form)
+
+# Enemy stats and phase entry are a separate authored definition, shared by both phase pages.
+func _ape_profile_fields() -> void:
+	var profile: Dictionary = catalog.enemy_profile("boss_ape")
+	if profile.is_empty(): return
+	var block := _card(form)
+	block.add_child(Game.label("Health & phase entry", 13))
+	var grid := GridContainer.new()
+	grid.columns = 6
+	grid.add_theme_constant_override("h_separation", 8)
+	block.add_child(grid)
+	for field in ["max_hp", "phase2_hp", "phase2_wave_scales"]:
+		var label := Game.label({"max_hp": "Health", "phase2_hp": "Phase 2 at HP", "phase2_wave_scales": "Hop wave scales"}[field], 12)
+		grid.add_child(label)
+		var edit := _small_edit(writable)
+		edit.name = field
+		edit.text = ", ".join(profile[field].map(func(v): return str(v))) if field == "phase2_wave_scales" else str(int(profile[field]))
+		edit.tooltip_text = "Once at phase-two entry; one in-place leap per scale (comma separated)." if field == "phase2_wave_scales" else "Shared by both Ape phases. New encounters use the saved values."
+		edit.custom_minimum_size.x = 115 if field == "phase2_wave_scales" else 56
+		grid.add_child(edit)
+		edit.text_changed.connect(func(v):
+			if field == "phase2_wave_scales":
+				var values: Array = []
+				for cell in v.split(","):
+					values.append(float(cell.strip_edges()) if cell.strip_edges().is_valid_float() else null)
+				profile[field] = values
+			else:
+				profile[field] = int(v) if v.is_valid_int() else null
+			dirty = true
+			dirty_changed.emit()
+			_update_feedback())
 
 # Use the card's width: two groups side by side, with aligned, stretching numeric fields.
 func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) -> void:
@@ -1062,11 +1105,10 @@ func _score_text(e: Array) -> String:
 		lines.append("Score %s (body %.2f once, then each attack; its variants change speed, warning and recovery)" % ["%.2f" % result.score if result.valid else "unavailable: " + result.reason, area])
 	else:
 		var ids: Array = []
-		for binding in catalog.ordered_attacks(e[0], e[1]): ids.append(binding.attack_name)
-		ids.append_array(["ape_slam", "ape_log"])
-		if e[1] == "enraged": ids.append("ape_split")
+		for binding in catalog.ordered_attacks(e[0], e[1]):
+			if not catalog.triggered(binding): ids.append(binding.attack_name)
 		var result: Dictionary = catalog.enemy_score(ids, 9.0)
-		lines.append("Repertoire score %.2f (body 9 once, each distinct attack once)%s" % [result.score, "" if result.valid else "; unavailable: " + result.reason])
+		lines.append("Selected attacks %.2f (body 9 once; triggered consequence totals pending)%s" % [result.score, "" if result.valid else "; unavailable: " + result.reason])
 	return "\n".join(lines)
 
 func _help(field: String) -> String:
