@@ -1,0 +1,8 @@
+{
+	"case": "outside_sweep_cost",
+	"elapsed_us": 111237,
+	"remaining": 0,
+	"solid_queries": 32768,
+	"started_outside_bounds": true,
+	"validation": ""
+}

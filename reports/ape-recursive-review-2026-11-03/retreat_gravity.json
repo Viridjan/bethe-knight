@@ -1,0 +1,8 @@
+{
+	"actual_vy": -65.0,
+	"case": "retreat_gravity",
+	"expected_vy": -71.6666666666667,
+	"launch_vy": -75.0,
+	"snapshot": "ape_retreat",
+	"validation": ""
+}

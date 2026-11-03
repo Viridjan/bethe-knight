@@ -1,0 +1,7 @@
+{
+	"case": "zero_leap",
+	"health": 4,
+	"state_after_3_seconds": "air",
+	"validation": "",
+	"vertical_speed": 0.0
+}

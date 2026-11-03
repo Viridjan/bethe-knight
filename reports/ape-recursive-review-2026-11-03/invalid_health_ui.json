@@ -1,0 +1,6 @@
+{
+	"case": "invalid_health_ui",
+	"dirty": true,
+	"health_input_after_switch": false,
+	"validation": "Ape max_hp must be a whole number from 1 to 10000"
+}

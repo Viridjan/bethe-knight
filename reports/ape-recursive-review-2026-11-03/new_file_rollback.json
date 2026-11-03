@@ -1,0 +1,6 @@
+{
+	"case": "new_file_rollback",
+	"new_attack_file_left": true,
+	"new_profile_file_left": false,
+	"save_error": "Could not replace user://recursive_first_save/enemy_attacks.csv (Failed); catalogue restored from .bak"
+}

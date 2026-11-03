@@ -1,0 +1,27 @@
+{
+	"case": "ui_validation_cost",
+	"median_page_us": 12947,
+	"median_validation_us": 2721,
+	"validation_calls_per_build": [
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9,
+		9
+	]
+}

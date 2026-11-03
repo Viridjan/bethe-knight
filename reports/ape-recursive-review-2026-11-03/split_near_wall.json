@@ -1,0 +1,6 @@
+{
+	"case": "split_near_wall",
+	"children_after_split": 2,
+	"children_next_tick": 1,
+	"events": []
+}

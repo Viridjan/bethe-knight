@@ -1,0 +1,34 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  the Ape throws a log in an arc at a far player
+PASS  the hitbox overlay sees the flying log ([[P: (296, 189), S: (19, 6)]])
+PASS  the Ape throws on about 20% of its attacks (199 of 1000)
+PASS  a cornered player: the Ape leaps to the far side and throws 3 stones in a row (away true, thrown 3)
+PASS  the retreat is a CSV attack: Times sets the volley (2 stones), Skip 100% passes it to a plain leap
+PASS  a retreat whose follow-up isn't in the game yet throws nothing (after landing: idle)
+PASS  no scream when it would fill the gap to the wall behind the player (crouch; in the open: scream)
+PASS  a stone fells the trunk into a bridge as long as it was tall, and it stays down ([P: (200, 224), S: (112, 8)])
+PASS  entering the arena walks the player in (46.0 px) and the gate behind shuts
+PASS  the entrance gate opens again once the Ape is beaten
+PASS  no Ape, no auto walk
+PASS  the Ape wakes when the player comes near, and the fight opens with its scream
+PASS  the Ape has a scream, and an echoing cave version that rings on longer
+PASS  the Ape's leap crashes into the standing trunk and fells it
+PASS  with the trunk down the Ape leaps across into its second range (at 424.0)
+PASS  the Ape's leap lands past the player (at 296.0, player 320.0)
+PASS  a player above the Ape makes it leap (phase crouch)
+FAIL  landing on spikes hurts the Ape and breaks only those it landed on; none are generated (hp 4, 1 live)
+PASS  boss gates stay shut while the Ape lives
+PASS  the last hit beats the Ape: gates open, it stays beaten, an stamina orb appears
+PASS  after the fight, a death in the room keeps its spikes as they were ([(100, 216)] vs [(100, 216)])
+PASS  the Ape's landing slam hits beside it along the ground, not beyond its reach
+PASS  the Ape uses its short CSV recovery after a landing (0.42666666666667)
+PASS  phase-two entry: 2 hops in place, shockwaves 78 then 102 wide ([78, 102, 60] at [200, 200, 20])
+PASS  each hop in place drops a log too (2)
+PASS  a leap drops one log, from the first hit on (1)
+PASS  logs never fall onto the player's column or a spike already there
+PASS  logs fall at random spots across the arena and never overlap (7 zones)
+PASS  a log breaking on the ground leaves a 1-tile spike under its middle ([[304, 216]])
+PASS  an enraged log splits into two ordinary logs at its apex (2 halves)
+PASS  close to the Ape, its scream hits (phase scream)
+{"case":"configured_health_tests","failing_assertions":1,"validation":""}

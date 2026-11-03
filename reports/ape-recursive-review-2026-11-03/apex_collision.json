@@ -1,0 +1,7 @@
+{
+	"case": "apex_collision",
+	"children": 2,
+	"events": [],
+	"next_tick_events": [],
+	"overlaps_at_start": true
+}

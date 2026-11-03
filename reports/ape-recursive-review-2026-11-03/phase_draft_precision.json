@@ -1,0 +1,9 @@
+{
+	"case": "phase_draft_precision",
+	"draft": [
+		1.234,
+		1.789
+	],
+	"shown_after_blur": "1.234, 1.789",
+	"validation": ""
+}
