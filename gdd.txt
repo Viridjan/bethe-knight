@@ -551,3 +551,4 @@ validated CSV editor in source builds; web includes gameplay tables only.
 
 2026-11-02 — Monster Editor expanded attack settings now fill the card in grouped two-column panels (Timing, Damage & speed, Projectile pattern, Trajectory), replacing the narrow left-aligned grid. CSV values and attack behavior unchanged.
 - 2026-11-02: Stamina regeneration at half full 9/s -> 6/s (still 2/s empty, 3/s full).
+- 2026-11-03: Review of Codex's Ape composition slice -> docs/reviews/ape-composition/REVIEW.md: 0 blocking, 2 major (triggered CSV rows unused by runtime / duplicate of enemy_profiles.json; tests assume 4 HP), 5 minor, 3 design questions (phase two hops once; thrown logs leave spikes; stones became logs), with a Codex fix prompt.
