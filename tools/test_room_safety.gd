@@ -53,13 +53,13 @@ class ProbeWorld extends "res://scripts/world.gd":
 	func _scan_floor_gaps() -> void:
 		pass
 	# Ignore note display during automated arrival probes.
-	func show_note(text: String) -> void:
+	func show_note(_text: String) -> void:
 		pass
 	# Suppress normal respawn effects; the diagnostic records the outcome instead.
-	func on_player_death(p, dir: Vector2) -> void:
+	func on_player_death(_p, _dir: Vector2) -> void:
 		pass
 	# Cache room grids/object lists for repeated probes while preserving the diagnostic player.
-	func _build(keep_player := false) -> void:
+	func _build(_keep_player := false) -> void:
 		if not cache.has(room):
 			grid = PackedByteArray()
 			ents = []; solids = []; jumpthrus = []; dreams = []; spikes = []; touchables = []

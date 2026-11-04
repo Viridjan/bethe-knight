@@ -191,8 +191,8 @@ static func current(overrides: Dictionary) -> Dictionary:
 # Only the known tunables from a file, typed like their defaults. {} if unreadable.
 # Read only known numeric movement settings from a configuration file; ignore missing or unusable files.
 static func load_file(path: String) -> Dictionary:
-	var cf := ConfigFile.new()
-	if cf.load(path) != OK:
+	var cf: ConfigFile = Game.read_config(path)
+	if cf == null:
 		return {}
 	var out := {}
 	for n in names():
@@ -206,7 +206,7 @@ static func save_file(path: String, values: Dictionary) -> bool:
 	var cf := ConfigFile.new()
 	for n in names():
 		cf.set_value("player", n, values.get(n, defaults()[n]))
-	return cf.save(path) == OK
+	return Game.write_safe(path, cf.encode_to_text())
 
 # Construct a user preset filename from a sanitized display name.
 static func preset_path(preset: String) -> String:

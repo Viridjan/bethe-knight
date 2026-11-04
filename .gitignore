@@ -3,3 +3,5 @@ graphify-out/
 __pycache__/
 build/
 .claude/skills/
+*.bak
+*.tmp

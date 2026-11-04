@@ -105,9 +105,6 @@ static func save_world(path: String, world: Dictionary) -> bool:
 	for name in world.rooms:
 		if world.rooms[name].has("variants"):
 			variants[name] = world.rooms[name].variants.map(func(v): return {"when": v.when, "room": v.room})
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	if f == null:
-		return false
 	var out := {"start": world.start, "abilities": world.get("abilities", []), "rooms": rooms}
 	if not world.get("regions", []).is_empty():
 		out.regions = world.regions.map(func(g):
@@ -119,8 +116,7 @@ static func save_world(path: String, world: Dictionary) -> bool:
 			return o)
 	if not variants.is_empty():
 		out.variants = variants
-	f.store_string(JSON.stringify(out, "\t"))
-	return true
+	return Game.write_safe(path, JSON.stringify(out, "\t"))
 
 # Room area in world pixels.
 # Convert one room tile offset and dimensions to its rectangle in global world pixels.

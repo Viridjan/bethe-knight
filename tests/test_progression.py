@@ -1,4 +1,4 @@
-import os, sys, tempfile, unittest
+import os, sys, unittest
 from types import SimpleNamespace
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tools"))
 from unittest.mock import patch

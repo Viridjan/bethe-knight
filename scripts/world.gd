@@ -514,7 +514,7 @@ func _go_door(door) -> void:
 
 # Swap room data while retaining player motion, update respawn/progress and reposition cached terrain.
 # One player object crosses rooms. Its velocity stays intact while local coordinates and object lists change.
-func enter_room(next: String, at = null) -> void:
+func enter_room(next: String, at = null, fresh_player := false) -> void:  # fresh_player: a respawn, not a walk-in
 	var global: Vector2 = room_origin + player.pos
 	var old_origin := room_origin
 	var old_room := room
@@ -530,12 +530,13 @@ func enter_room(next: String, at = null) -> void:
 	Game.get_music_engine().follow_environment(data.get("environment", ""))
 	tiles = []
 	player.followers.clear()  # unbanked stars go back to their room
-	var left := ents.duplicate()
+	var left := ents.duplicate() if not fresh_player else []  # a respawn doesn't slide the old room away
 	var left_size := Vector2(gw * T, gh * T)
-	_build(true)
+	_build(not fresh_player)
 	leaving_ents = left
 	leaving_rect = Rect2(old_origin - room_origin, left_size)
-	player.pos = global - room_origin if at == null else at
+	if not fresh_player:  # (a fresh player already stands on the rebuilt room's spawn)
+		player.pos = global - room_origin if at == null else at
 	if freefall(old_room) or freefall(room) or not new_region(old_room, room):  # same region / falling: no fade
 		reveal_t = 1.0
 		reveal_cut = true
@@ -955,9 +956,10 @@ func on_player_death(p, _dir: Vector2) -> void:
 # Rebuild the room (or go back to the last safe one) with the base stamina bar full; extra blocks keep their stamina.
 func respawn() -> void:
 	Game.play_sfx("respawn")
-	if adventure() and spawn_room != room:  # this room has no safe point: back to the last one
-		enter_room(spawn_room, spawn)
-	_build()
+	if adventure() and spawn_room != room:  # this room has no safe point: back to the last one (built once)
+		enter_room(spawn_room, spawn, true)
+	else:
+		_build()
 	if adventure() and Game.adv.stamina < Adventure.BASE_STAMINA:
 		stamina_event("respawn (base refill)", Adventure.BASE_STAMINA - Game.adv.stamina)
 		Game.adv.stamina = Adventure.BASE_STAMINA

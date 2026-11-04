@@ -183,11 +183,45 @@ func play(level_data: Dictionary, from_editor: bool) -> void:
 	playtest = from_editor
 	goto("world")
 
+# ---------- crash-safe files ----------
+# Every file the game writes goes through write_safe: the text goes to path.tmp first, the previous file is kept as
+# path.bak, then the .tmp is renamed over it. A crash leaves either the old file or the new one, never half of one,
+# and readers fall back to the .bak. (The Monster Editor's CSV set has its own multi-file version in attack_catalog.gd.)
+static func write_safe(path: String, text: String) -> bool:
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		return false
+	f.store_string(text)
+	f.flush()
+	var ok := f.get_error() == OK
+	f.close()
+	var g := func(p: String) -> String: return ProjectSettings.globalize_path(p)
+	if ok and FileAccess.file_exists(path):
+		ok = DirAccess.copy_absolute(g.call(path), g.call(path + ".bak")) == OK
+	if ok:
+		ok = DirAccess.rename_absolute(g.call(tmp), g.call(path)) == OK
+	if not ok:
+		DirAccess.remove_absolute(g.call(tmp))
+	return ok
+
+# Load a ConfigFile, falling back to its .bak. Null when a file exists but neither copy can be read:
+# callers must not save then, or they'd replace the player's progress with an empty file.
+static func read_config(path: String) -> ConfigFile:
+	for p in [path, path + ".bak"]:
+		var cf := ConfigFile.new()
+		if FileAccess.file_exists(p) and cf.load(p) == OK:
+			return cf
+	if FileAccess.file_exists(path) or FileAccess.file_exists(path + ".bak"):
+		push_error("Unreadable save file (and backup): " + path)
+		return null
+	return ConfigFile.new()  # nothing saved yet
+
 # ---------- settings ----------
 # Merge saved options with defaults, including defaults for actions added after the file was written.
 func _load_settings() -> void:
-	var cf := ConfigFile.new()
-	if cf.load(SETTINGS_PATH) != OK:
+	var cf := read_config(SETTINGS_PATH)
+	if cf == null or not cf.has_section("s"):
 		return
 	for k in settings:
 		settings[k] = cf.get_value("s", k, settings[k])
@@ -204,7 +238,7 @@ func save_settings() -> void:
 	var cf := ConfigFile.new()
 	for k in settings:
 		cf.set_value("s", k, settings[k])
-	cf.save(SETTINGS_PATH)
+	write_safe(SETTINGS_PATH, cf.encode_to_text())
 
 # Apply volume, window mode, synchronization and input bindings from the current settings dictionary.
 func apply_settings() -> void:
@@ -309,11 +343,7 @@ static func file_safe(s: String) -> String:
 func save_level(d: Dictionary, dir := LEVEL_DIR, fname := "") -> String:
 	if fname == "":
 		fname = file_safe(d.name)
-	var f := FileAccess.open(dir + fname + ".json", FileAccess.WRITE)
-	if f == null:
-		return ""
-	f.store_string(JSON.stringify(whole_numbers(d), "\t"))
-	return fname
+	return fname if write_safe(dir + fname + ".json", JSON.stringify(whole_numbers(d), "\t")) else ""
 
 # Level data is in whole units (JSON reads every number as a float): 8.0 is saved as 8, real fractions stay.
 static func whole_numbers(v: Variant) -> Variant:
@@ -411,9 +441,8 @@ func delete_level(fname: String) -> void:
 # One run per world; saved under [adventure] in the save file. Empty adv = not in the adventure.
 # Check whether the selected world has stored adventure progress.
 func has_adventure_save() -> bool:
-	var cf := ConfigFile.new()
-	cf.load(save_path)
-	return cf.has_section_key("adventure", _run_key())
+	var cf := read_config(save_path)
+	return cf != null and cf.has_section_key("adventure", _run_key())
 
 # Build the configuration key used to keep progress for different worlds separate.
 func _run_key() -> String:
@@ -424,9 +453,8 @@ func start_adventure(fresh: bool) -> void:
 	adv_world = Adventure.load_world(world_path)
 	if adv_world.rooms.is_empty():
 		return
-	var cf := ConfigFile.new()
-	cf.load(save_path)
-	var run = cf.get_value("adventure", _run_key()) if cf.has_section_key("adventure", _run_key()) else null
+	var cf := read_config(save_path)
+	var run = cf.get_value("adventure", _run_key()) if cf != null and cf.has_section_key("adventure", _run_key()) else null
 	adv = Adventure.new_run(adv_world) if fresh else Adventure.restore_run(adv_world, run)
 	adv_temp = false
 	_enter_adventure()
@@ -451,10 +479,11 @@ func _enter_adventure() -> void:
 func save_adventure() -> void:
 	if adv.is_empty() or adv_temp:
 		return
-	var cf := ConfigFile.new()
-	cf.load(save_path)
+	var cf := read_config(save_path)
+	if cf == null:
+		return  # unreadable save: keep it for recovery rather than overwrite it
 	cf.set_value("adventure", _run_key(), adv)
-	cf.save(save_path)
+	write_safe(save_path, cf.encode_to_text())
 
 # Outside the adventure every move is available.
 # Check adventure unlocks; standalone levels allow the normal moves without pickups.
@@ -464,14 +493,14 @@ func has_ability(a: String) -> bool:
 # ---------- progress ----------
 # Read the stored best result for one custom level.
 func get_record(fname: String) -> Dictionary:
-	var cf := ConfigFile.new()
-	cf.load(save_path)
-	return cf.get_value("levels", fname, {})
+	var cf := read_config(save_path)
+	return cf.get_value("levels", fname, {}) if cf != null else {}
 
 # Merge a completed level result with previous best time, deaths and collectible counts.
 func submit_record(fname: String, time: float, deaths: int, berries: int, total: int) -> void:
-	var cf := ConfigFile.new()
-	cf.load(save_path)
+	var cf := read_config(save_path)
+	if cf == null:
+		return  # unreadable save: keep it for recovery rather than overwrite it
 	var r: Dictionary = cf.get_value("levels", fname, {})
 	r.best_time = min(r.get("best_time", INF), time)
 	r.berries = max(r.get("berries", 0), berries)
@@ -479,7 +508,7 @@ func submit_record(fname: String, time: float, deaths: int, berries: int, total:
 	r.fewest_deaths = min(r.get("fewest_deaths", 1 << 30), deaths)
 	r.clears = r.get("clears", 0) + 1
 	cf.set_value("levels", fname, r)
-	cf.save(save_path)
+	write_safe(save_path, cf.encode_to_text())
 
 # Format elapsed seconds as a compact result display.
 static func fmt_time(t: float) -> String:

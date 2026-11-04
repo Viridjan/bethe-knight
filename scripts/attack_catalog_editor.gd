@@ -104,7 +104,9 @@ func _ready() -> void:
 	table.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	table.add_theme_constant_override("v_separation", 8)
 	sidebar.add_child(table)
-	table.item_selected.connect(func(i): _select_enemy(list_indices[i]) if view == "enemies" else _select_row(list_indices[i]))
+	table.item_selected.connect(func(i):
+		if view == "enemies": _select_enemy(list_indices[i])
+		else: _select_row(list_indices[i]))
 	var scroll := ScrollContainer.new()
 	form_scroll = scroll
 	scroll.mouse_force_pass_scroll_events = false

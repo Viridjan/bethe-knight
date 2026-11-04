@@ -77,7 +77,6 @@ def open_doorway(W, rooms, name, e, rng):
     lvl = rooms[name]
     t = [list(row) for row in lvl["tiles"]]
     kind, at, lo, hi, first = e
-    inward = -1 if first == name else 1  # direction from the border into the finished room
     best = []
     for s in range(lo + 1, hi - DOOR - 1):
         depth = None
@@ -201,7 +200,6 @@ def build_room(name, lvl, pos, doors, rng):
     for side, lo, hi, gate in doors:  # lo..hi in room coordinates along the side
         if side in ("L", "R"):
             x = 0 if side == "L" else w - 1
-            sill = min(hi, floor + 1)  # standing row of the doorway: its lowest open cell
             for y in range(lo, hi):
                 carve(t, x, y)
             for y in range(hi, floor + 1):  # rock under a raised doorway, so it has a sill

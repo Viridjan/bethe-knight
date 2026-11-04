@@ -213,7 +213,8 @@ func check_character_animation() -> void:
 			valid = valid and atlas.get_region(Rect2i(i * 16, int(spec[0]) * 16, 16, 16)).get_used_rect().has_area()
 	check(valid, "every authored animation frame is populated and sampling remains in range")
 	check(art.frame("land", 100).x == 2 and art.frame("jump", 100).x == 1, "landing and jump poses hold their last frame")
-	check(art.texture() == art.texture(), "Nori shares one cached texture")
+	var first_texture = art.texture()
+	check(first_texture == art.texture(), "Nori shares one cached texture")
 	var run_poses := {}
 	var planted := true
 	var lifted := 0
@@ -502,6 +503,7 @@ func check_shipped_world() -> void:
 	fw._physics_process(DT)
 	check(kept and fw.room == "c1_lake_cave" and not p().dead and fw.safe_spawn(fw.spawn),
 		"a flooded room gets no respawn point: dying there returns to the last safe one (%s, %s, %s)" % [fw.room, fw.spawn_room, fw.spawn])
+	check(fw.leaving_ents.is_empty() and p().pos.distance_to(fw.spawn) < 1, "a respawn into another room is one build: a fresh player on its spawn, nothing sliding away")
 	deep.level = dry_level
 	fw.queue_free()
 	# freefall rooms (nowhere to stand: The Hole) skip the transition fade, in and out; others keep it
@@ -951,7 +953,8 @@ func check_connected_block_art() -> void:
 		var wide: Image = art.build_piece(style, Vector2i(40, 24))
 		check(wide.get_pixel(0, 7) != wide.get_pixel(8, 7) and wide.get_pixel(39, 7) != wide.get_pixel(31, 7), "%s outlines appear at external left/right edges rather than every tile" % style)
 		check(wide.get_pixel(7, 0) != wide.get_pixel(7, 8) and wide.get_pixel(7, 23) != wide.get_pixel(7, 15), "%s top/bottom caps remain outside the centre tiles" % style)
-		check(art.texture(style, Vector2i(24, 16)) == art.texture(style, Vector2i(24, 16)), "%s shares cached artwork between equal pieces" % style)
+		var first_piece = art.texture(style, Vector2i(24, 16))
+		check(first_piece == art.texture(style, Vector2i(24, 16)), "%s shares cached artwork between equal pieces" % style)
 	var intact: Image = art.build_piece("breakwall", Vector2i(24, 24), 0)
 	var cracked: Image = art.build_piece("breakwall", Vector2i(24, 24), 2)
 	check(intact.get_data() != cracked.get_data(), "struck breakable walls show additional connected cracks")
@@ -2676,8 +2679,29 @@ func check_adventure() -> void:
 	Game.world_path = Game.STORY_WORLD
 	check(Game._run_key() == "run_story" and key != "run_story" and not Game.has_adventure_save(), "each world keeps its own save")
 	Game.world_path = FIXTURE_WORLD + "world.json"
+	# a save cut short (crash mid-write): the next save keeps everything else, from the .bak
+	var full := ConfigFile.new()
+	full.set_value("levels", "my_level", {"best_time": 12.5, "clears": 3})
+	full.set_value("adventure", "run_other_world", {"room": "x"})
+	Game.write_safe(Game.save_path, full.encode_to_text())
+	Game.write_safe(Game.save_path, full.encode_to_text())  # a second save: the .bak now holds the full file too
+	var whole := FileAccess.get_file_as_string(Game.save_path)
+	_write(Game.save_path, whole.left(whole.length() / 2) + "\n[broken")
+	Game.adv = Adventure.new_run(world)
+	Game.save_adventure()
+	var after := ConfigFile.new()
+	after.load(Game.save_path)
+	check(after.has_section_key("levels", "my_level") and after.has_section_key("adventure", "run_other_world") and after.has_section_key("adventure", Game._run_key()),
+		"a damaged save file is read from its .bak: the next save keeps level records and other runs")
+	_write(Game.save_path + ".bak", "[broken")
+	_write(Game.save_path, "[broken")
+	var before_text := FileAccess.get_file_as_string(Game.save_path)
+	Game.save_adventure()
+	check(FileAccess.get_file_as_string(Game.save_path) == before_text, "with save and backup unreadable, nothing is overwritten")
+	var lvl_dir := "user://no_such_dir/"
+	check(Game.save_level({"name": "x", "w": 1, "h": 1, "tiles": ["0"], "entities": []}, lvl_dir) == "", "a room that can't be written reports failure")
 	Game.adv = {}
-	DirAccess.remove_absolute(Game.save_path)
+	for f in [Game.save_path, Game.save_path + ".bak"]: DirAccess.remove_absolute(f)
 	Game.save_path = Game.SAVE_PATH
 
 	# world editor on a scratch copy of the world

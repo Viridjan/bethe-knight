@@ -118,7 +118,7 @@ func _ready() -> void:
 		"viewport": get_viewport().get_visible_rect().size, "runs": runs, "ticks": ticks, "warmup": WARM,
 		"seed": SEED, "time": Time.get_datetime_string_from_system(),
 	}
-	for sc in ["normal", "dense", "moving", "large_blocks"]:
+	for sc in ["normal", "dense", "moving", "large_blocks", "ape_arena"]:
 		if only.is_empty() or sc in only:
 			await _world_bench(sc, runs, ticks)
 	if only.is_empty() or "editor" in only:
@@ -207,6 +207,9 @@ static func level(sc: String) -> Dictionary:
 				var x := 16 + (i % 16) * 200
 				var y := 16 + (i / 16) * 220
 				d.entities.append({"t": types[i % 4], "x": x, "y": y, "w": 192, "h": 192, "tx": x, "ty": y})
+		"ape_arena":  # a real story room (copied in memory): the Ape fight's arena with its boss, trunk and hazards
+			d = Game.Adventure.load_world(Game.STORY_WORLD).rooms["a1_ape_arena"].level.duplicate(true)
+			d.name = "bench_ape_arena"
 		"editor":  # 400x400 random terrain, 3000 entities
 			d = Game.new_level("bench_editor", 400, 400)
 			for y in range(1, 398):

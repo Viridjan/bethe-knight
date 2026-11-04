@@ -1269,7 +1269,7 @@ func _call_dash_events() -> void:
 
 # ---------------- collisions ----------------
 # Handle wall contact, including dash correction, retained speed and special movement modes.
-func _on_collide_h(hit) -> void:
+func _on_collide_h(_hit) -> void:
 	if state == ST_STAR_FLY:
 		speed.x = 0 if star_fly_timer < STAR_FLY_END_NO_BOUNCE else speed.x * STAR_FLY_WALL_BOUNCE
 		return
@@ -1299,7 +1299,7 @@ func _on_collide_h(hit) -> void:
 		_set_state(ST_HIT_SQUASH)
 
 # Handle floor/ceiling contact, including landing, corner corrections and jump cancellation.
-func _on_collide_v(hit) -> void:
+func _on_collide_v(_hit) -> void:
 	if speed.y > 40:
 		sfx("land")
 	if state == ST_STAR_FLY:

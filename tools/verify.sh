@@ -14,7 +14,7 @@ fails=0
 run() {  # run <success regex> <godot args...>
 	want=$1; shift
 	out=$(XDG_DATA_HOME="$DATA" timeout 900 godot --headless --path . "$@" 2>&1)
-	bad=$(printf '%s\n' "$out" | grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|^ERROR:|^FAIL' | grep -vE 'leaked at exit|ObjectDB|resources still in use')
+	bad=$(printf '%s\n' "$out" | grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|^ERROR:|^FAIL' | grep -vE 'leaked at exit|ObjectDB|resources still in use|parse error at user://test_save|Unreadable save file \(and backup\): user://test_save')  # (the last two: the damaged-save test, on purpose)
 	leaks=$(printf '%s\n' "$out" | grep -cE 'leaked at exit|ObjectDB instances leaked')
 	if printf '%s\n' "$out" | grep -qE "$want" && [ -z "$bad" ]; then
 		echo "ok    $* ($leaks leak warnings)"
@@ -42,6 +42,13 @@ run '^CHARACTER STYLE OK' --script tests/character_style.gd
 export BENCH_RUNS=1 BENCH_TICKS=120 BENCH_ONLY=normal
 run 'physics med [0-9]' res://tests/bench.tscn
 python3 -X dev -m unittest discover -s tests -p 'test_*.py' 2>&1 | grep -qE '^OK$' && echo "ok    python unittest" || { echo "FAIL  python unittest"; fails=$((fails + 1)); }
+# Linters (correctness rules only, see gdlintrc): run through uv, so nothing is installed globally.
+if command -v uvx >/dev/null; then
+	uvx -q --from 'gdtoolkit==4.*' gdlint scripts tools tests >/dev/null 2>&1 && echo "ok    gdlint" || { echo "FAIL  gdlint (run: uvx --from 'gdtoolkit==4.*' gdlint scripts tools tests)"; fails=$((fails + 1)); }
+	uvx -q pyflakes $(git ls-files '*.py') >/dev/null 2>&1 && echo "ok    pyflakes" || { echo "FAIL  pyflakes (run: uvx pyflakes \$(git ls-files '*.py'))"; fails=$((fails + 1)); }
+else
+	echo "skip  gdlint / pyflakes (install uv to run them)"
+fi
 git diff --check >/dev/null && echo "ok    git diff --check" || { echo "FAIL  git diff --check"; fails=$((fails + 1)); }
 echo "$fails failing"
 exit "$fails"

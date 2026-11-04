@@ -8,6 +8,12 @@ gdtoolkit `gdlint` (correctness rules only, style off) and `gdradon` (complexity
 godot-best-practices, save-systems, performance-optimization, ponytail-audit (fallback). The Ape slice is covered
 separately in `docs/reviews/ape-composition/REVIEW.md`. **Headline: 1 blocking, 1 major, 4 minor; performance OK.**
 
+**Status (2026-11-04): all fixed, suggestions done.** One crash-safe writer (`Game.write_safe`: .tmp, .bak,
+rename) and reader (`Game.read_config`: falls back to .bak, refuses to save over an unreadable file) for progress,
+settings, tuning presets, rooms and world.json; respawn into another room builds once; dead code removed;
+`gdlint` (rules in `gdlintrc`) and `pyflakes` run in `tools/verify.sh` via uv; the benchmark has a real room
+(`ape_arena`: 0.12 ms physics, 0.07 ms draw).
+
 ## Findings
 
 1. **[BLOCKING] A save cut short wipes all progress on the next save.** `Game.save_adventure()` (and

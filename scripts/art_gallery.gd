@@ -47,7 +47,8 @@ func _ready() -> void:
 	scroll.add_child(list)
 	if not order.is_empty():
 		_show(order[0])
-	get_viewport().size_changed.connect(func(): if current != "": _show(current))  # keep 1:1 when the window changes
+	get_viewport().size_changed.connect(func():  # keep 1:1 when the window changes
+		if current != "": _show(current))
 
 # Every PNG under dir, grouped by folder ("themes/forest" -> "Theme: forest").
 func _collect(dir: String) -> void:
