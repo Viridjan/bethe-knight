@@ -33,7 +33,7 @@ Tasks (one commit each; write the test first and see it fail):
    fixture's max_hp instead of E.Ape.HP. Check hardcoded phase assumptions in tests/ape_composition.gd too.
    Test: valid max_hp 5 still verifies one lost HP and the intended spike removal. Do not weaken the assertion.
 3. [x] Completed 2026-11-04: effect tooltips come from the profile links and refresh live when source names change.
-4. Split children: use bounded free-position resolution or emit a visible "split_blocked"/cancelled event when
+4. [x] Completed 2026-11-04: split children emit a visible "split_blocked" cancellation when
    placement is impossible. Test: a parent at (25,100), size (19,6), speed (0,-1), gravity 200 splits against the
    real World boundary; a child must not silently vanish. Do not force children through solid terrain.
 5. Correct first-save rollback: record which destinations existed before replacement. Restore old files and

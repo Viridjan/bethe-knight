@@ -2958,6 +2958,8 @@ class Ape extends Ent:
 					if t != null: t.fell()
 				"floor_impact":
 					if event.effect == "ape_spikes": _log_spike(event.box)
+				"split_blocked":
+					pass  # The common burst below makes cancellation visible without creating spikes.
 			w.burst(Vector2(event.box.get_center()), Color("6b4a2a"), 8)
 	# Return conservative visible bounds including Ape effects so camera culling does not hide them.
 	func vis_rect() -> Rect2i:

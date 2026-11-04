@@ -23,4 +23,19 @@ func _ready() -> void:
 		await get_tree().create_timer(0.8).timeout
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("res://reports/ape-followups-2026-11-04/%s-tooltip.png" % ("normal" if phase == 0 else "enraged"))
+	var level: Dictionary = Game.new_level("Blocked split", 60, 30)
+	level.entities.append({"t": "boss_ape", "x": 200, "y": 192})
+	Game.play(level, true)
+	for frame in 3: await get_tree().process_frame
+	var world = get_child(-1)
+	world.set_physics_process(false)
+	var ape = world.ents.filter(func(ent): return ent.d.t == "boss_ape")[0]
+	ape.phase = "idle"
+	ape.timer = 999.0
+	ape.effects.spawn(Vector2(25, 100), Vector2(0, -1), {"split": true})
+	ape._update_logs(1.0 / 60.0)
+	for tick in 4: world._physics_process(1.0 / 60.0)
+	for frame in 3: await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png("res://reports/ape-followups-2026-11-04/split-blocked.png")
 	Game.quit_game(0)

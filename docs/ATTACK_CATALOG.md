@@ -106,7 +106,8 @@ Ordinary falling and thrown logs use the same projectile implementation and floo
 impact behavior. The shared log area controls their dimensions; launch velocity,
 gravity, and warning can differ. Phase-two throws spawn a splitting log: at its
 apex it produces two ordinary logs, which cannot split again and each make a
-spike on valid tile ground. Walls, player hits, and leaving the room do not create
+spike on valid tile ground. A child whose initial position is obstructed is
+cancelled with a visible burst; it is never placed through a wall. Walls, player hits, and leaving the room do not create
 floor spikes. Encounter death cancels transient effects; permanent arena aftermath
 continues to use the existing boss flags and spike restoration.
 

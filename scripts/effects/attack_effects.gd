@@ -67,7 +67,12 @@ func update(dt: float, solid: Callable, player_box: Rect2i, bounds: Rect2i, trun
 		p.velocity.y = minf(p.velocity.y + p.gravity * elapsed, p.terminal_speed)
 		if p.split and previous_y <= 0 and p.velocity.y >= 0:
 			for side in [-1.0, 1.0]:
-				spawn(p.position + Vector2(side * p.size.x, 0), Vector2(side * p.child_velocity.x, p.child_velocity.y), {
+				var child_position := p.position + Vector2(side * p.size.x, 0)
+				var child_box := Rect2i(Vector2i(child_position), p.size)
+				if not bounds.grow(64).intersects(child_box) or solid.call(child_box) != null:
+					events.append({"event": "split_blocked", "box": child_box, "effect": p.impact_effect})
+					continue
+				spawn(child_position, Vector2(side * p.child_velocity.x, p.child_velocity.y), {
 					"gravity": p.child_gravity, "size": p.size, "terminal_speed": p.child_terminal_speed, "impact_effect": p.impact_effect})
 			projectiles.remove_at(i)
 			continue

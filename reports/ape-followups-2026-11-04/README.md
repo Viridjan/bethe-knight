@@ -22,4 +22,11 @@ Scope: the five tasks in `docs/reviews/ape-composition/CODEX_PROMPT.md`.
    after observed failures. Catalogue/follow-up checks and gdlint pass. Actual
    wrapped hover help was inspected in `normal-tooltip.png` and `enraged-tooltip.png`.
 
-Tasks 4–5 remain in progress. No authored room files are modified.
+4. **Blocked split children:** validate each proposed child position against real
+   terrain and the effect lifetime bounds. A blocked child emits one cancellation
+   event; the Ape consumes it as a visible burst, without a floor spike. Fully
+   free, one-sided blocked, and fully blocked cases pass, along with actual burst
+   feedback. Seven initial assertions failed before the fix. Composition, physics,
+   smoke, and gdlint checks pass; `split-blocked.png` records a disposable game fixture.
+
+Task 5 remains in progress. No authored room files are modified.
