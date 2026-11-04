@@ -559,3 +559,4 @@ validated CSV editor in source builds; web includes gameplay tables only.
 
 - 2026-11-04: Ape follow-up 1: derive phase-aware triggered effects from the runtime profile; remove duplicate shipped bindings and migrate legacy effect rows on save. Regression checks, both phase screenshots, and full verification pass.
 - 2026-11-04: Ape follow-up 2: isolate HP/phase/hop regression fixtures, verify one-hit damage from starting HP, and include composition/varied-profile/follow-up scenes in the main verification gate. Changed-health and changed-hop regressions plus full checks pass.
+- 2026-11-04: Ape follow-up 3: generate card/section tooltips from runtime profile links, refresh source names during editing, and wrap detailed notes. Six tooltip regressions, catalogue/follow-up checks, gdlint, and rendered hover inspections pass.

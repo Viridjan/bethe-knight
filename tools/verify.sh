@@ -29,6 +29,7 @@ run '^ATTACK CATALOG OK' res://tests/attack_catalog.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_composition.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_fixture_variants.tscn
 run '^APE FOLLOWUPS: 0 failure\(s\)' res://tests/ape_followups.tscn
+run '^APE EFFECT TOOLTIPS: 0 failure\(s\)' res://tests/ape_effect_tooltips.tscn
 run '^SFX OK' --script tests/sfx.gd
 run '^ROAR OK' --script tests/roar.gd
 run '^MUSIC OK' --script tests/music.gd

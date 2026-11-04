@@ -17,4 +17,10 @@ func _ready() -> void:
 		for frame in 3: await get_tree().process_frame
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("res://reports/ape-followups-2026-11-04/%s.png" % ("normal" if phase == 0 else "enraged"))
+		var log_name: String = ui.catalog.attack("ape_log").codex_online_name
+		var title: LineEdit = ui.form.find_children("*", "LineEdit", true, false).filter(func(node): return node.text == log_name)[0]
+		get_viewport().warp_mouse(title.get_global_rect().get_center())
+		await get_tree().create_timer(0.8).timeout
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("res://reports/ape-followups-2026-11-04/%s-tooltip.png" % ("normal" if phase == 0 else "enraged"))
 	Game.quit_game(0)

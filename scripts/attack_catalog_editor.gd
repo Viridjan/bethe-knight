@@ -26,6 +26,7 @@ var view := "attacks"  # "attacks" (attack definitions) or "enemies" (each enemy
 var enemy_index := 0
 var form_scroll: ScrollContainer
 var world_cache := {}
+var effect_hints: Array = []  # visible effect controls and the profile effect IDs they describe
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["boss_ape", "enraged", "Ape · enraged"],
 	["enemy_skree", "default", "Dropwing · ceiling dive"], ["enemy_bat", "default", "Duskflit · swoop"], ["enemy_skeleton", "default", "Ossling · bone throw"],
@@ -504,6 +505,7 @@ func _select_enemy(i: int) -> void:
 	var visible_index := list_indices.find(i)
 	if visible_index >= 0: table.select(visible_index)
 	fields.clear()
+	effect_hints.clear()
 	for node in form.get_children():
 		form.remove_child(node)
 		node.queue_free()
@@ -557,7 +559,8 @@ func _select_enemy(i: int) -> void:
 		if catalog.triggered(row) and not effects_heading:
 			effects_heading = true
 			var label := Game.label("TRIGGERED EFFECTS", 12)
-			label.tooltip_text = "Consequences of attacks: never selected by distance or chance. Landing: shockwave + log. Log impact: spikes. Phase-two throw: splitting log."
+			label.tooltip_text = catalog.effect_trigger_text(e[0], e[1])
+			effect_hints.append({"control": label, "effect": ""})
 			form.add_child(label)
 		var attack: Dictionary = catalog.attack(row.attack_name)
 		var block := _card(form)
@@ -574,7 +577,8 @@ func _select_enemy(i: int) -> void:
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
 		if is_effect:
-			title.tooltip_text = {"ape_slam": "Triggered by leap landing", "ape_log": "Triggered by leap landing or an ordinary throw", "ape_split": "Spawned by phase-two throw; splits at apex", "ape_spikes": "Triggered by ordinary log floor impact"}.get(row.attack_name, "Triggered effect") + "\n" + title.tooltip_text
+			title.tooltip_text = catalog.effect_trigger_text(e[0], e[1], row.attack_name) + "\n\n" + squarish(title.tooltip_text)
+			effect_hints.append({"control": title, "effect": row.attack_name})
 		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
 		info.add_theme_font_size_override("font_size", 12)
 		info.custom_minimum_size.x = 22
@@ -810,6 +814,16 @@ func _enemy_total(e: Array) -> void:
 	summary.text = score_details.get_slice(" (", 0).get_slice(";", 0) + (" · incomplete" if score_details.contains("unavailable") else "")
 	summary.tooltip_text = squarish(score_details)
 
+func _refresh_effect_help() -> void:
+	var enemy: Array = ENEMIES[enemy_index]
+	for hint in effect_hints:
+		if not is_instance_valid(hint.control): continue
+		var text: String = catalog.effect_trigger_text(enemy[0], enemy[1], hint.effect)
+		if hint.effect != "":
+			var attack: Dictionary = catalog.attack(hint.effect)
+			text += "\n\n" + squarish("%s (%s, %s)\n%s" % [hint.effect, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")])
+		hint.control.tooltip_text = text
+
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
 const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
 	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal speed",
@@ -873,7 +887,9 @@ func _compact_field(parent: Control, attack: Dictionary, column: String, score: 
 		dirty = true
 		dirty_changed.emit()
 		_show_score(score, attack)
-		if view == "enemies": _enemy_total(ENEMIES[enemy_index])
+		if view == "enemies":
+			_enemy_total(ENEMIES[enemy_index])
+			if column == "codex_online_name": _refresh_effect_help()
 		_update_feedback())
 	parent.add_child(edit)
 	return edit

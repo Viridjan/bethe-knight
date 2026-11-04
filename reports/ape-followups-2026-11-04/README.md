@@ -16,4 +16,10 @@ Scope: the five tasks in `docs/reviews/ape-composition/CODEX_PROMPT.md`.
    assertion. Both now pass. The main verification script includes composition,
    varied-profile, and follow-up scenes: `task2-verify.txt` (`0 failing`).
 
-Tasks 3–5 remain in progress. No authored room files are modified.
+3. **Effect tooltips:** card and section help comes from the same profile graph,
+   including current source names and events. Six assertions covered graph edits,
+   phase-specific projectiles, source renaming, and live help refresh; all pass
+   after observed failures. Catalogue/follow-up checks and gdlint pass. Actual
+   wrapped hover help was inspected in `normal-tooltip.png` and `enraged-tooltip.png`.
+
+Tasks 4–5 remain in progress. No authored room files are modified.

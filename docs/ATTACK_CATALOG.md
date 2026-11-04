@@ -98,6 +98,9 @@ when the selected phase uses it. The section is always last. Its entries have no
 range, skip, or order controls and never perform AI eligibility/chance checks.
 Their mechanics remain editable. The profile's validated effect references
 describe landing → shockwave/log and log floor impact → spikes.
+The effect names and section heading expose tooltips generated from those same
+links. They list the current source attack/effect names and triggering events,
+and refresh when a source name is edited without leaving the page.
 
 Ordinary falling and thrown logs use the same projectile implementation and floor
 impact behavior. The shared log area controls their dimensions; launch velocity,

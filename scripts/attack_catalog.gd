@@ -64,6 +64,18 @@ func enemy_entries(enemy_id: String, phase: String) -> Array:
 			"activation_mode": "triggered", "min_range_units": "0", "max_range_units": "0", "priority": "0", "skip_chance": "0"})
 	return rows
 
+# Human descriptions are a projection of the graph, never another writable definition.
+func effect_trigger_text(enemy_id: String, phase: String, effect_id: String = "") -> String:
+	var lines := PackedStringArray()
+	var events := {"landed": "lands", "released": "releases its projectile", "split": "splits at the apex", "floor_impact": "hits the floor"}
+	for link in effect_links(enemy_id, phase):
+		if effect_id != "" and link.effect != effect_id: continue
+		var source := str(attack(link.source).get("codex_online_name", link.source))
+		var line := "%s %s" % [source, events.get(link.event, link.event)]
+		if effect_id == "": line += " -> " + str(attack(link.effect).get("codex_online_name", link.effect))
+		if line not in lines: lines.append(line)
+	return "Triggered when:\n" + "\n".join(lines) if not lines.is_empty() else ""
+
 func _rounded_profiles() -> Dictionary:
 	var result := enemy_profiles.duplicate(true)
 	if result.has("boss_ape"):
