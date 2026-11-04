@@ -455,28 +455,47 @@ func save_table(ranges: bool) -> String:
 	var result := DirAccess.rename_absolute(ProjectSettings.globalize_path(path + ".tmp"), ProjectSettings.globalize_path(path))
 	return "" if result == OK else "Could not replace " + path + ": " + error_string(result)
 
-# Stage both before replacing either; restore the first if the second replacement fails.
+# Restore only finals replaced by this attempt, respecting their original existence.
+# Always clean this attempt's staged files and report failed recovery honestly.
+func _save_failed(message: String, paths: Array, existed: Dictionary = {}, replaced: Array = []) -> String:
+	var errors := PackedStringArray()
+	for path in replaced:
+		var target := ProjectSettings.globalize_path(path)
+		var result: int = DirAccess.copy_absolute(target + ".bak", target) if existed.get(path, false) else DirAccess.remove_absolute(target)
+		if result != OK: errors.append("Could not restore %s: %s" % [path, error_string(result)])
+	for path in paths:
+		var temp: String = path + ".tmp"
+		if not FileAccess.file_exists(temp): continue
+		var result := DirAccess.remove_absolute(ProjectSettings.globalize_path(temp))
+		if result != OK: errors.append("Could not remove %s: %s" % [temp, error_string(result)])
+	if not errors.is_empty(): return message + "; rollback/cleanup incomplete: " + "; ".join(errors)
+	return message + "; catalogue restored to its previous state" if not replaced.is_empty() else message
+
+# Stage the whole content set before replacing finals; each replacement is tracked.
 func save_all() -> String:
+	var paths := [attack_path, assignment_path]
+	if not enemy_profiles.is_empty(): paths.append(profile_path())
 	for ranges in [false, true]:
 		var staged := _stage_table(ranges)
-		if not staged.is_empty(): return staged
-	var paths := [attack_path, assignment_path]
+		if not staged.is_empty(): return _save_failed(staged, paths)
 	if not enemy_profiles.is_empty():
 		var file := FileAccess.open(profile_path() + ".tmp", FileAccess.WRITE)
-		if file == null: return "Cannot stage enemy profiles"
+		if file == null: return _save_failed("Cannot stage enemy profiles", paths)
 		file.store_string(JSON.stringify(_rounded_profiles(), "\t") + "\n")
 		file.flush()
 		var write_error := file.get_error()
 		file.close()
-		if write_error != OK: return "Cannot finish writing enemy profiles"
-		paths.append(profile_path())
+		if write_error != OK: return _save_failed("Cannot finish writing enemy profiles", paths)
 	var g := func(p: String) -> String: return ProjectSettings.globalize_path(p)
+	var existed := {}
 	for path in paths:  # keep the last good content set as .bak
-		if FileAccess.file_exists(path) and DirAccess.copy_absolute(g.call(path), g.call(path + ".bak")) != OK: return "Could not back up " + path
+		existed[path] = FileAccess.file_exists(path)
+		if existed[path] and DirAccess.copy_absolute(g.call(path), g.call(path + ".bak")) != OK:
+			return _save_failed("Could not back up " + path, paths)
+	var replaced: Array = []
 	for path in paths:
 		var result := DirAccess.rename_absolute(g.call(path + ".tmp"), g.call(path))
 		if result != OK:  # put both back as they were
-			for back in paths:
-				if FileAccess.file_exists(back + ".bak"): DirAccess.copy_absolute(g.call(back + ".bak"), g.call(back))
-			return "Could not replace %s (%s); catalogue restored from .bak" % [path, error_string(result)]
+			return _save_failed("Could not replace %s (%s)" % [path, error_string(result)], paths, existed, replaced)
+		replaced.append(path)
 	return ""

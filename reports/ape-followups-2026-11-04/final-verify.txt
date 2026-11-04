@@ -1,0 +1,29 @@
+ok    res://tests/test.tscn (0 leak warnings)
+ok    res://tests/smoke.tscn (0 leak warnings)
+ok    res://tests/web_menu.tscn (0 leak warnings)
+ok    res://tests/attack_catalog.tscn (0 leak warnings)
+ok    res://tests/ape_composition.tscn (0 leak warnings)
+ok    res://tests/ape_fixture_variants.tscn (0 leak warnings)
+ok    res://tests/ape_followups.tscn (1 leak warnings)
+ok    res://tests/ape_effect_tooltips.tscn (0 leak warnings)
+ok    res://tests/ape_split_spawns.tscn (0 leak warnings)
+ok    res://tests/attack_catalog_rollback.tscn (0 leak warnings)
+ok    --script tests/sfx.gd (0 leak warnings)
+ok    --script tests/roar.gd (0 leak warnings)
+ok    --script tests/music.gd (0 leak warnings)
+ok    --script tests/environment_music.gd (0 leak warnings)
+ok    --script tests/ape_art.gd (0 leak warnings)
+ok    --script tests/discoveries.gd (1 leak warnings)
+ok    res://tests/progression_editor.tscn (0 leak warnings)
+ok    res://tests/ape_return_barrier.tscn (0 leak warnings)
+ok    res://tests/editor_playtest.tscn (0 leak warnings)
+ok    res://tests/editor_scroll.tscn (0 leak warnings)
+ok    res://tests/editor_navigation.tscn (0 leak warnings)
+ok    res://tests/island_routes.tscn (0 leak warnings)
+ok    --script tests/character_style.gd (0 leak warnings)
+ok    res://tests/bench.tscn (0 leak warnings)
+ok    python unittest
+ok    gdlint
+ok    pyflakes
+ok    git diff --check
+0 failing

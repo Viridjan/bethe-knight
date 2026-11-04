@@ -29,4 +29,20 @@ Scope: the five tasks in `docs/reviews/ape-composition/CODEX_PROMPT.md`.
    feedback. Seven initial assertions failed before the fix. Composition, physics,
    smoke, and gdlint checks pass; `split-blocked.png` records a disposable game fixture.
 
-Task 5 remains in progress. No authored room files are modified.
+5. **First-save rollback:** records prior existence and successful replacements,
+   restores existing files exactly, removes newly created finals, and cleans staged
+   temporary files on failure. Stale backups are preserved without being mistaken
+   for prior live files; recovery failures cannot be labelled successful rollback.
+   Nine failure assertions were observed before the fix. Fresh/existing/stale-backup
+   failure cases, later-stage failure cleanup, and successful first saves now pass.
+
+All five tasks are complete in separate commits. Final `sh tools/verify.sh` output
+is recorded in `final-verify.txt`: **0 failing**, including all follow-up regression
+scenes, physics, smoke, the catalogue, Python tests, gdlint, and pyflakes. The suite
+reports shutdown resource warnings in the discoveries and follow-up fixtures;
+verbose follow-up inspection identifies audio stream/playback resources, with no
+runtime/script errors. The blocked-spawn and both phase hover captures were inspected.
+
+No authored room files are modified. This completes this five-task prompt; other
+items in the broader recursive audit remain tracked there. Catalogue crash recovery
+on load is separate from the synchronous failed-save rollback fixed here.

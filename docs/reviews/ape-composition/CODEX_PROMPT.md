@@ -1,12 +1,15 @@
 # Codex prompt: verified Ape composition follow-up fixes
 
-Checked against `953b8ca` on 2026-11-03. Original tasks 1, 2, 3, and 5 are still
-reproducible. Original task 4's general cleanup gap is also real, but its stated
-profile scenario had the wrong order: the profile is replaced last. A verified
-first-save failure leaves a newly created attacks CSV instead; the corrected
-task below uses that reproduction. Original task 6
-should not be treated as an outstanding numerical bug: the UI already labels its
-total **Selected attacks**, with consequence totals explicitly pending.
+**Implementation status, 2026-11-04: all five follow-ups below are complete.**
+See [implementation evidence](../../../reports/ape-followups-2026-11-04/README.md).
+The checked tasks remain here as the implementation record; verify current code
+before reusing this prompt for any further work.
+
+Historical diagnosis was checked against `953b8ca` on 2026-11-03. The rollback
+scenario was corrected because profiles are replaced last; the verified failure
+left a newly created attacks CSV instead. Original task 6 was excluded as a
+numerical bug: the UI already labels its total **Selected attacks**, with
+consequence totals explicitly pending.
 
 The five tasks below replace the earlier six. Additional verified defects and
 their evidence are in [the recursive review](../ape-recursive/REVIEW.md).
@@ -36,7 +39,7 @@ Tasks (one commit each; write the test first and see it fail):
 4. [x] Completed 2026-11-04: split children emit a visible "split_blocked" cancellation when
    placement is impossible. Test: a parent at (25,100), size (19,6), speed (0,-1), gravity 200 splits against the
    real World boundary; a child must not silently vanish. Do not force children through solid terrain.
-5. Correct first-save rollback: record which destinations existed before replacement. Restore old files and
+5. [x] Completed 2026-11-04: correct first-save rollback records which destinations existed before replacement. Restore old files and
    remove newly created files on failure. Reproduction: in a disposable empty directory, make enemy_attacks.csv
    a directory, then save a loaded catalogue there. Attack replacement succeeds and assignment replacement
    fails; the current code leaves the new attacks.csv while claiming restoration. Assert that no new final

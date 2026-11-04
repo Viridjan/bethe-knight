@@ -25,6 +25,9 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
 - **Save changes** validates and stages both tables and enemy profiles before replacing them. Only saving
   changes the shared runtime catalogue. Edits to a running attack do not change
   its captured parameters; new selections use the saved values.
+  If replacement fails, it restores replaced files that existed before the attempt,
+  removes newly created final files, and cleans staged temporary files. Stale backups
+  are not mistaken for prior files. Incomplete rollback/cleanup is reported explicitly.
 - **Reload** rereads disk, refreshes the shared catalogue, and asks before
   discarding a draft. Saving refuses to overwrite files changed externally since
   they were loaded.
