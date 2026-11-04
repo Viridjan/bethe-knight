@@ -25,7 +25,7 @@ Their mode protects AI selection, but effect emission follows the profile rather
 than those binding rows. Keep this distinction explicit.
 
 Tasks (one commit each; write the test first and see it fail):
-1. One source of truth for the effect chain: derive the editor's triggered-effects list from the profile
+1. [x] Completed 2026-11-04: one source of truth for the effect chain. Derive the editor's triggered-effects list from the profile
    (landing_effects, log_impact_effect, phase2_throw_effect; split only on the enraged page) and drop the triggered
    rows from enemy_attacks.csv, or make runtime read them and drop the profile fields. Test: the list shown for each
    Ape page equals what gameplay does.

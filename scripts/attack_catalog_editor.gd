@@ -549,7 +549,8 @@ func _select_enemy(i: int) -> void:
 	caption.modulate = Color("91b2d3")
 	caption.tooltip_text = "The first eligible attack executes. Use the arrows to change priority."
 	form.add_child(caption)
-	var rows: Array = catalog.ordered_attacks(e[0], e[1])
+	var rows: Array = catalog.enemy_entries(e[0], e[1])
+	var selected_count := rows.filter(func(row): return not catalog.triggered(row)).size()
 	var effects_heading := false
 	for k in rows.size():
 		var row: Dictionary = rows[k]
@@ -604,7 +605,7 @@ func _select_enemy(i: int) -> void:
 			var label := Game.label({"min_range_units": "Min", "max_range_units": "Max", "skip_chance": "Skip %"}[column], 12)
 			binding_line.add_child(label)
 			binding_line.add_child(edit)
-		for b in [["up", -1, k == 0], ["down", 1, k == rows.size() - 1], ["cross", 0, false]]:
+		for b in [["up", -1, k == 0], ["down", 1, k == selected_count - 1], ["cross", 0, false]]:
 			if is_effect: continue
 			var btn := Game.button("", (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
 			btn.icon = _glyph(b[0])
@@ -676,7 +677,7 @@ func _select_enemy(i: int) -> void:
 			expanded_attacks[detail_key] = details.visible
 			expand.text = "Close" if details.visible else "Edit")
 	if writable:  # any attack from the catalogue, or a brand-new one
-		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return not rows.any(func(r): return r.attack_name == a))
+		var free: Array = catalog.attacks.map(func(a): return str(a.name)).filter(func(a): return a not in Catalog.RUNTIME_ONLY and not rows.any(func(r): return r.attack_name == a))
 		free.sort_custom(func(a, b): return int(catalog.performs(e[0], a)) > int(catalog.performs(e[0], b)) or (catalog.performs(e[0], a) == catalog.performs(e[0], b) and a < b))
 		var add_row := HBoxContainer.new()
 		var pick := OptionButton.new()

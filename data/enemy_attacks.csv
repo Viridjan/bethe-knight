@@ -17,11 +17,3 @@ enemy_skeleton,default,ossling_bone_throw,0.00,13.00,0,0.00,selected
 enemy_hornback,default,charge,0.00,15.00,0,0.00,selected
 enemy_cragjaw,default,leap,0.00,18.75,0,0.00,selected
 enemy_murkspore,default,shoot,0.00,22.50,0,0.00,selected
-boss_ape,normal,ape_slam,0.00,0.00,0,0.00,triggered
-boss_ape,normal,ape_log,0.00,0.00,0,0.00,triggered
-boss_ape,normal,ape_split,0.00,0.00,0,0.00,triggered
-boss_ape,normal,ape_spikes,0.00,0.00,0,0.00,triggered
-boss_ape,enraged,ape_slam,0.00,0.00,0,0.00,triggered
-boss_ape,enraged,ape_log,0.00,0.00,0,0.00,triggered
-boss_ape,enraged,ape_split,0.00,0.00,0,0.00,triggered
-boss_ape,enraged,ape_spikes,0.00,0.00,0,0.00,triggered

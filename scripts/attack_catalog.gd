@@ -35,6 +35,35 @@ func source_texts() -> Array:
 func enemy_profile(id: String) -> Dictionary:
 	return enemy_profiles.get(id, {})
 
+# Read-only effect graph projected from the same profile references consumed by Ape.
+# Legacy triggered CSV rows are accepted on load but never override this definition.
+func effect_links(enemy_id: String, phase: String) -> Array:
+	if enemy_id != "boss_ape" or phase not in ["normal", "enraged"]: return []
+	var profile := enemy_profile(enemy_id)
+	var landing: Array = profile.get("landing_effects", ["ape_slam", "ape_log"])
+	var links: Array = []
+	for source in ["ape_leap", "ape_retreat"]:
+		for effect in landing:
+			links.append({"source": source, "event": "landed", "effect": effect})
+	var projectile: String = profile.get("phase2_throw_effect", "ape_split") if phase == "enraged" else profile.get("throw_effect", "ape_log")
+	links.append({"source": "ape_throw", "event": "released", "effect": projectile})
+	if projectile == "ape_split":
+		links.append({"source": projectile, "event": "split", "effect": "ape_log"})
+	if "ape_log" in landing or projectile in ["ape_log", "ape_split"]:
+		links.append({"source": "ape_log", "event": "floor_impact", "effect": profile.get("log_impact_effect", "ape_spikes")})
+	return links
+
+# The editor list combines real selection rows with derived, non-writable effect metadata.
+func enemy_entries(enemy_id: String, phase: String) -> Array:
+	var rows := ordered_attacks(enemy_id, phase).filter(func(row): return not triggered(row))
+	var seen := {}
+	for link in effect_links(enemy_id, phase):
+		if seen.has(link.effect): continue
+		seen[link.effect] = true
+		rows.append({"enemy_id": enemy_id, "phase": phase, "attack_name": link.effect,
+			"activation_mode": "triggered", "min_range_units": "0", "max_range_units": "0", "priority": "0", "skip_chance": "0"})
+	return rows
+
 func _rounded_profiles() -> Dictionary:
 	var result := enemy_profiles.duplicate(true)
 	if result.has("boss_ape"):
@@ -382,6 +411,7 @@ func _stage_table(ranges: bool) -> String:
 	var path := assignment_path if ranges else attack_path
 	var columns := assignment_columns if ranges else attack_columns
 	var rows := _rounded_rows(assignments if ranges else attacks)
+	if ranges: rows = rows.filter(func(row): return not triggered(row))  # migrate redundant legacy metadata on save
 	var live := attacks
 	if not ranges: attacks = rows  # scores (and follow-up lookups) from exactly what gets written
 	var temp := path + ".tmp"

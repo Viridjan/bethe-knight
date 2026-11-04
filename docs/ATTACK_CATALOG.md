@@ -88,9 +88,13 @@ live in [enemy_profiles.json](../data/enemy_profiles.json), shared by both phase
 pages. They apply to newly created encounters. Save/Reload and external-change
 checks include this file, and saved wave scales use at most two decimals.
 
-`activation_mode` in the binding CSV distinguishes `selected` attacks from
-`triggered` effects (a missing/empty value retains the old selected behavior).
-The **Triggered effects** section is always last. Its entries have no editable
+The binding CSV stores selected attacks. Older files with `activation_mode = triggered`
+remain readable; saving migrates those redundant rows out of the CSV. A missing/empty
+mode retains the old selected behavior. The editor derives its phase-aware
+**Triggered effects** section from the profile references used by gameplay:
+`landing_effects`, `throw_effect`, `phase2_throw_effect`, and `log_impact_effect`.
+Changing those references changes the listing; the splitting variant appears only
+when the selected phase uses it. The section is always last. Its entries have no editable
 range, skip, or order controls and never perform AI eligibility/chance checks.
 Their mechanics remain editable. The profile's validated effect references
 describe landing → shockwave/log and log floor impact → spikes.
@@ -164,9 +168,9 @@ the whole fan. For the score, shots within 30 degrees of the aimed one count ful
 Scores for measured times of two seconds or more remain unavailable because the
 requested curve's anchors conflict there. Falling logs also remain unscored:
 they start at rest, so initial-speed reference travel time is undefined. Neither
-case is silently given a fabricated score. The inspector shows normal/enraged Ape repertoire subtotals, including slam/log
-and phase-two split-stone primitives, with body area added once. Their total stays
-unavailable while the log is unscored. Repeated hops and enlarged shockwaves use
+case is silently given a fabricated score. The inspector shows selected-attack
+subtotals with body area added once; triggered effect-chain totals remain pending.
+Repeated hops and enlarged shockwaves use
 the base attack reference; this is not an encounter-frequency or composite-chain
 difficulty model. The score is an estimate, not a change
 to damage, health, spawn budgets, or attack priority.

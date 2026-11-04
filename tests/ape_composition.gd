@@ -4,7 +4,7 @@ extends "res://tests/test_runner.gd"
 func _ready() -> void:
 	Game.settings.invincible = true
 	var catalog = E.AttackCatalog.shared()
-	var bindings: Array = catalog.ordered_attacks("boss_ape", "normal")
+	var bindings: Array = catalog.enemy_entries("boss_ape", "normal")
 	check(bindings.any(func(row): return row.attack_name == "ape_log" and row.get("activation_mode", "") == "triggered"), "Ape loadout includes its triggered log effect")
 	var chosen: String = catalog.select_attack("boss_ape", "normal", ["ape_log", "ape_slam"], 1.0)
 	check(chosen == "", "Triggered effects never enter attack selection")
