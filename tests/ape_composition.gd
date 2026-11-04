@@ -18,6 +18,8 @@ func _ready() -> void:
 		Game.quit_game(fails)
 		return
 	var profile: Dictionary = catalog.enemy_profile("boss_ape")
+	var original_profile := profile.duplicate(true)
+	profile.merge({"max_hp": 5, "phase2_hp": 2, "phase2_wave_scales": [1.3, 1.7]}, true)
 	var saved := profile.duplicate(true)
 	# Save to a disposable content set, exercising the same path used by the Enemy tab.
 	var draft = E.AttackCatalog.new()
@@ -29,7 +31,7 @@ func _ready() -> void:
 	draft.enemy_profile("boss_ape").phase2_wave_scales = [1.234, 1.789]
 	var saved_result: String = draft.save_all()
 	check(saved_result == "" and draft.reload() and draft.enemy_profile("boss_ape").phase2_wave_scales == [1.23, 1.79], "Saved phase settings round to two decimals and reload with the CSV content set")
-	draft.enemy_profile("boss_ape").phase2_hp = 4
+	draft.enemy_profile("boss_ape").phase2_hp = draft.enemy_profile("boss_ape").max_hp
 	check(not draft.validate().is_empty(), "Phase threshold equal to maximum HP is rejected")
 	profile.max_hp = 7
 	profile.phase2_hp = 3
@@ -117,5 +119,7 @@ func _ready() -> void:
 		check(not ui.dirty and draft.reload() and draft.enemy_profile("boss_ape").max_hp == 9, "Enemy-tab Save persists health with the attack catalogue")
 	ui.queue_free()
 	await get_tree().process_frame
+	profile.clear()
+	profile.merge(original_profile, true)
 	print("APE COMPOSITION: %d failure(s)" % fails)
 	Game.quit_game(fails)

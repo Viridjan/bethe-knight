@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://tests/ape_fixture_variants.gd" id="1"]
+[node name="ApeFixtureVariants" type="Node"]
+script = ExtResource("1")

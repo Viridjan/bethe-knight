@@ -2,6 +2,7 @@ extends "res://tests/test_runner.gd"
 # Behavioral regressions for docs/reviews/ape-composition/CODEX_PROMPT.md.
 func _ready() -> void:
 	await check_effect_listing()
+	check_configurable_health()
 	print("APE FOLLOWUPS: %d failure(s)" % fails)
 	Game.quit_game(fails)
 
@@ -46,3 +47,12 @@ func _effect_ids(ui) -> Array:
 	var ids: Array = ui.catalog.RUNTIME_ONLY.filter(func(id): return ui.catalog.attack(id).codex_online_name in names)
 	ids.sort()
 	return ids
+
+func check_configurable_health() -> void:
+	var profile: Dictionary = E.AttackCatalog.shared().enemy_profile("boss_ape")
+	var original := profile.duplicate(true)
+	profile.merge({"max_hp": 5, "phase2_hp": 2, "phase2_wave_scales": [1.3, 1.7]}, true)
+	Game.settings.invincible = false
+	check_ape()  # Existing first-hit, spike removal, phase, gate and reward assertions.
+	profile.clear()
+	profile.merge(original, true)

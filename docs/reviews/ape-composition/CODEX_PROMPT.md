@@ -29,7 +29,7 @@ Tasks (one commit each; write the test first and see it fail):
    (landing_effects, log_impact_effect, phase2_throw_effect; split only on the enraged page) and drop the triggered
    rows from enemy_attacks.csv, or make runtime read them and drop the profile fields. Test: the list shown for each
    Ape page equals what gameplay does.
-2. tests/test_runner.gd lines ~2082-2086: isolate configurable HP in fixtures or derive expectations from the
+2. [x] Completed 2026-11-04: tests/test_runner.gd lines ~2082-2086 isolate configurable HP in fixtures or derive expectations from the
    fixture's max_hp instead of E.Ape.HP. Check hardcoded phase assumptions in tests/ape_composition.gd too.
    Test: valid max_hp 5 still verifies one lost HP and the intended spike removal. Do not weaken the assertion.
 3. Effect tooltips built from the profile (what triggers each effect), not a hard-coded dictionary.

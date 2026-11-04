@@ -1876,6 +1876,10 @@ func check_arena_respawn_gate() -> void:
 
 # Regression coverage for ape. The assertions below state the expected behavior of this case.
 func check_ape() -> void:
+	# Actor choreography assertions use a controlled profile, independently of authored tuning.
+	var profile: Dictionary = E.AttackCatalog.shared().enemy_profile("boss_ape")
+	var original_profile := profile.duplicate(true)
+	profile.merge({"max_hp": 5, "phase2_hp": 2, "phase2_wave_scales": [1.3, 1.7]}, true)
 	var floor_y := 28 * 8
 	var keep_inv: bool = Game.settings.invincible
 	var find := func(cls): return w.ents.filter(func(e): return is_instance_of(e, cls))
@@ -2080,13 +2084,14 @@ func check_ape() -> void:
 	var keep_inv4: bool = Game.settings.invincible
 	Game.settings.invincible = true  # spikes and gates here, not dodging (the player stands in the line of its stones)
 	var live := func(): return find.call(E.Spikes).filter(func(e): return e.collidable)
+	var starting_hp: int = ape.hp
 	for k in 200:
 		step()
-		if ape.hp < E.Ape.HP:
+		if ape.hp < starting_hp:
 			break
 	step(2)
 	var feet := Rect2i(ape.rect.position.x, ape.rect.end.y - 4, ape.rect.size.x, 4)
-	check(ape.hp == E.Ape.HP - 1 and live.call().size() < 4 and live.call().any(func(e): return e.rect.position.x == 100)
+	check(ape.hp == starting_hp - 1 and live.call().size() < 4 and live.call().any(func(e): return e.rect.position.x == 100)
 		and not live.call().any(func(e): return e.rect.intersects(feet)) and not find.call(E.Spikes).any(func(e): return e.rect.position.x < 280 and e.rect.position.x != 100),
 		"landing on spikes hurts the Ape and breaks only those it landed on; none are generated (hp %d, %d live)" % [ape.hp, live.call().size()])
 	step(2)
@@ -2214,6 +2219,8 @@ func check_ape() -> void:
 			break
 	check(p().dead and ape.phase == "scream", "close to the Ape, its scream hits (phase %s)" % ape.phase)
 	Game.settings.invincible = keep_inv
+	profile.clear()
+	profile.merge(original_profile, true)
 
 # Monsters page (main menu) and the map screen's Map / Monsters tabs (L1 / R1).
 # Themed backgrounds stay with the camera: the perspective shift is smooth and bounded (no wrap-around jumps).
