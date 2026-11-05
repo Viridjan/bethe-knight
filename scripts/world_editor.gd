@@ -12,6 +12,7 @@ extends Control
 # Overlapping rooms are outlined red. Every change is saved straight away.
 # Mouse: LMB select/drag room · RMB or MMB drag pan · wheel zoom.
 
+const Layout := preload("res://scripts/world_layout.gd")
 const Adventure := preload("res://scripts/adventure.gd")
 const E := preload("res://scripts/entities.gd")
 const MapView := preload("res://scripts/map_view.gd")
@@ -20,6 +21,15 @@ const T := 8
 var world: Dictionary
 var thumbs := {}  # room name -> ImageTexture
 var selected := ""
+var selected_rooms := {}
+var drag_positions := {}
+var drag_ports := {}
+var snapped_pair: Array = []
+var selecting_box := false
+var box_start := Vector2.ZERO
+var box_end := Vector2.ZERO
+var box_additive := false
+var snap_enabled: CheckBox
 var zoom := 0.5  # screen pixels per tile
 var pan := Vector2(320, 120)
 var drag_room := ""
@@ -46,7 +56,7 @@ func _ready() -> void:
 	world = Adventure.load_world(Game.world_path)
 	for name in world.rooms:
 		thumbs[name] = MapView.terrain(world.rooms[name].level)
-	selected = world.start
+	_select_only(world.start)
 	var side := PanelContainer.new()
 	side.mouse_force_pass_scroll_events = false
 	side.set_anchors_and_offsets_preset(Control.PRESET_LEFT_WIDE)
@@ -77,6 +87,11 @@ func _ready() -> void:
 		box.add_child(btn)
 		room_buttons.append(btn)
 	box.add_child(HSeparator.new())
+	snap_enabled = CheckBox.new()
+	snap_enabled.text = "Snap passage connections"
+	snap_enabled.button_pressed = true
+	snap_enabled.tooltip_text = "Align nearby compatible physical passages while dragging. Hold Alt to bypass. Remote door/panel links do not attract rooms."
+	box.add_child(snap_enabled)
 	var tools_popup := PopupPanel.new()
 	add_child(tools_popup)
 	var tools_box := VBoxContainer.new()
@@ -114,10 +129,11 @@ func _ready() -> void:
 	legend.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
 	legend.offset_left = -350
 	legend.offset_right = -16
-	legend.offset_top = -120
+	legend.offset_top = -86
 	legend.offset_bottom = -16
 	add_child(legend)
-	var help := Game.label("LMB drag room · RMB/MMB pan · wheel zoom\nGreen: passage between rooms · cyan: door link · red: overlap", 13)
+	var help := Game.label("Drag empty space to select · drag rooms to move\nGreen: passage · cyan: door link · red: overlap", 13)
+	help.tooltip_text = "Shift adds a selection rectangle. Ctrl-click toggles a room. Drag a selected room to move the group. Alt bypasses snapping. Escape cancels a drag. Right/middle drag pans; wheel zooms. Green snaps use compatible physical passages, never remote door links."
 	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	help.modulate = Color(1, 1, 1, 0.6)
 	legend.add_child(help)
@@ -166,8 +182,10 @@ func _recalc() -> void:
 					cache_links.append([doors[key][1], doors[tk][1]])
 
 # Write world.json and show whether the project location accepted the save.
-func _save() -> void:
-	status.text = "Saved" if Adventure.save_world(Game.world_path, world) else "Save failed (res:// is read-only here)"
+func _save() -> bool:
+	var saved := Adventure.save_world(Game.world_path, world)
+	status.text = "Saved" if saved else "Save failed (res:// is read-only here)"
+	return saved
 
 # world tiles <-> screen
 # Convert world-map tile coordinates into screen pixels using zoom and pan.
@@ -196,13 +214,13 @@ func _draw() -> void:
 		var r: Dictionary = world.rooms[name]
 		var rect := Rect2(to_screen(Vector2(r.pos)), Vector2(r.level.w, r.level.h) * zoom)
 		var g := Adventure.region_of(world, name)
-		draw_rect(rect, Color("1e2442") if name == selected else Color("121526"))
+		draw_rect(rect, Color("1e2442") if selected_rooms.has(name) else Color("121526"))
 		draw_texture_rect(thumbs[name], rect, false)
 		if not g.is_empty():  # rooms tinted by region, over the thumbnail
 			draw_rect(rect, Color(g.color, 0.35))
 			named[g.name] = [g.color, named[g.name][1].merge(rect) if named.has(g.name) else rect]
-		var edge := Color.RED if bad.has(name) else (Color.WHITE if name == selected else (Color(g.color, 0.8) if not g.is_empty() else Color(1, 1, 1, 0.3)))
-		draw_rect(rect, edge, false, 2.0 if name == selected or bad.has(name) else 1.0)
+		var edge := Color.RED if bad.has(name) else (Color.WHITE if selected_rooms.has(name) else (Color(g.color, 0.8) if not g.is_empty() else Color(1, 1, 1, 0.3)))
+		draw_rect(rect, edge, false, 2.0 if selected_rooms.has(name) or bad.has(name) else 1.0)
 		var label: String = ("* " if name == world.start else "") + name + (" (draft)" if r.level.get("draft", false) else "")
 		draw_string(font, rect.position + Vector2(4, 16), label, HORIZONTAL_ALIGNMENT_LEFT, rect.size.x - 8, 14, Color.WHITE)
 	for n in named:  # region names, centred over each region
@@ -215,6 +233,76 @@ func _draw() -> void:
 		draw_line(to_screen(l[0] / T), to_screen(l[1] / T), Color(0.25, 0.88, 1.0, 0.7), 1.5)
 
 # Select/drag rooms or pan/zoom the map, committing layout changes at the relevant gesture boundary.
+	if selecting_box:
+		var selection := Rect2(box_start, box_end - box_start).abs()
+		var area := Rect2(to_screen(selection.position), selection.size * zoom)
+		draw_rect(area, Color(0.4, 0.85, 1, 0.12))
+		draw_rect(area, Color("75d9f0"), false, 1.5)
+	for name in snapped_pair:
+		var room: Dictionary = world.rooms[name]
+		draw_rect(Rect2(to_screen(Vector2(room.pos)), Vector2(room.level.w, room.level.h) * zoom).grow(2), Color("91efba"), false, 2)
+
+func _select_only(name: String) -> void:
+	selected = name
+	selected_rooms = {name: true} if name != "" else {}
+
+func _box_select(area: Rect2, additive: bool) -> void:
+	if not additive: selected_rooms.clear()
+	for name in world.rooms:
+		var room: Dictionary = world.rooms[name]
+		if area.intersects(Rect2(Vector2(room.pos), Vector2(room.level.w, room.level.h))): selected_rooms[name] = true
+	if not selected_rooms.has(selected): selected = "" if selected_rooms.is_empty() else str(selected_rooms.keys()[0])
+	_update_info()
+	queue_redraw()
+
+func _begin_room_drag(name: String, at: Vector2) -> void:
+	if not selected_rooms.has(name): _select_only(name)
+	selected = name
+	drag_room = name
+	drag_from = at
+	drag_pos0 = world.rooms[name].pos
+	drag_positions.clear()
+	for room in selected_rooms:
+		if world.rooms.has(room): drag_positions[room] = world.rooms[room].pos
+	drag_ports = Layout.sockets(world)
+	snapped_pair = []
+	_update_info()
+
+func _drag_rooms(at: Vector2, bypass_snap: bool) -> void:
+	if drag_positions.is_empty(): return
+	var delta := Vector2i((at - drag_from).round())
+	snapped_pair = []
+	if snap_enabled.button_pressed and not bypass_snap:
+		var result := Layout.snap(world, drag_positions, delta, minf(8, 10 / zoom), drag_ports)
+		delta = result.delta
+		snapped_pair = result.pair
+	for name in drag_positions: world.rooms[name].pos = drag_positions[name] + delta
+	status.text = "Snapped passage: %s to %s" % snapped_pair if snapped_pair.size() == 2 else "Moving %d room(s)" % drag_positions.size()
+	_update_info()
+	queue_redraw()
+
+func _cancel_room_drag() -> void:
+	for name in drag_positions: world.rooms[name].pos = drag_positions[name]
+	drag_positions.clear()
+	drag_room = ""
+	snapped_pair = []
+	status.text = "Move cancelled"
+	_update_info()
+	queue_redraw()
+
+func _end_room_drag(save := true) -> void:
+	var changed := false
+	for name in drag_positions: changed = changed or world.rooms[name].pos != drag_positions[name]
+	if changed and save and not _save():
+		for name in drag_positions: world.rooms[name].pos = drag_positions[name]
+		status.text = "Save failed; group movement restored"
+	drag_positions.clear()
+	drag_room = ""
+	snapped_pair = []
+	_recalc()
+	_update_info()
+	queue_redraw()
+
 func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 		var before := to_tile(event.position)
@@ -225,30 +313,39 @@ func _gui_input(event: InputEvent) -> void:
 		panning = event.pressed
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		if event.pressed:
-			var hit := Adventure.room_at(world, to_tile(event.position) * T)
-			if hit != "" and event.double_click:  # double click: edit that room
-				selected = hit
-				drag_room = ""
+			var at := to_tile(event.position)
+			var hit := Adventure.room_at(world, at * T)
+			if hit != "" and event.double_click:
+				_select_only(hit)
 				_edit()
 				return
-			if hit != "":
-				selected = hit
-				drag_room = hit
-				drag_from = to_tile(event.position)
-				drag_pos0 = world.rooms[hit].pos
+			if event.ctrl_pressed and hit != "":
+				if selected_rooms.has(hit): selected_rooms.erase(hit)
+				else: selected_rooms[hit] = true
+				selected = "" if selected_rooms.is_empty() else str(selected_rooms.keys()[0])
 				_update_info()
+			elif hit == "" or event.shift_pressed:
+				selecting_box = true
+				box_start = at
+				box_end = at
+				box_additive = event.shift_pressed or event.ctrl_pressed
+			else: _begin_room_drag(hit, at)
+		elif selecting_box:
+			box_end = to_tile(event.position)
+			selecting_box = false
+			_box_select(Rect2(box_start, box_end - box_start).abs(), box_additive)
 		elif drag_room != "":
-			if world.rooms[drag_room].pos != drag_pos0:
-				_save()
-				_recalc()
-			drag_room = ""
+			_drag_rooms(to_tile(event.position), event.alt_pressed)
+			_end_room_drag()
 		queue_redraw()
 	elif event is InputEventMouseMotion:
 		if panning:
 			pan += event.relative
 			queue_redraw()
-		elif drag_room != "":
-			move_room(drag_room, drag_pos0 + Vector2i((to_tile(event.position) - drag_from).round()))
+		elif selecting_box:
+			box_end = to_tile(event.position)
+			queue_redraw()
+		elif drag_room != "": _drag_rooms(to_tile(event.position), event.alt_pressed)
 
 # Change a room tile offset and request a visual update.
 func move_room(name: String, pos: Vector2i) -> void:
@@ -267,7 +364,7 @@ func _update_info() -> void:
 	for seg in cache_ways:
 		if Rect2(Adventure.room_rect(r)).grow(1).has_point((seg[0] + seg[1]) / 2.0):
 			links += 1
-	info.text = "%s\n\"%s\"  %dx%d tiles\nat %d, %d\npassage tiles: %d%s" % [selected, r.level.name, r.level.w, r.level.h, r.pos.x, r.pos.y, links, "\nstart room" if selected == world.start else ""]
+	info.text = ("%d rooms selected; actions apply to %s\n\n" % [selected_rooms.size(), selected] if selected_rooms.size() > 1 else "") + "%s\n\"%s\"  %dx%d tiles\nat %d, %d\npassage tiles: %d%s" % [selected, r.level.name, r.level.w, r.level.h, r.pos.x, r.pos.y, links, "\nstart room" if selected == world.start else ""]
 
 # ---- add / remove ----
 # List custom levels that can be copied into this world.
@@ -328,7 +425,7 @@ func add_room(base: String, lvl: Dictionary, pos: Vector2i) -> String:
 	thumbs[name] = MapView.terrain(lvl)
 	if world.start == "":
 		world.start = name
-	selected = name
+	_select_only(name)
 	_save()
 	_recalc()
 	_update_info()
@@ -376,7 +473,7 @@ func _remove() -> void:
 	thumbs.erase(selected)
 	if world.start == selected:
 		world.start = world.rooms.keys()[0] if not world.rooms.is_empty() else ""
-	selected = ""
+	_select_only("")
 	_save()
 	_recalc()
 	_update_info()
@@ -404,7 +501,11 @@ func _playtest() -> void:
 # Return to the main menu when the cancel action was not consumed by a control.
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
-		Game.goto("menu")
+		if drag_room != "": _cancel_room_drag()
+		elif selecting_box:
+			selecting_box = false
+			queue_redraw()
+		else: Game.goto("menu")
 
 # The external job writes a snapshot and status file; no Python work blocks Godot's main thread.
 func _new_progression_job():
@@ -427,6 +528,11 @@ func _start_progression() -> bool:
 	return started
 
 func _process(dt: float) -> void:
+	if not Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT):
+		if drag_room != "": _end_room_drag()
+		elif selecting_box:
+			selecting_box = false
+			_box_select(Rect2(box_start, box_end - box_start).abs(), box_additive)
 	progression_poll_time -= dt
 	if progression_poll_time <= 0:
 		progression_poll_time = 0.5

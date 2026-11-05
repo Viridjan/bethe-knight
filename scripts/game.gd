@@ -67,7 +67,7 @@ const DEFAULT_KEYS := {
 	"left": KEY_LEFT, "right": KEY_RIGHT, "up": KEY_UP, "down": KEY_DOWN,
 	"jump": KEY_C, "dash": KEY_X, "grab": KEY_Z, "pause": KEY_ESCAPE,
 	"map": KEY_M, "debug": KEY_F1, "attack": KEY_A, "hitboxes": KEY_F2,
-	"assist": KEY_F12, "interact": KEY_S, "stamina_debug": KEY_F3, "state_debug": KEY_F4,
+	"assist": KEY_F12, "interact": KEY_S, "stamina_debug": KEY_F3, "state_debug": KEY_F4, "punch": KEY_Q,
 }
 const ALT_KEYS := {"jump": KEY_SPACE, "dash": KEY_SHIFT, "grab": KEY_V}
 # Gamepad: one button per action (JOY_BUTTON_*), PAD_AXIS + axis for a trigger, -1 = none.
@@ -77,7 +77,7 @@ const DEFAULT_PAD := {
 	"up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN,
 	"jump": JOY_BUTTON_A, "attack": JOY_BUTTON_X, "dash": JOY_BUTTON_RIGHT_SHOULDER,
 	"grab": PAD_AXIS + JOY_AXIS_TRIGGER_RIGHT, "pause": JOY_BUTTON_START,
-	"map": JOY_BUTTON_BACK, "debug": -1, "hitboxes": -1, "assist": -1, "stamina_debug": -1, "state_debug": -1, "interact": JOY_BUTTON_B,
+	"map": JOY_BUTTON_BACK, "debug": -1, "hitboxes": -1, "assist": -1, "stamina_debug": -1, "state_debug": -1, "interact": JOY_BUTTON_B, "punch": JOY_BUTTON_Y,
 }
 const PAD_NAMES := {
 	JOY_BUTTON_A: "A / Cross", JOY_BUTTON_B: "B / Circle", JOY_BUTTON_X: "X / Square", JOY_BUTTON_Y: "Y / Triangle",
@@ -88,7 +88,7 @@ const PAD_NAMES := {
 	JOY_BUTTON_DPAD_UP: "D-pad Up", JOY_BUTTON_DPAD_DOWN: "D-pad Down",
 	JOY_BUTTON_DPAD_LEFT: "D-pad Left", JOY_BUTTON_DPAD_RIGHT: "D-pad Right", -1: "-",
 }
-const ACTION_NAMES := ["left", "right", "up", "down", "jump", "dash", "grab", "attack", "interact", "pause", "map", "debug", "hitboxes", "assist", "stamina_debug", "state_debug"]
+const ACTION_NAMES := ["left", "right", "up", "down", "jump", "dash", "grab", "attack", "punch", "interact", "pause", "map", "debug", "hitboxes", "assist", "stamina_debug", "state_debug"]
 
 var main: Node
 var sfx: Node
@@ -117,6 +117,7 @@ var adv: Dictionary = {}  # active adventure run (see start_adventure); empty ou
 var adv_world: Dictionary = {}  # Adventure.load_world() result for that run
 var using_pad := false  # last input came from a gamepad: button prompts show pad buttons, else keys
 var pad_ps := false  # that pad is a PlayStation one: prompts show its symbols
+var stress_rest_notice := 0.0
 var adv_temp := false  # world-editor playtest: never saved, exits back to the world editor
 var progression_job = null  # background analysis survives screen navigation
 var last_progression_report := ""
@@ -255,7 +256,7 @@ func apply_settings() -> void:
 	_apply_input()
 
 # A windowed game can't be squeezed below 640x360. Its size is the window manager's (niri: a rule in the dots repo
-# gives the Summit column 60% of the monitor width); resizing it from here only fought the tiling.
+# gives the game column 60% of the monitor width); resizing it from here only fought the tiling.
 func _fit_window() -> void:
 	if OS.has_feature("web") or OS.has_feature("mobile") or DisplayServer.get_name() == "headless":
 		return
@@ -400,6 +401,9 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 			return {}
 		if not (_is_num(e.get("x"), -MAX_COORD, MAX_COORD) and _is_num(e.get("y"), -MAX_COORD, MAX_COORD)):
 			return {}
+		if e.has("motion"):
+			var settings = preload("res://scripts/motion/patrol_settings.gd")
+			if not settings.supports(e) or not settings.validate(e.motion, Vector2i(w * 8, h * 8)).is_empty(): return {}
 		for k in ["tx", "ty"]:  # optional
 			if e.has(k) and not _is_num(e[k], -MAX_COORD, MAX_COORD):
 				return {}
@@ -419,6 +423,7 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 				return {}
 		if e.has("top") and not e.top is bool:  # optional (liquids)
 			return {}
+	if not preload("res://scripts/interaction/trigger_settings.gd").validate_level(ents).is_empty(): return {}
 	d.name = name
 	d.w = int(w)
 	d.h = int(h)
@@ -457,6 +462,8 @@ func start_adventure(fresh: bool) -> void:
 	var run = cf.get_value("adventure", _run_key()) if cf != null and cf.has_section_key("adventure", _run_key()) else null
 	adv = Adventure.new_run(adv_world) if fresh else Adventure.restore_run(adv_world, run)
 	adv_temp = false
+	stress_rest_notice = 0.0
+	if not fresh: claim_stress_rest(int(Time.get_unix_time_from_system()))
 	_enter_adventure()
 
 # World-editor playtest: a throwaway run from any room that is never saved.
@@ -476,14 +483,33 @@ func _enter_adventure() -> void:
 	goto("world")
 
 # Write current adventure progress, except for temporary world-editor playtests.
-func save_adventure() -> void:
-	if adv.is_empty() or adv_temp:
-		return
+func save_adventure(now: int = -1) -> bool:
+	if adv.is_empty() or adv_temp: return false
 	var cf := read_config(save_path)
-	if cf == null:
-		return  # unreadable save: keep it for recovery rather than overwrite it
-	cf.set_value("adventure", _run_key(), adv)
-	write_safe(save_path, cf.encode_to_text())
+	if cf == null: return false
+	var candidate := adv.duplicate(true)
+	candidate.last_saved_at = int(Time.get_unix_time_from_system()) if now < 0 else now
+	if not _write_adventure(cf, candidate): return false
+	adv.last_saved_at = candidate.last_saved_at
+	return true
+
+func _write_adventure(cf: ConfigFile, candidate: Dictionary) -> bool:
+	cf.set_value("adventure", _run_key(), candidate)
+	return write_safe(save_path, cf.encode_to_text())
+
+# Commit recovery and its claim timestamp together. A failed write changes neither.
+func claim_stress_rest(now: int) -> bool:
+	if adv.is_empty() or adv_temp or not Adventure.Stress.rest_due(adv, now): return false
+	var cf := read_config(save_path)
+	if cf == null: return false
+	var candidate := adv.duplicate(true)
+	var delta := Adventure.Stress.change(candidate, -Adventure.Stress.REST_RELIEF)
+	candidate.last_saved_at = now
+	if not _write_adventure(cf, candidate): return false
+	adv.clear()
+	adv.merge(candidate, true)
+	stress_rest_notice = -delta
+	return true
 
 # Outside the adventure every move is available.
 # Check adventure unlocks; standalone levels allow the normal moves without pickups.

@@ -31,7 +31,7 @@ and parameters needed by existing attacks. CSV headers match `data/attacks.csv`.
 - **Reload** rereads disk, refreshes the shared catalogue, and asks before
   discarding a draft. Saving refuses to overwrite files changed externally since
   they were loaded.
-- **Enemy loadouts** lists every enemy. Editable (attacks in the CSV): the Ape, the enraged Ape and the six
+- **Enemy loadouts** lists every enemy. Editable (attacks in the CSV): the Ape (both phases on one page) and the six
   attacking families (Dropwing, Duskflit, Ossling, Hornback, Cragjaw, Murkspore); the others (variants, Thornmite,
   Fuzzbob, Mosstrot, the chase Ape, the Guardian) are read-only (sprite, frames, HP, where they're placed). Attacks
   are in **priority order**: the first one in range (minimum inclusive, maximum exclusive; empty / 0 = no maximum),
@@ -82,6 +82,13 @@ The source tables are [attacks.csv](../data/attacks.csv) and
 External spreadsheet edits take effect after Reload CSV or restarting the game.
 
 ## Ape phases and consequences
+
+The Monster Editor opens on **Enemy loadouts**; the attack library remains available
+in its own tab. The Ape has one loadout page for both phases. Shared mechanics are
+edited once; phase-labelled rows keep range, skip chance, and priority independent.
+Removing a phase binding leaves the other phase intact. The Add attack selector
+can assign to either phase or both; existing bindings are preserved. Effect source
+tooltips describe the configured spawn chains. Compact inputs retain full labels.
 
 The Ape's **Health & phase entry** card edits maximum health, phase-two HP threshold,
 and a comma-separated list of shockwave scales. One in-place leap is performed for
@@ -208,3 +215,25 @@ Expanded enemy attack settings use the card width in two columns of groups:
 Timing, Damage & speed, Projectile pattern, and Trajectory. Numeric controls
 stretch within each group; animation references and follow-up controls remain
 available. This is a layout change and does not change attack parameters.
+
+## Family health and shared foundations (2026-11-05)
+
+Ordinary enemy families now have a **Base health** field in Enemy loadouts,
+including the **Library monster** entry. Variants edit their family's base value;
+swift/armored/giant/shielded modifiers are applied afterwards. Library monsters
+apply their trait list once in its saved order. Clearing the field restores the
+original family or movement-based default. Save changes before spawning a new
+runtime enemy; already living enemies keep their health.
+
+Health overrides live in `enemy_profiles.json` as optional `enemy_*` profiles with
+`max_hp` (whole number 1–10000). The same validator is used for load and save.
+Attack mechanics for code-driven families remain code-driven, so their divider is
+labelled accordingly. Their health can still be edited. Ape's existing health and
+phase-entry card is unchanged; Guardian still uses its vent-plug puzzle.
+
+`actors/enemy_health.gd` owns health authoring/modifiers. `motion/surface_patrol.gd`
+owns fractional floor movement and sticky crawler corner traversal, using injected
+collision/support/contact adapters. `actors/death_actions.gd` builds the existing
+bounded brood child definitions, consumed once on a real death through World's
+spawn queue. These are shared foundations, not yet arbitrary object/path authoring,
+quest-conditioned drops, configurable attached weapons, or a general phase editor.

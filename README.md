@@ -1,6 +1,10 @@
-# Summit
+# Be the Knight
 
 A Celeste-style platformer in Godot 4 (tested on 4.4.1 and 4.7.2) with a built-in world editor.
+Be is the protagonist: she faces entities that mostly exist within her. Regions echo
+real-world experiences; the jungle can, for example, evoke a city jungle.
+See [the Kraken and character progression design](docs/BE_THE_KNIGHT_DESIGN.md)
+for the proposed encounter, three-stat model, and implementation boundaries.
 
 Player physics are a GDScript port of Celeste's `Player.cs`
 (MIT, Maddy Makes Games — https://github.com/NoelFB/Celeste).
@@ -19,7 +23,19 @@ In the browser, saves, options and your own levels are kept by the browser; the 
     godot -e --path .         # open in editor
 
 ## Controls (remappable in Options)
-Arrows move · C/Space jump · X/Shift dash · Z/V grab · S interact (house doors) · A attack (swings toward the held direction; F1 → `DASH_DIRS` / `ATTACK_DIRS` limit dash and attack to 0 off, 1 horizontal, -1 vertical, 2 four-way, 3 eight-way, 4 free aim) · Esc pause · M map · F1 movement tuning · F2 hitboxes · F3 stamina · F4 state machine · F12 assist mode (the pause menu also opens F1, F3 and F4, top right). Gamepad: A jump · R1 dash · X attack · R2 grab · B interact, back in menus (remap in Options → Controller Buttons).
+Arrows move · C/Space jump · X/Shift dash · Z/V grab · S interact (house doors) · Q punch · A sword attack (swings toward the held direction; F1 → `DASH_DIRS` / `ATTACK_DIRS` limit dash and attack to 0 off, 1 horizontal, -1 vertical, 2 four-way, 3 eight-way, 4 free aim) · Esc pause · M map · F1 movement tuning · F2 hitboxes · F3 stamina · F4 state machine · F12 assist mode (the pause menu also opens F1, F3 and F4, top right). Gamepad: A jump · R1 dash · X sword · Y punch · R2 grab · B interact, back in menus (remap in Options → Controller Buttons).
+
+## Stress
+
+Adventure runs have five stress bars (50 each, 250 maximum), initially empty.
+Death adds 20; entering low-stamina white-hair exhaustion adds 5 once per episode.
+Monster kills remove 50; boss kills and permanent collectibles remove 100.
+Stress survives death and saving. Continuing a save after at least 12 hours grants
+one reduction of 100, recorded immediately to prevent repeated claims.
+Recovery speed at 0/50/100/150/200/250 stress is 100/90/80/75/70/65%, with smooth
+interpolation. The HUD displays stress and the recovery multiplier. Existing water,
+climbing and stun recovery restrictions still apply. Reusable refills do not count
+as permanent collectibles. Stress tests: `res://tests/stress.tscn`.
 
 ## Moves
 Run, variable jump, coyote time, input buffering, wall jump, wall slide, climb + stamina,
@@ -37,6 +53,10 @@ dash / climb ability orbs (adventure only), note (design reminder: "Needs double
 its text shows in the editor, and in game while standing on it), door (drag a rectangle; links to another door by
 "room:id" or "id": rooms that don't touch, elevators, shortcuts), water (looks only), acid (kills on touch),
 enemy and breakable placeholders (named boxes, harmless, stand-ins until real ones are coded).
+Punch: always available, with a tiny 3×3 pixel reach beyond the body and a brief active window. Punch and sword share a cooldown and adventure costs: 2 stamina per attempt, plus 4 on the first successful enemy hit. Punches cannot damage walls.
+
+Hidden Wall: author in the Terrain palette; concealed until punched directly, then shown as a breakable wall. Discovery persists for the run, and the wall remains solid until broken with the sword.
+
 Breakable Wall: solid until hit 3 times with the attack (`hp` in the level file); stays broken for the run.
 
 ## Adventure
@@ -73,7 +93,7 @@ MMB or Space+drag pan · wheel zoom · Ctrl+Z undo · Ctrl+S save · F5 playtest
 Shift+drag select an area, Ctrl+X / Ctrl+C cut or copy it, Ctrl+V paste at the mouse (also into another room).
 Editing a world room: yellow arrows outside the edges lead to the touching rooms (click, or Ctrl + arrow key), cyan
 arrows over doors to the rooms they lead to; both ask to save first.
-Levels save as JSON in `user://levels/` (Linux: `~/.local/share/godot/app_userdata/Summit/levels/`).
+The game keeps its legacy Summit data directory so existing saves, settings and custom levels remain available after the rename. Levels save as JSON in `user://levels/` (Linux: `~/.local/share/godot/app_userdata/Summit/levels/`).
 
 ## Combat enemies
 
@@ -204,3 +224,6 @@ falling and thrown logs share floor-spike behavior, and phase-two logs split at 
 
 In the desktop source version, **Monster Editor** on the main menu opens the CSV
 editor directly. Restart the game after updating the source to see the new entry.
+
+Room editor: use **Object movement** to configure surface/sticky patrols or editable
+open/closed paths for movable enemies and objects. See [patrol controls and runtime rules](docs/PATROL_AUTHORING.md).

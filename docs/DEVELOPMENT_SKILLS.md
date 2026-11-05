@@ -13,11 +13,11 @@ The five existing skills were retained: `systematic-debugging`, `test-driven-dev
 
 ## Seven additions
 
-| Skill | How it helps Summit | Verified files per installation |
+| Skill | How it helps Be the Knight | Verified files per installation |
 | --- | --- | --- |
 | [performance-optimization](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/disciplines/performance-optimization) | Profile frame time before optimizing chase planning, terrain rendering or sound startup. | 2 |
 | [code-review](https://github.com/jwynia/agent-skills/tree/e02ec7e226a6e4f8419fd3b88a1d8e472d421b32/skills/tech/development/quality/code-review) | Review correctness, duplication, function responsibilities and coupling before larger changes. | 1 |
-| [create-game-assets](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/disciplines/create-game-assets) | Keep Nori, the Ape, enemies and scenery consistent in palette, proportions, native resolution and animation. | 11 |
+| [create-game-assets](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/disciplines/create-game-assets) | Keep Be, the Ape, enemies and scenery consistent in palette, proportions, native resolution and animation. | 11 |
 | [level-design](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/disciplines/level-design) | Plan fair jump distances, encounters, rest areas, progression gates and room flow. | 2 |
 | [save-systems](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/disciplines/save-systems) | Guide validation, save versioning, migration, backups and atomic writes. | 2 |
 | [godot-ui-control](https://github.com/gamedev-skills/awesome-gamedev-agent-skills/tree/184b72be02884f782a0058f2eeae2ce4277453e4/skills/godot/godot-ui-control) | Improve responsive menus, editor panels, anchors, containers, themes and keyboard/gamepad focus. | 2 |
@@ -27,12 +27,12 @@ The five existing skills were retained: `systematic-debugging`, `test-driven-dev
 
 These are assistant instructions and reference material, not runtime game plugins. Installing them does not change gameplay or install their example systems into the project.
 
-Summit's repository instructions and explicit user requests take precedence. In particular, retain the custom whole-pixel movement, 60 Hz timestep, separate movement/interaction/damage boxes, existing World/entity ownership and original asset attribution. Use relevant guidance for each task rather than forcing generic scene/node examples onto the current architecture.
+Be the Knight's repository instructions and explicit user requests take precedence. In particular, retain the custom whole-pixel movement, 60 Hz timestep, separate movement/interaction/damage boxes, existing World/entity ownership and original asset attribution. Use relevant guidance for each task rather than forcing generic scene/node examples onto the current architecture.
 
 - **performance-optimization:** Use measured before/after timings on the same scenario; preserve movement rules.
 - **code-review:** Treat generic complexity/line-count thresholds as prompts for judgment, not reasons for a wholesale rewrite.
 - **create-game-assets:** Keep the native pixel grids, established sprite anchors and atlas workflow; inspect assets in-game.
-- **level-design:** Derive dimensions from Summit actual movement and verify with its room-safety tools and playtests.
+- **level-design:** Derive dimensions from Be the Knight actual movement and verify with its room-safety tools and playtests.
 - **save-systems:** Extend the existing Game/Adventure progress model rather than introducing an unrelated replacement manager.
 - **godot-ui-control:** Retain existing input actions, touch behavior and readable layouts across screen sizes.
 - **godot-audio:** Keep the single SiON driver, independent volume controls, bounded effect voices and original sound design.

@@ -40,8 +40,8 @@ func _clear() -> void:
 func _main() -> void:
 	_clear()
 	hint.text = "Arrows: move    %s / Enter: select    %s / Esc: back" % [Game.key_name("jump"), Game.key_name("dash")]
-	body.add_child(Game.label("SUMMIT", 72))
-	body.add_child(Game.label("a mountain-climbing platformer", 20))
+	body.add_child(Game.label("Be the Knight", 56))
+	body.add_child(Game.label("Be faces the world within", 20))
 	body.add_child(HSeparator.new())
 	var play := Game.button("Adventure", _adventure)
 	body.add_child(play)

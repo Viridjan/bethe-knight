@@ -17,12 +17,12 @@ func _ready() -> void:
 	ui._select_enemy(0)
 	var log_hint := _hint(ui, "ape_log")
 	check(not log_hint.to_lower().contains("leap") and log_hint.contains(catalog.attack("ape_throw").codex_online_name), "Normal log tooltip describes its remaining throw source")
-	ui._select_enemy(1)
+	ui._select_enemy(0)
 	log_hint = _hint(ui, "ape_log")
-	check(log_hint.contains(catalog.attack("ape_split").codex_online_name) and not log_hint.contains(catalog.attack("ape_throw").codex_online_name), "Phase-two ordinary log tooltip describes splitting, not a direct throw")
+	check(log_hint.contains(catalog.attack("ape_split").codex_online_name) and log_hint.contains(catalog.attack("ape_throw").codex_online_name) and log_hint.contains("Phase 1") and log_hint.contains("Phase 2"), "Unified log tooltip distinguishes both phase sources")
 	catalog.enemy_profile("boss_ape").phase2_throw_effect = "ape_log"
 	catalog.attack("ape_throw").codex_online_name = "Custom launcher"
-	ui._select_enemy(1)
+	ui._select_enemy(0)
 	check(_hint(ui, "ape_log").contains("Custom launcher") and not _hint(ui, "ape_log").contains("Splitting log"), "Changing the phase-two projectile refreshes source descriptions")
 	catalog.enemy_profile("boss_ape").landing_effects = ["ape_slam"]
 	catalog.attack("ape_leap").codex_online_name = "Custom jump"

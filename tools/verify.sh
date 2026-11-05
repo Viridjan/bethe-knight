@@ -23,7 +23,14 @@ run() {  # run <success regex> <godot args...>
 	fi
 }
 run '^0 failure\(s\)' res://tests/test.tscn
+run '^PUNCH: 0 failure\(s\)' res://tests/punch.tscn
 run '^SMOKE OK' res://tests/smoke.tscn
+run '^IDENTITY: 0 failure\(s\)' res://tests/identity.tscn
+run '^STRESS: 0 failure\(s\)' res://tests/stress.tscn
+run '^PARTIAL FOUNDATIONS: 0 failure\(s\)' res://tests/partial_foundations.tscn
+run '^PATROL AUTHORING: 0 failure\(s\)' res://tests/patrol_authoring.tscn
+run '^TRAPS TRIGGERS: 0 failure\(s\)' res://tests/traps_triggers.tscn
+run '^WORLD SELECTION: 0 failure\(s\)' res://tests/world_selection.tscn
 run '^WEB MENU OK' res://tests/web_menu.tscn
 run '^ATTACK CATALOG OK' res://tests/attack_catalog.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_composition.tscn

@@ -1,5 +1,24 @@
 # TODO
 
+Current delivery audit: [implemented, partial and missing requests](docs/IMPLEMENTATION_STATUS.md) (2026-11-05). Design documents do not imply playable completion.
+
+### Partial-system foundations
+- [x] Ordinary enemy family health overrides in Enemy loadouts, including library monsters; preserve variant modifiers and legacy defaults; validate and save profiles.
+- [x] Extract existing floor/crawler motion and bounded brood death-spawn definitions into shared modules, with actual enemy regression tests.
+- [x] Author movement overrides for movable enemies/objects: surface/sticky patrol, starting direction/support, speed, open/closed paths, waypoint pauses, draggable points, collision-aware preview and undo/save/load. See [patrol authoring](docs/PATROL_AUTHORING.md).
+- [ ] Extend the foundations to condition-gated death actions and general phases. Next world primitives: timed traps and linked triggers.
+
+### Be the Knight: identity and new design
+- [x] Rename the application/menu to Be the Knight and establish Be as the protagonist; retain the legacy save directory and source asset identifiers.
+- [ ] Kraken: review [encounter, phases, ink, enemy model and stat proposal](docs/BE_THE_KNIGHT_DESIGN.md). Require exactly the full first energy bar and 250 stress; settle underwater capability and explain all conditions at the boat.
+- [x] Stress: persist 0–250 across deaths; +20 death, +5 exhaustion entry, −50 monster, −100 boss/collectible, −100 on a save opened after at least 12 hours (once). Recovery targets at 0/50/100/150/200/250 stress: 100/90/80/75/70/65%; smoothly interpolate partial bars; persist rest claims and avoid dash-only hair triggers. See `tests/stress.tscn`.
+- [ ] Kraken: build isolated boat encounter, safe-top/dangerous-bottom tentacles, one-hit head windows, four alternating sweep rounds, radial volleys 1/2/3 and transition ink; consider the proposed Undertow attack.
+- [ ] Ink: darkness once at 10%; borders stack independently, with agreed geometry/cap and attempt cleanup.
+- [ ] Review Enemy-tab composition model before changing its schema/UI; preserve the combined Ape page and omit redundant phase boxes.
+- [ ] Three working stats (Dexterity, Constitution, Attack): confirm final names/point budget; measure critical routes before base movement/recovery nerfs. Keep underwater survival separate from steering.
+- [ ] Ground each region in real-world references alongside Be's inner journey; city-jungle is a direction to develop, not an implemented rename of all rooms.
+
+
 - [ ] Modular mechanics programme: start with the Ape attack/effect and phase decomposition, then shared triggers/patrols/traps, inventory/keys, isolated story events, player abilities, hidden terrain, and teaching routes. See [implementation plan and acceptance gates](docs/MECHANICS_ARCHITECTURE_PLAN.md).
 - [x] First Ape composition slice: shared log effects, trigger-only bindings, editable health/phase entry, anchored waves, and regression checks. See [implementation and verification](reports/ape-composition-2026-11-03/README.md).
 
@@ -17,7 +36,8 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [ ] Big wavedash jump is a later gate (needs dash): decide which later level gives dash
 - [ ] Decide stamina thresholds, then build the unlocks: +10% jump, attack, abilities
 - [x] Jump costs 5 stamina and needs it (no jump with less; `Player.JUMP_STAMINA`, `Player.can_jump`)
-- [ ] Stamina costs: sword needs 200, swing 10, hit +15 (`Adventure.spend_stamina`); decide wall grab 20 or 30/s
+- [x] Punch and sword share costs: 2 per attempt, +4 on first accepted enemy hit. Punch is always available, tiny reach, reveals hidden walls without damaging them.
+- [ ] Decide wall grab stamina drain (20 or 30/s)
 - [ ] Stamina orb refills everything for now; decide how much collectibles restore
 - [x] Water drains stamina: 2.08 every 0.1 s, no regeneration in water; at 0 stamina in water the player dies (`Adventure.water_stamina`, `World.update_stamina`)
 - [x] HUD: stamina as a lightning bolt and one bar per block (top left, stars under it), area name (top centre), timer and deaths with a skull (top right)

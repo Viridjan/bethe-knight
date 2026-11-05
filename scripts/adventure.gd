@@ -11,6 +11,8 @@ extends RefCounted
 # world.json: {"start": "room_name", "rooms": {"room_name": [tile_x, tile_y], ...}}
 # Room files live next to it: <dir>/<room_name>.json. Notes and future ideas: docs/METROID_NOTES.md.
 
+const Stress := preload("res://scripts/progression/stress.gd")
+
 const T := 8
 # Moves the player starts the adventure without; ability pickups ("ability_<name>") unlock them.
 const ABILITIES := ["dash", "climb", "attack"]
@@ -196,7 +198,8 @@ static func _open_overlap(a: Dictionary, b: Dictionary, r: Rect2i) -> bool:
 # Create the initial progress record with start room, starting abilities and base stamina.
 static func new_run(world: Dictionary) -> Dictionary:
 	return {"room": world.start, "spawn": null, "abilities": world.get("abilities", []).duplicate(), "visited": [world.start],
-		"stars": [], "deaths": 0, "time": 0.0, "done": false,
+		"revealed_walls": [], "stars": [], "deaths": 0, "time": 0.0, "done": false,
+		"stress": 0.0, "stress_exhausted": false, "last_saved_at": 0,
 		"blocks": 1, "stamina": BASE_STAMINA, "taken": [],  # taken: one-time pickups, "room:x:y"
 		"seen": [], "kills": {}, "fragments": 0}  # fragments: total pieces; each three grant one capacity block
 
@@ -211,8 +214,10 @@ static func regen_stamina(run: Dictionary, dt: float) -> void:
 	var top := BASE_STAMINA
 	if run.stamina > BASE_STAMINA:
 		top = BASE_STAMINA + ceilf((run.stamina - BASE_STAMINA) / STAMINA_PER_BLOCK) * STAMINA_PER_BLOCK
-	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run))
+	Stress.observe_exhaustion(run, stamina_max(run))
+	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run)) * Stress.recovery_multiplier(Stress.value(run))
 	run.stamina = minf(maxf(top, run.stamina), run.stamina + rate * dt)
+	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Regeneration speed as a share of STAMINA_REGEN_MAX, by how full the bar is (0..1): from 2/s empty, linearly up
 # to 6/s at half full, then linearly down to 3/s full.
@@ -226,12 +231,14 @@ static func regen_factor(fill: float) -> float:
 # Drain stamina for the elapsed underwater time and report whether any stamina remains.
 static func water_stamina(run: Dictionary, dt: float) -> bool:
 	run.stamina = maxf(0.0, run.stamina - WATER_DRAIN * dt)
+	Stress.observe_exhaustion(run, stamina_max(run))
 	return run.stamina > 0
 
 # Wears stamina down by up to amount, never below 0 and never refusing (a jump always happens).
 # Subtract an action cost without going below zero; this function itself never refuses the action.
 static func drain_stamina(run: Dictionary, amount: float) -> void:
 	run.stamina = maxf(0.0, run.stamina - amount)
+	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Pays for an action; false (nothing spent) when there isn't enough.
 # Pay only when enough stamina is available; return whether payment succeeded.
@@ -239,23 +246,27 @@ static func spend_stamina(run: Dictionary, amount: float) -> bool:
 	if run.stamina < amount:
 		return false
 	run.stamina -= amount
+	Stress.observe_exhaustion(run, stamina_max(run))
 	return true
 
 # Set current stamina to the full capacity of the collected blocks.
 static func refill_stamina(run: Dictionary) -> void:
 	run.stamina = stamina_max(run)
+	Stress.observe_exhaustion(run, stamina_max(run))
 
 # A new block, already full.
 # Increase capacity by one block and add the new block stamina immediately.
 static func add_stamina_block(run: Dictionary) -> void:
 	run.blocks += 1
 	run.stamina += STAMINA_PER_BLOCK
+	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Persistent, explicit-interaction discovery. Stable IDs also survive room resizing.
 static func collect_energy_fragment(run: Dictionary, key: String) -> bool:
 	if run.taken.has(key):
 		return false
 	run.taken.append(key)
+	Stress.change(run, -Stress.COLLECTIBLE_RELIEF)
 	run.fragments = int(run.get("fragments", 0)) + 1
 	if run.fragments % 3 == 0:
 		add_stamina_block(run)
@@ -282,7 +293,8 @@ static func restore_run(world: Dictionary, run) -> Dictionary:
 	run.deaths = maxi(0, int(run.deaths)) if _finite(run.deaths) else 0
 	run.time = maxf(0.0, run.time) if _finite(run.time) else 0.0
 	run.stamina = clampf(run.stamina, 0.0, stamina_max(run)) if _finite(run.stamina) else stamina_max(run)
-	for k in ["abilities", "visited", "stars", "taken", "seen"]:
+	Stress.normalize(run, stamina_max(run))
+	for k in ["abilities", "visited", "stars", "taken", "seen", "revealed_walls"]:
 		run[k] = run[k].filter(func(x): return x is String)
 	var kills := {}
 	for t in run.kills:

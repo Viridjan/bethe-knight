@@ -1,5 +1,5 @@
 extends RefCounted
-# Original Nori artwork, authored as small text grids where each letter selects a palette color.
+# Be uses the original artwork (formerly named Nori), authored as small text grids where each letter selects a palette color.
 # Each animation occupies an atlas row; each 16x16 cell in that row is one pose.
 # Transparent spaces are empty pixels. Pixel clusters are drawn directly, without smooth rescaling.
 # The head and trailing hair use matching shades of the current dash-availability color.

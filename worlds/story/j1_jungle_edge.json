@@ -66,20 +66,6 @@
 			"t": "spikes_up",
 			"x": 176,
 			"y": 136
-		},
-		{
-			"attacks": [
-				"shoot"
-			],
-			"facing": 1,
-			"look": "enemy_skree",
-			"move": "hover",
-			"populated": true,
-			"t": "enemy_monster",
-			"tier": 0,
-			"traits": [],
-			"x": 95,
-			"y": 102
 		}
 	],
 	"environment": "forest",

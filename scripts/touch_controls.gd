@@ -18,6 +18,7 @@ const BUTTONS := [  # action, label, centre, radius
 	["jump", "Jump", Vector2(1150, 600), 72.0],
 	["dash", "Dash", Vector2(1150, 420), 60.0],
 	["attack", "Atk", Vector2(990, 620), 60.0],
+	["punch", "Punch", Vector2(850, 620), 50.0],
 	["grab", "Grab", Vector2(990, 460), 54.0],
 	["pause", "II", Vector2(1220, 50), 36.0],
 	["map", "Map", Vector2(1130, 50), 36.0],

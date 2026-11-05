@@ -13,14 +13,33 @@ func check_effect_listing() -> void:
 	ui.catalog = catalog
 	add_child(ui)
 	ui._show_enemies()
-	check(_effect_ids(ui) == ["ape_log", "ape_slam", "ape_spikes"], "Normal page shows only effects used by normal attacks")
-	ui._select_enemy(1)
+	check(ui.ENEMIES.filter(func(e): return e[0] == "boss_ape").size() == 1, "Ape phases share one enemy entry")
+	check(_effect_ids(ui) == ["ape_log", "ape_slam", "ape_spikes", "ape_split"], "Unified page includes both phase repertoires")
+	ui._select_enemy(0)
 	check(_effect_ids(ui) == ["ape_log", "ape_slam", "ape_spikes", "ape_split"], "Enraged page includes the splitting variant")
+	var badges: Array = ui.form.find_children("AttackPhases", "PanelContainer", true, false)
+	check(badges.is_empty(), "Attack cards omit redundant phase boxes on the right")
+	var normal: Dictionary = catalog.ordered_attacks("boss_ape", "normal")[0]
+	var enraged: Dictionary = catalog.ordered_attacks("boss_ape", "enraged")[0]
+	var old_range: String = normal.max_range_units
+	var rows: Array = ui._enemy_rows(ui.ENEMIES[0])
+	var card: Dictionary = rows.filter(func(r): return r.attack_name == enraged.attack_name)[0]
+	ui._binding_change(card._bindings[1], "max_range_units", "87")
+	check(normal.max_range_units == old_range and enraged.max_range_units == "87", "Shared cards preserve independent phase range editing")
+	enraged.max_range_units = old_range
+	ui._remove_binding(enraged)
+	var remaining: Dictionary = ui._enemy_rows(ui.ENEMIES[0]).filter(func(r): return r.attack_name == normal.attack_name)[0]
+	check(remaining._phases == ["normal"], "Removing one phase updates its phase box without removing the shared attack")
+	ui._add_binding(["boss_ape", "enraged", "Ape"], normal.attack_name)
+	ui._add_binding(["boss_ape", "normal", "Ape"], normal.attack_name)
+	check(catalog.ordered_attacks("boss_ape", "normal").filter(func(r): return r.attack_name == normal.attack_name).size() == 1, "Adding to both phases never duplicates an existing binding")
+	check(ui._enemy_rows(ui.ENEMIES[0]).filter(func(r): return r.attack_name == normal.attack_name)[0]._phases == ["normal", "enraged"], "Adding a missing phase restores the shared phase box")
+
 	catalog.enemy_profile("boss_ape").landing_effects = []
 	ui._select_enemy(0)
-	check(_effect_ids(ui) == ["ape_log", "ape_spikes"], "Disabling landing effects removes the wave but keeps thrown-log consequences")
+	check(_effect_ids(ui) == ["ape_log", "ape_spikes", "ape_split"], "Disabling landing effects removes the wave but keeps thrown-log consequences")
 	catalog.enemy_profile("boss_ape").phase2_throw_effect = "ape_log"
-	ui._select_enemy(1)
+	ui._select_enemy(0)
 	check(_effect_ids(ui) == ["ape_log", "ape_spikes"], "Replacing the phase-two projectile removes the unused splitting variant")
 	# Old CSVs may still list effects; those rows must not override the runtime profile.
 	catalog.assignments = catalog.assignments.filter(func(row): return not catalog.triggered(row))

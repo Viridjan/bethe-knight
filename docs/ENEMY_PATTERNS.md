@@ -1,13 +1,13 @@
 # Enemy movement and attack candidates
 
 Research notes, 2026-10-30. This is a design backlog, not an implementation checklist
-of features currently missing. Summit already has reusable patrol, hop, hover,
+of features currently missing. Be the Knight already has reusable patrol, hop, hover,
 charge, leap, and shooting primitives in `scripts/monster_library.gd`; audit and
 reuse them before adding variants.
 
 Movement determines where an enemy goes; an attack determines when and how it
 threatens the player. Combine one simple movement pattern with one attack first.
-The taxonomy and Summit applications below are design proposals synthesized from
+The taxonomy and Be the Knight applications below are design proposals synthesized from
 the references, rather than an official classification used by those games.
 
 ## Movement
@@ -45,7 +45,7 @@ the references, rather than an official classification used by those games.
 | Suicide explosion | Approaches, signals detonation, then explodes | Create distance during its warning |
 | Summon / split | Produces smaller threats, possibly on death | Prioritize the source; cap active children |
 
-## Suggested first set for Summit
+## Suggested first set for Be the Knight
 
 1. Audit existing roaming/contact, hopping, charge, leap, and bolt attacks.
 2. Add a wall-to-wall jumper, with a readable cling/windup and landing pause.
@@ -65,7 +65,7 @@ that the player has not unlocked; introduce patterns alone before combining them
   source; useful for simple enemies differentiated by movement.
 - [Dead Cells enemy catalogue](https://deadcells.wiki.gg/wiki/Enemies): community
   reference for bat charges, delayed grenades, wall-passing bolts, and explosive
-  enemies. Use the pattern, not necessarily its wall-passing rules, in Summit.
+  enemies. Use the pattern, not necessarily its wall-passing rules, in Be the Knight.
 - [Hollow Knight: Mantis Youth](https://hollowknight.wiki/w/Mantis_Youth): community
   reference for a wall/ceiling ambusher. This is inspiration for the wall-jumper
   proposal, not evidence that it repeatedly jumps between opposite walls.

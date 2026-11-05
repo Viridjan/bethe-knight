@@ -12,6 +12,13 @@ extends RefCounted
 # All level objects. Each is a small class; TYPES drives the editor palette.
 # Behaviour follows Celeste's entities, simplified where noted.
 
+const TrapCycle := preload("res://scripts/interaction/trap_cycle.gd")
+const TriggerSettings := preload("res://scripts/interaction/trigger_settings.gd")
+const PatrolRuntime := preload("res://scripts/motion/patrol_runtime.gd")
+const SurfacePatrol := preload("res://scripts/motion/surface_patrol.gd")
+const EnemyHealth := preload("res://scripts/actors/enemy_health.gd")
+const DeathActions := preload("res://scripts/actors/death_actions.gd")
+
 const T := 8
 const Art := preload("res://scripts/art.gd")
 const EnemyArt := preload("res://scripts/enemy_art.gd")
@@ -28,6 +35,9 @@ const AttackEffects := preload("res://scripts/effects/attack_effects.gd")
 # Registry row layout: [editor label, can drag to size, representative color, implementation class].
 # JSON uses the string key (for example refill), not the class name.
 const TYPES := {
+	"trap_spikes": ["Timed retracting spikes", true, Color("e3a661"), TimedSpikes],
+	"trigger_zone": ["Enter/exit trigger", true, Color("65dec6"), LinkedTrigger],
+	"pressure_plate": ["Pressure plate", true, Color("b3c976"), LinkedTrigger],
 	"respawn": ["Respawn", false, Color("ffffff"), Respawn],
 	"spawn": ["Respawn", false, Color("ffffff"), Respawn],
 	"spikes_up": ["Spikes ^", false, Color("dddddd"), Spikes],
@@ -104,6 +114,7 @@ const TYPES := {
 	"enemy_murkspore_brood": ["Murkspore · Brood", false, Color("c8d06a"), MurksporeEnemy],
 	"breakable": ["Breakable (placeholder)", true, Color("e09a40"), Placeholder],
 	# breakable wall: solid until struck "hp" times (default 3) by the attack; stays broken for the run
+	"hidden_wall": ["Hidden Wall", true, Color("857564"), HiddenWall],
 	"breakwall": ["Breakable Wall", true, Color("b08a60"), BreakWall],
 	"water": ["Water", true, Color("4a8ae0"), Liquid],
 	# story jungle (docs/STORY_DESIGN.md 1.5): a leafy jump-through, and falling water that pushes the player down
@@ -166,6 +177,11 @@ class Ent extends RefCounted:
 	var rem := Vector2.ZERO
 	var shake := Vector2.ZERO
 	var respawn := 0.0
+	var authored_patrol = null
+	var motion_driven := false
+	var motion_applying := false
+	var motion_dt := 0.0
+	var motion_enabled := true
 
 	# Attach the owner/data and initial pixel rectangle, then call the subclass setup hook.
 	func _init(world, data: Dictionary) -> void:
@@ -173,6 +189,9 @@ class Ent extends RefCounted:
 		d = data
 		rect = Rect2i(int(data.x), int(data.y), int(data.get("w", T)), int(data.get("h", T)))
 		setup()
+		if d.get("motion", {}) is Dictionary: motion_enabled = d.get("motion", {}).get("enabled", true)
+		if d.has("motion") and PatrolRuntime.Settings.supports(d) and PatrolRuntime.Settings.validate(d.motion).is_empty():
+			fixed = false
 
 	# Optional construction hook; subclasses set dimensions, flags and their own starting state here.
 	func setup() -> void: pass
@@ -211,6 +230,78 @@ class Ent extends RefCounted:
 	func damage_boxes() -> Array: return []  # extra boxes that hurt (projectiles, waves), for the hitbox overlay
 	# Optional per-physics-step hook. The base object has no timed behavior.
 	func update(_dt: float) -> void: pass
+	# The single runtime entry keeps old rooms unchanged and gives authored movement
+	# ownership of displacement while native animation/decision timers still run.
+	func tick(dt: float) -> void:
+		if not d.has("motion") or not PatrolRuntime.Settings.supports(d):
+			update(dt)
+			return
+		if authored_patrol == null:
+			if not PatrolRuntime.Settings.validate(d.motion).is_empty():
+				update(dt)
+				return
+			authored_patrol = PatrolRuntime.new(d.motion, rect, Vector2(d.x, d.y))
+		var actor := self as CombatEnemy
+		var star := self as Star
+		var driven: bool = actor == null or (collidable and actor.phase == "idle" and w != null and w.player != null and not w.player.dead)
+		if star != null and star.following: driven = false
+		var original := rect.position
+		motion_driven = driven
+		update(dt)
+		motion_driven = false
+		if actor != null and (not collidable or actor.phase != "idle"): driven = false
+		if not driven:
+			lift = Vector2.ZERO
+			return
+		rect.position = original
+		if not motion_enabled:
+			lift = Vector2.ZERO
+			return
+		motion_dt = dt
+		motion_applying = true
+		authored_patrol.advance(rect, dt, _patrol_blocked, _patrol_place, _patrol_support)
+		motion_applying = false
+		lift = Vector2(rect.position - original) / dt if dt > 0 else Vector2.ZERO
+		if (solid or jumpthru) and player_riding(): w.player.set_lift_speed(lift)
+		if actor != null and authored_patrol.config.mode == "surface":
+			var direction: Vector2i = authored_patrol.crawler.direction
+			if direction.x != 0: actor.facing = direction.x
+			var mite := self as ThornmiteEnemy
+			if mite != null:
+				mite.dir = direction
+				mite.down = authored_patrol.crawler.support
+
+	func apply_trigger(action: String) -> void:
+		match action:
+			"start_motion": motion_enabled = true
+			"stop_motion": motion_enabled = false
+			"toggle_motion": motion_enabled = not motion_enabled
+
+	func _patrol_blocked(candidate: Rect2i) -> bool:
+		if w == null: return false
+		if not w.bounds.encloses(candidate): return true
+		if self is IslandProp or self is Building: return false
+		if w.collide_solid(candidate, self) != null: return true
+		if self is CombatEnemy:
+			for hazard in w.touchables:
+				if hazard != self and hazard.collidable and (hazard.d.t == "acid" or hazard.d.t.begins_with("spikes_")) and hazard.rect.intersects(candidate): return true
+		return false
+
+	func _patrol_support(probe: Rect2i) -> bool:
+		if _patrol_blocked(probe): return true
+		if w != null and authored_patrol.crawler.support == Vector2i.DOWN:
+			var platform = w.collide_jumpthru(probe)
+			return platform != null and platform != self and rect.end.y <= platform.rect.position.y
+		return false
+
+	func _patrol_place(next: Rect2i) -> void:
+		var delta := Vector2(next.position - rect.position)
+		if solid or jumpthru: move_by(delta, motion_dt)
+		else: rect.position = next.position
+		var star := self as Star
+		if star != null and not star.following: star.pos += delta
+		if w != null and w.player != null and not w.player.dead and collidable and touch_rect().intersects(w.player.hurt_rect()): touch(w.player)
+
 	# Optional drawing hook. The base object has no artwork of its own.
 	func draw(_ci: CanvasItem) -> void: pass
 	# Optional contact hook. The base object does nothing; interactive subclasses override it.
@@ -234,6 +325,7 @@ class Ent extends RefCounted:
 	# Monocle Solid.Move: push or carry the player
 	# Move a solid while carrying riders and pushing the player clear of its path.
 	func move_by(amount: Vector2, dt: float) -> void:
+		if motion_driven and not motion_applying: return
 		rem += amount
 		var mx := roundi(rem.x)
 		var my := roundi(rem.y)
@@ -256,7 +348,7 @@ class Ent extends RefCounted:
 			return
 		collidable = false
 		var pr: Rect2i = p.hitbox()
-		if rect.intersects(pr) and p.state != p.ST_DREAM_DASH:
+		if rect.intersects(pr) and p.state != p.ST_DREAM_DASH and (not jumpthru or riding):
 			p.set_lift_speed(lift)
 			if h:
 				p.move_h_exact(rect.end.x - pr.position.x if m > 0 else rect.position.x - pr.end.x, 2)
@@ -286,6 +378,70 @@ class SpawnMarker extends Ent:
 			ci.draw_rect(Rect2(rect.position.x, rect.position.y - 3, 8, 11), Color(1, 1, 1, 0.6), false, 1.0)
 			ci.draw_rect(Rect2(rect.position.x + 2, rect.position.y - 1, 4, 3), Color("ac3232"))
 
+
+# Cycle and edge routing live in independent modules; entities own only contact/art.
+class TimedSpikes extends Ent:
+	var preview_animated := false
+	var cycle
+	func setup() -> void:
+		cycle = TrapCycle.new(d.get("trap", {}))
+	func hurts() -> bool: return cycle.active()
+	func describe() -> String:
+		return "Timed spikes: %s, %.2f seconds; %s" % [cycle.stage, cycle.remaining, d.get("object_id", "unlinked")]
+	func update(dt: float) -> void:
+		var starts: int = cycle.starts
+		cycle.advance(dt)
+		if cycle.starts > starts: Game.play_sfx("mechanism")
+		if w != null and w.player != null and not w.player.dead and (cycle.active() or cycle.active_time > 0) and rect.intersects(w.player.damage_rect()):
+			w.player.die(Vector2.UP)
+	func touch(p) -> void:
+		if cycle.active(): p.die(Vector2.UP)
+	func apply_trigger(action: String) -> void:
+		match action:
+			"activate": cycle.fire()
+			"deactivate": cycle.disable()
+			"toggle":
+				if cycle.enabled: cycle.disable()
+				else: cycle.fire()
+			_: super.apply_trigger(action)
+	func draw(ci: CanvasItem) -> void:
+		var extension: float = 1.0 if w == null and not preview_animated else cycle.extension()
+		var color := Color("e8b16d") if not cycle.active() else Color("f3d0ad")
+		var direction: String = cycle.config.direction
+		var vertical := direction in ["up", "down"]
+		var length: int = rect.size.x if vertical else rect.size.y
+		var depth: int = rect.size.y if vertical else rect.size.x
+		for at in range(0, length, 8):
+			var base: Vector2
+			var tangent := Vector2.RIGHT if vertical else Vector2.DOWN
+			var normal := {"up": Vector2.UP, "down": Vector2.DOWN, "left": Vector2.LEFT, "right": Vector2.RIGHT}[direction] as Vector2
+			if vertical: base = Vector2(rect.position.x + at, rect.end.y if direction == "up" else rect.position.y)
+			else: base = Vector2(rect.end.x if direction == "left" else rect.position.x, rect.position.y + at)
+			ci.draw_line(base, base + tangent * mini(8, length - at), Color("8c725c"), 2)
+			if extension > 0:
+				ci.draw_colored_polygon(PackedVector2Array([base, base + tangent * mini(8, length - at), base + tangent * mini(4, length - at) + normal * depth * extension]), color)
+
+class LinkedTrigger extends Ent:
+	var inside := false
+	func describe() -> String:
+		return "%s: %s (%s)" % [TYPES[d.t][0], "occupied" if inside else "idle", d.get("object_id", "unlinked")]
+	func update(_dt: float) -> void:
+		if w == null or w.player == null or w.trigger_router == null: return
+		var p = w.player
+		var occupied: bool = not p.dead and rect.intersects(p.hurt_rect())
+		if d.t == "pressure_plate":
+			var body: Rect2i = p.hitbox()
+			occupied = not p.dead and p.on_ground and Rect2i(rect.position.x, rect.end.y - 4, rect.size.x, 4).intersects(Rect2i(body.position.x, body.end.y - 1, body.size.x, 3))
+		if occupied != inside:
+			inside = occupied
+			if inside: w.trigger_router.enter(d.get("object_id", ""))
+			else: w.trigger_router.exit(d.get("object_id", ""))
+	func draw(ci: CanvasItem) -> void:
+		if d.t == "pressure_plate":
+			ci.draw_rect(Rect2(rect.position.x, rect.end.y - (2 if inside else 4), rect.size.x, 2 if inside else 4), Color("d9df88") if inside else Color("91a766"))
+		elif w == null:
+			ci.draw_rect(Rect2(rect), Color(0.3, 0.9, 0.8, 0.12))
+			ci.draw_rect(Rect2(rect), Color("65dec6"), false, 1.0)
 
 # Directional lethal surface. The contact rules consider approach direction instead of killing through its back.
 class Spikes extends Ent:
@@ -727,13 +883,9 @@ class CombatEnemy extends Ent:
 		home = Vector2(rect.position)
 
 	# Adjust a family baseline health value using the selected enemy variant.
-	func variant_hp(base: int) -> int:
-		match variant:
-			"swift": return maxi(1, base - 1)
-			"armored": return base + 2
-			"giant": return base * 2
-			"shielded": return base + 1
-		return base
+	func variant_hp(base: int, authored := true) -> int:
+		var initial := EnemyHealth.base(AttackCatalog.shared().enemy_profile(family()), base) if authored else base
+		return EnemyHealth.modified(initial, variant)
 
 	# Variants are traits; an ActionMonster can have several.
 	func has_trait(t: String) -> bool:
@@ -786,6 +938,7 @@ class CombatEnemy extends Ent:
 
 	# Accumulate fractional motion and move whole pixels, checking obstructions and player contact along the way.
 	func move_enemy(delta: Vector2) -> bool:
+		if motion_driven: return false
 		rem += delta
 		var amount := Vector2i(roundi(rem.x), roundi(rem.y))
 		rem -= Vector2(amount)
@@ -817,20 +970,15 @@ class CombatEnemy extends Ent:
 		return true
 
 	# Walks px forward one pixel at a time; true when a wall or the edge of the floor stops it.
-	var walk_rem := 0.0
-	# Advance the floor patrol one pixel at a time, stopping before a wall or unsafe ledge.
+	var floor_patrol := SurfacePatrol.Floor.new()
+	func _patrol_moved(body: Rect2i) -> void:
+		rect = body
+		contact()
+
+	# The shared controller returns true when terrain/support stops movement.
 	func walk(px: float) -> bool:
-		walk_rem += px
-		var n := int(walk_rem)
-		walk_rem -= n
-		for i in n:
-			var next := Rect2i(rect.position + Vector2i(facing, 0), rect.size)
-			if not safe_step() or blocked(next):
-				walk_rem = 0.0
-				return true
-			rect = next
-			contact()
-		return false
+		if motion_driven: return false
+		return floor_patrol.advance(rect, px, facing, safe_step, blocked, _patrol_moved)
 
 	# Test player contact immediately after enemy movement so a fast step cannot skip the damage check.
 	func contact() -> void:
@@ -863,6 +1011,9 @@ class CombatEnemy extends Ent:
 		return has_trait("shielded") and to.dot(front()) > 0 and to.y > -rect.size.y * 0.5
 
 	# Apply one sword hit, respecting shield/flash protection and triggering death or variant reactions.
+	func can_receive_melee(p) -> bool:
+		return collidable and flash <= 0 and not blocks(p)
+
 	func hit(p) -> void:
 		if not collidable or flash > 0:
 			return
@@ -886,11 +1037,8 @@ class CombatEnemy extends Ent:
 
 	# Queue smaller child enemies after a brood-variant parent is defeated.
 	func brood() -> void:
-		var kid_t: String = family() + "_swift" if TYPES.has(family() + "_swift") else family()
-		for side in [-1, 1]:
-			var kid := Rect2i(Vector2i(center()) + Vector2i(side * 4 - 2, -2), Vector2i(4, 4))
-			var at: Vector2i = kid.position if not blocked(kid.grow(2)) else Vector2i(center()) - Vector2i(2, 2)
-			w.spawn_entity({"t": kid_t, "x": at.x, "y": at.y, "facing": side, "brood_child": true})
+		for child in DeathActions.brood(d, center(), family(), func(t): return TYPES.has(t), blocked):
+			w.spawn_entity(child)
 
 	# Venom: every so often a puddle on the surface below; the player dies on touching one.
 	# Compute the small surface region where this venom variant leaves a harmful trail.
@@ -964,8 +1112,7 @@ class CombatEnemy extends Ent:
 					remove = true
 					break
 				var p = w.player
-				var to_shot: Vector2 = shot[0] - p.center()
-				if p.attacking() and to_shot.length() <= p.ATTACK_RANGE and absf(p.attack_dir.angle_to(to_shot)) <= deg_to_rad(p.ATTACK_ARC) / 2:
+				if p.attack_reaches_rect(box):
 					remove = true
 					break
 				if box.intersects(p.damage_rect()):
@@ -1134,7 +1281,7 @@ class ThornmiteEnemy extends CombatEnemy:
 	# Crawls around terrain like a mite on a rock: floors, walls and ceilings, turning at every corner.
 	var dir := Vector2i.RIGHT  # crawl direction
 	var down := Vector2i.DOWN  # the surface it clings to
-	var crawl := 0.0  # sub-pixel movement owed
+	var surface_patrol := SurfacePatrol.Crawler.new()
 	var fall := 0.0
 	# Initialize ThornmiteEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
@@ -1158,6 +1305,7 @@ class ThornmiteEnemy extends CombatEnemy:
 	# Advance ThornmiteEnemy timers and behavior for dt seconds; this is called by World, not by Godot automatically.
 	func update(dt: float) -> void:
 		if not active(dt): return
+		if motion_driven: return
 		if not clings():
 			down = Vector2i.DOWN
 			if not clings():  # nothing to hold: drop to the floor below
@@ -1166,25 +1314,11 @@ class ThornmiteEnemy extends CombatEnemy:
 					fall = 0
 					dir = Vector2i(facing, 0)
 				return
-		crawl += 20 * speed_multiplier * dt
-		while crawl >= 1:
-			crawl -= 1
-			var ahead := Rect2i(rect.position + dir, rect.size)
-			if blocked(ahead):  # inner corner: climb the wall ahead
-				var turned := -down
-				down = dir
-				dir = turned
-				continue
-			rect = ahead
-			contact()
-			if not clings():  # outer corner: turn and step around the edge in one move, so it never lets go
-				var turned := down
-				down = -dir
-				dir = turned
-				var around := Rect2i(rect.position + dir, rect.size)
-				if not blocked(around):
-					rect = around
-					contact()
+		surface_patrol.direction = dir
+		surface_patrol.support = down
+		surface_patrol.advance(rect, 20 * speed_multiplier * dt, blocked, _patrol_moved)
+		dir = surface_patrol.direction
+		down = surface_patrol.support
 		facing = 1 if down.x * dir.y - down.y * dir.x < 0 else -1
 	# Draw ThornmiteEnemy at its current pose; this must also work for an editor preview with no World.
 	func draw(ci: CanvasItem) -> void:
@@ -1270,10 +1404,10 @@ class ActionMonster extends CombatEnemy:
 			warning_multiplier *= m[1]
 			recovery_multiplier *= m[2]
 			scale = maxf(scale, m[3])
-		hp = MonsterLib.MOVES[d.move].hp
+		hp = EnemyHealth.base(AttackCatalog.shared().enemy_profile("enemy_monster"), MonsterLib.MOVES[d.move].hp)
 		for t in d.traits:
 			variant = t
-			hp = variant_hp(hp)
+			hp = variant_hp(hp, false)
 		variant = ""
 		var tier := clampi(int(d.get("tier", 0)), 0, 2)
 		scale *= TIER_SCALE[tier]  # upgraded: a bit bigger and coloured
@@ -1286,13 +1420,7 @@ class ActionMonster extends CombatEnemy:
 		return t in d.get("traits", [])
 	func ground() -> bool:
 		return MonsterLib.MOVES[d.move].ground
-	func brood() -> void:  # two small, quick copies without the brood trait
-		for side in [-1, 1]:
-			var kid: Dictionary = d.duplicate(true)
-			kid.traits = d.traits.filter(func(t): return t != "brood")
-			var at := Vector2i(center()) + Vector2i(side * 4 - 2, -2)
-			kid.merge({"x": at.x, "y": at.y, "facing": side, "brood_child": true}, true)
-			w.spawn_entity(kid)
+
 	func update(dt: float) -> void:
 		if w != null and w.player != null:
 			update_shots(orbs, dt, 0.0)
@@ -1637,6 +1765,43 @@ class BreakWall extends Ent:
 			ci.draw_rect(r, Color(1, 1, 1, 0.5))
 
 
+# Concealed terrain stays solid when discovered; only the sword can damage it.
+class HiddenWall extends BreakWall:
+	var revealed := false
+	func setup() -> void:
+		super.setup()
+		revealed = w != null and w.revealed_walls.has(id)
+	func reveal_from_punch() -> void:
+		if revealed: return
+		revealed = true
+		Game.play_sfx("impact")
+		w.burst(center(), Color("e8d49b"), 6)
+		w.reveal_hidden_wall(id)
+	func hit(p) -> void:
+		reveal_from_punch()
+		super.hit(p)
+	func terrain_at(cell: Vector2i) -> bool:
+		return rect.has_point(cell * 8 + Vector2i(4,4)) or Art.EnvironmentArt.solid(w.tiles,w.gw,w.gh,cell.x,cell.y)
+	func draw(ci: CanvasItem) -> void:
+		if revealed or w == null:
+			super.draw(ci)
+			return
+		if not collidable: return
+		var environment: String = w.data.get("environment", "")
+		if environment not in Art.EnvironmentArt.THEMES:
+			ci.draw_rect(Rect2(rect), Art.FILL)
+			return
+		var atlas := Art.EnvironmentArt.texture(environment,"terrain")
+		for y in range(floori(rect.position.y/8.0),ceili(rect.end.y/8.0)):
+			for x in range(floori(rect.position.x/8.0),ceili(rect.end.x/8.0)):
+				var cell := Vector2i(x,y)
+				var mask := (0 if terrain_at(cell+Vector2i.UP) else 1) + (0 if terrain_at(cell+Vector2i.RIGHT) else 2) + (0 if terrain_at(cell+Vector2i.DOWN) else 4) + (0 if terrain_at(cell+Vector2i.LEFT) else 8)
+				var tile := Rect2i(x*8,y*8,8,8)
+				var part := tile.intersection(rect)
+				var source := Vector2i(mask*8,(absi(hash(cell))%4)*8) + part.position-tile.position
+				ci.draw_texture_rect_region(atlas,Rect2(part),Rect2(source,part.size))
+
+
 # Editor reminder or authored one-shot sound trigger; sound triggers stay invisible during gameplay.
 class Note extends Ent:  # design reminder or a one-shot authored sound trigger
 	var sound_played := false
@@ -1928,6 +2093,7 @@ class ZipMover extends Ent:
 		move_by(p - (Vector2(rect.position) + rem), dt)
 	# Advance ZipMover timers and behavior for dt seconds; this is called by World, not by Godot automatically.
 	func update(dt: float) -> void:
+		if motion_driven: return
 		match st:
 			0:
 				if player_riding():
@@ -1970,9 +2136,18 @@ class ZipMover extends Ent:
 		var half := Vector2(rect.size) / 2.0
 		var a := start + half
 		var b := target + half
-		ci.draw_line(a, b, Color("4a4030"), 2.0)
-		ci.draw_circle(a, 2, Color("4a4030"))
-		ci.draw_circle(b, 2, Color("4a4030"))
+		var motion: Dictionary = d.get("motion", {})
+		if motion.get("mode", "") == "path":
+			var points: Array = motion.points
+			var count := points.size() if motion.get("closed", false) else points.size() - 1
+			for i in count:
+				var first: Array = points[i]
+				var last: Array = points[(i + 1) % points.size()]
+				ci.draw_line(Vector2(first[0], first[1]) + half, Vector2(last[0], last[1]) + half, Color("4a4030"), 2.0)
+		elif motion.is_empty():
+			ci.draw_line(a, b, Color("4a4030"), 2.0)
+			ci.draw_circle(a, 2, Color("4a4030"))
+			ci.draw_circle(b, 2, Color("4a4030"))
 		var r := Rect2(Vector2(rect.position) + shake, rect.size)
 		BlockArt.draw(ci, rect, "zip", shake)
 		var lit := Color("60e060") if st in [0, 5] else (Color("e04040") if st != 3 else Color("e0e040"))
@@ -2413,6 +2588,8 @@ class Guardian extends Ent:
 		Game.play_sfx("enemy_hit", 0.6)
 		w.burst(center(), Color("ff6040"), 16)
 	func _beaten() -> void:
+		if phase == "gone": return
+		w.killed_enemy(d.t)
 		Game.play_sfx("complete")
 		phase = "gone"
 		w.break_wall(id)
@@ -2852,6 +3029,8 @@ class Ape extends Ent:
 		_go("hurt", 0.8)
 	# Record permanent boss defeat, release the arena and spawn the configured reward.
 	func _beaten() -> void:
+		if phase == "gone": return
+		w.killed_enemy(d.t)
 		Game.play_sfx("complete")
 		phase = "gone"
 		collidable = false

@@ -133,6 +133,8 @@ func _ready() -> void:
 		var editor = load(ui_path).new()
 		editor.catalog = catalog
 		add_child(editor)
+		check(editor.view == "enemies" and editor.enemy_tab.button_pressed, "Monster editor opens on enemy loadouts")
+		editor._show_table(false)
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
 		check(editor.get("search") != null, "Monster editor provides searchable navigation")
 		editor.search.text = "ape_scream"
@@ -176,8 +178,8 @@ func _ready() -> void:
 		editor._show_table(true)
 		check(editor.table.item_count == catalog.assignments.size(), "Monsters CSV editor lists range assignments")
 		editor._show_enemies()
-		check(editor.table.item_count == editor.ENEMIES.size() + 1 and editor.ENEMIES.size() > 30 and not editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
-			"Enemies tab lists the enemies (editable, a divider, read-only) and shows the selected one's sprite")
+		check(editor.table.item_count == editor.ENEMIES.size() + 1 and editor.ENEMIES.size() > 30 and editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
+			"Enemy loadouts include library monsters, code-driven attack families and a sprite preview")
 		var first: String = catalog.ordered_attacks("enemy_monster", "default")[0].attack_name
 		editor._move(catalog.ordered_attacks("enemy_monster", "default")[0], 1)
 		check(catalog.ordered_attacks("enemy_monster", "default")[1].attack_name == first and editor.dirty, "The lower-priority button moves an attack down the list")
@@ -276,12 +278,12 @@ func _ready() -> void:
 		var hb: int = editor.ENEMIES.map(func(x): return x[0]).find("enemy_hornback")
 		editor._select_enemy(hb)
 		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
-		editor._select_enemy(1)
+		editor._select_enemy(0)
 		await get_tree().process_frame
 		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Selected attacks"),
-			"Enemies tab shows the Ape (enraged) with its repertoire score")
+			"Enemies tab shows the Ape phases with its repertoire score")
 		editor._save()
-		check(editor.view == "enemies" and editor.enemy_index == 1 and not editor.dirty, "Save preserves the active enemy loadout view")
+		check(editor.view == "enemies" and editor.enemy_index == 0 and not editor.dirty, "Save preserves the active enemy loadout view")
 		editor.queue_free()
 	else: check(false, "Monsters CSV editor is implemented")
 	await _review_fixes(path)

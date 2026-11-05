@@ -1,9 +1,20 @@
-# Story world: chapter 1
+# Be the Knight: story world, chapter 1
 
 Design notes from 2026-10-24. Not built yet; tasks are in `TODO.md` (Story world).
 More details will be added later.
 
-The player faces right from the start, and the route mostly moves right.
+## Identity and framing
+
+The protagonist is **Be**, a woman whose opponents mostly represent entities within
+her. Levels connect inner experiences to the real world: a jungle can evoke a
+city jungle, for example. These are references to develop, not fixed diagnoses or
+an instruction to turn every enemy into a literal real-world person.
+
+The new Kraken encounter and stat progression are recorded in
+[Be the Knight design](BE_THE_KNIGHT_DESIGN.md). Existing room IDs and routes stay
+stable until their narrative names and connections are deliberately authored.
+
+Be faces right from the start, and the route mostly moves right.
 
 ## 1. Route
 

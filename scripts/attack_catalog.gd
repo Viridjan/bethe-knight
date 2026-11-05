@@ -1,4 +1,5 @@
 extends RefCounted
+const EnemyHealth := preload("res://scripts/actors/enemy_health.gd")
 # CSV source of truth for reusable attacks and per-enemy range bindings.
 # Units: tiles (8 pixels), seconds, square tiles. Scores are estimates at reference conditions.
 const PIXELS_PER_UNIT := 8.0
@@ -217,6 +218,12 @@ func validate() -> String:
 
 func _validate_profiles() -> String:
 	if enemy_profiles.get("version", 1) != 1: return "Unsupported enemy profile version"
+	for family in enemy_profiles:
+		if family in ["version", "boss_ape"]: continue
+		if family not in EnemyHealth.FAMILIES: return "Unsupported enemy profile: " + str(family)
+		var profile = enemy_profiles[family]
+		if not profile is Dictionary: return str(family) + " profile must be an object"
+		if profile.has("max_hp") and not EnemyHealth.valid(profile.max_hp): return str(family) + " health must be a whole number from 1 to 10000"
 	if not enemy_profiles.has("boss_ape"): return ""  # legacy CSV-only fixtures/world tooling
 	var p: Variant = enemy_profiles.boss_ape
 	if not p is Dictionary: return "Ape profile must be an object"

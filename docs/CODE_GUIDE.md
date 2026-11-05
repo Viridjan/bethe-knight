@@ -1,6 +1,6 @@
-# Reading the Summit code
+# Reading the Be the Knight code
 
-You do not need to understand every file at once. Summit has three main jobs: run a room, edit a room, and arrange rooms into a world. Most files serve one of those jobs. The comments in the first-party source explain their responsibilities and individual functions; this guide connects them.
+You do not need to understand every file at once. Be the Knight has three main jobs: run a room, edit a room, and arrange rooms into a world. Most files serve one of those jobs. The comments in the first-party source explain their responsibilities and individual functions; this guide connects them.
 
 ## Start here
 

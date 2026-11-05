@@ -1,0 +1,37 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Open paths reverse and consume remaining travel time
+PASS  Closed paths traverse the closing segment
+PASS  Waypoint pauses account for elapsed time exactly
+PASS  Valid motion survives room validation
+PASS  Duplicate path points are rejected
+PASS  Invalid motion speed is rejected
+PASS  Room spawn anchors reject unsupported motion instead of silently ignoring it
+PASS  A moving one-way platform carries its rider
+PASS  Moving platforms update their collision index
+PASS  Authored enemy patrol replaces native speed without double movement
+PASS  An attack wind-up pauses its authored route
+PASS  A route resumes after external displacement without teleporting
+PASS  Pickup patrol preserves its collider-to-anchor offset
+PASS  Non-colliding decorations can use the same route controller
+PASS  Moving hazards detect player contact during their travel
+PASS  Path bodies stop at room walls without tunnelling
+PASS  A placed wall patrol follows its vertical support
+PASS  Originally fixed solids use dynamic collision while patrolling
+PASS  A moving solid leaves no collision at its old position
+PASS  Surface patrol treats one-way platform tops as support
+PASS  Authored sticky patrol traverses connected corners and returns to the floor
+PASS  Room editor exposes an object-motion inspector
+PASS  Selecting a patrolling object shows its saved mode
+PASS  Canvas point insertion updates the actual room definition
+PASS  Motion edits participate in normal room undo
+PASS  Canvas dragging moves a selected numbered point
+PASS  A point drag is one undoable edit
+PASS  Inspector authors sticky and vertical starting-direction settings
+PASS  Inspector scrolling never zooms the room
+PASS  Copy/paste offsets path points with the object
+PASS  Authored motion saves and reloads through the room loader
+PASS  Invalid patrols cannot be written as unloadable room files
+PASS  Movement-tool help never hides a save validation error
+PASS  Pasting a path outside the room is rejected before changing tiles or objects
+PATROL AUTHORING: 0 failure(s)

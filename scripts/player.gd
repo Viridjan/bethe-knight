@@ -10,6 +10,7 @@ extends RefCounted
 
 const Art := preload("res://scripts/art.gd")
 const CharacterArt := preload("res://scripts/character_art.gd")
+const Melee := preload("res://scripts/combat/player_melee.gd")
 # Player controller: a GDScript port of Celeste's Player.cs
 # (MIT, Maddy Makes Games - https://github.com/NoelFB/Celeste).
 # Units are pixels and seconds, the same as the original, so values match 1:1.
@@ -210,7 +211,7 @@ var stamina: float:
 			_grip = v
 		elif v < stamina and not Game.settings.infinite_stamina:
 			var cost := minf(Game.adv.stamina, (stamina - v) / _climb_units())
-			Game.adv.stamina -= cost
+			Game.Adventure.drain_stamina(Game.adv, cost)
 			w._tally("climbing", -cost, 1.0 / 60.0)  # F3 recap (one drain per tick: counts seconds)
 func _shared_stamina() -> bool:
 	return w != null and w.adventure() and not Game.adv.is_empty()
@@ -257,6 +258,9 @@ var star_fly_speed_lerp := 0.0
 var star_fly_last_dir := Vector2.ZERO
 # Active sword swing and recovery are separate: a released button cannot bypass the cooldown.
 var attack_timer := 0.0
+var attack_kind := "sword"
+var punch_buf := 0.0
+var attack_surcharge_paid := false
 var attack_cooldown_timer := 0.0
 var attack_dir := Vector2.RIGHT
 var attack_hit: Array = []  # entities already struck by this swing
@@ -625,6 +629,9 @@ func _read_input(dt: float) -> void:
 	attack_buf -= dt
 	if Input.is_action_just_pressed("attack"):
 		attack_buf = INPUT_BUFFER
+	punch_buf -= dt
+	if Input.is_action_just_pressed("punch"):
+		punch_buf = INPUT_BUFFER
 	jump_check = Input.is_action_pressed("jump")
 	grab_check = Input.is_action_pressed("grab")
 	interact = Input.is_action_just_pressed("interact")
@@ -673,6 +680,7 @@ func update(dt: float) -> void:
 		jump_buf = 0
 		dash_buf = 0
 		attack_buf = 0
+		punch_buf = 0
 		jump_check = false
 		grab_check = false
 		interact = false
@@ -1955,19 +1963,43 @@ const NO_ATTACK_STATES := [ST_BOOST, ST_RED_DASH, ST_DREAM_DASH]
 func attacking() -> bool:
 	return attack_timer > 0
 
+func punching() -> bool:
+	return attacking() and attack_kind == "punch"
+
+func punch_box() -> Rect2i:
+	return Melee.fist(hitbox(),int(attack_dir.x))
+
+# Also used by projectile parries and F2 so a fist never inherits sword reach.
+func attack_reaches_rect(area: Rect2i, object = null) -> bool:
+	if not attacking(): return false
+	if punching():
+		return attack_timer<=Melee.PUNCH_ACTIVE_FROM and attack_timer>Melee.PUNCH_ACTIVE_TO and punch_box().intersects(area) and Melee.clear_contact(w,center(),area,object)
+	var r := Rect2(area)
+	var c := center()
+	var v := Vector2(clampf(c.x,r.position.x,r.end.x),clampf(c.y,r.position.y,r.end.y))-c
+	return v.length()<=ATTACK_RANGE and (v.length()<1.0 or absf(attack_dir.angle_to(v))<=deg_to_rad(ATTACK_ARC)/2.0)
+
 # Start buffered sword swings, track their active/cooldown timers and test for hits.
 func _attack_update(dt: float) -> void:
+	if dead or stun_t>0:
+		attack_timer = 0
+		punch_buf = 0
+		return
 	if attack_timer > 0:
 		attack_timer -= dt
 		if state in NO_ATTACK_STATES:
 			attack_timer = 0
-	elif attack_buf > 0 and attack_cooldown_timer <= 0 and ATTACK_DIRS != 0 and state not in NO_ATTACK_STATES:
+	elif (punch_buf>0 or (attack_buf>0 and Game.has_ability("attack") and ATTACK_DIRS!=0)) and attack_cooldown_timer<=0 and state not in NO_ATTACK_STATES:
+		if w != null and not w.spend_melee_stamina(Melee.ATTEMPT_COST): return
+		attack_kind = "punch" if punch_buf>0 else "sword"
+		punch_buf = 0
 		attack_buf = 0
 		sfx("attack")
-		attack_timer = ATTACK_TIME
+		attack_timer = Melee.PUNCH_TIME if attack_kind=="punch" else ATTACK_TIME
 		attack_cooldown_timer = ATTACK_COOLDOWN
-		attack_dir = dir_for(ATTACK_DIRS)
+		attack_dir = Vector2(facing,0) if attack_kind=="punch" else dir_for(ATTACK_DIRS)
 		attack_hit.clear()
+		attack_surcharge_paid = false
 		attack_log.append(w.time if w != null else 0.0)
 		if attack_log.size() > 10:
 			attack_log.pop_front()
@@ -1979,19 +2011,31 @@ func _attack_update(dt: float) -> void:
 func _attack_hits() -> void:
 	if w == null:
 		return
-	var c := center()
-	var half := deg_to_rad(ATTACK_ARC) / 2.0
 	for e in w.ents:
-		if not e.collidable or not e.has_method("hit") or e in attack_hit:
+		if not e.collidable or e in attack_hit:
 			continue
-		var r := Rect2(e.rect)
-		var v := Vector2(clampf(c.x, r.position.x, r.end.x), clampf(c.y, r.position.y, r.end.y)) - c
-		if v.length() <= ATTACK_RANGE and (v.length() < 1.0 or absf(attack_dir.angle_to(v)) <= half):
-			attack_hit.append(e)
-			e.hit(self)
+		if punching() and not e.has_method("can_receive_melee") and not e.has_method("reveal_from_punch"): continue
+		if not e.has_method("hit") or not attack_reaches_rect(e.rect,e): continue
+		attack_hit.append(e)
+		if punching() and e.has_method("reveal_from_punch"):
+			e.reveal_from_punch()
+			continue
+		var accepted: bool = e.has_method("can_receive_melee") and e.can_receive_melee(self)
+		if accepted and not attack_surcharge_paid:
+			if not w.spend_melee_stamina(Melee.ENEMY_HIT_COST): continue
+			attack_surcharge_paid = true
+		e.hit(self)
 
 # Draw the visible sword arc from the same direction and timing used by attack logic.
 func _draw_attack(ci: CanvasItem) -> void:
+	if punching():
+		var fist := Rect2(punch_box())
+		var active := attack_timer<=Melee.PUNCH_ACTIVE_FROM and attack_timer>Melee.PUNCH_ACTIVE_TO
+		var hand := fist.position if active else fist.position-attack_dir*2
+		ci.draw_line(center(),hand+fist.size/2,Color("3e79ad"),2.0)
+		ci.draw_rect(Rect2(hand-Vector2.ONE,fist.size+Vector2(2,2)),Color("28354b"))
+		ci.draw_rect(Rect2(hand,fist.size),Color("f1c3a1"))
+		return
 	var t := 1.0 - clampf(attack_timer / maxf(ATTACK_TIME, 0.001), 0, 1)
 	var half := deg_to_rad(ATTACK_ARC) / 2.0
 	var s := float(facing) if attack_dir.x == 0 else signf(attack_dir.x)  # overhead swing: starts above, ends below

@@ -5,8 +5,20 @@ Status: proposed implementation plan, 2026-11-03. No gameplay or room changes ar
 Implementation checkpoint: the first Ape slice now has extracted projectile/area
 primitives, explicit trigger-only bindings, shared falling/thrown logs, apex splitting,
 editable health/phase entry, and regression tests. See [the catalogue guide](ATTACK_CATALOG.md#ape-phases-and-consequences).
+New checkpoint 2026-11-05: family health editing, extracted floor/crawler/brood
+foundations, and [room-editor patrol authoring](PATROL_AUTHORING.md) are implemented.
+Movable bodies support surface/sticky and open/closed paths, runtime collision,
+point editing, previews and safe room round-trips. Traps, generic trigger links,
+inventory and the later terrain/content passes remain pending.
+
 The general attack runner, configurable event-graph authoring, and later milestones
 remain planned; this checkpoint does not mark the entire architecture programme complete.
+
+New direction, 2026-11-04: the game is **Be the Knight**, with Be as protagonist.
+The [Kraken, three-stat progression and Enemy-tab review proposal](BE_THE_KNIGHT_DESIGN.md)
+extend this programme. Kraken/ability balance remains design work; no new boss or
+stat nerfs are implied by the implemented title change. The current combined Ape
+page intentionally omits redundant right-side phase boxes.
 
 ## 1. What the current code tells us
 
@@ -15,7 +27,7 @@ Inspected: `scripts/entities.gd`, `world.gd`, `player.gd`, `adventure.gd`, `map_
 - `entities.gd` has 3,389 lines and combines registry, base entity, enemies, hazards, interactables, projectiles, and Ape encounter behavior. `world.gd` has 1,503 lines; `player.gd` has 2,165. Size identifies extraction candidates; it does not by itself prove a bug.
 - Entities inherit `RefCounted`; World explicitly updates, collides, and draws them. Preserve this lifecycle and pixel collision initially. Converting everything to `CharacterBody2D` would introduce an unrelated physics migration.
 - The player already has explicit movement states. Extract their responsibilities incrementally, preserving update order, timers, collision callbacks, and the 60 Hz timestep.
-- Ape has hardcoded HP/phase thresholds and embedded stone/log collections, landing effects, scream, and phase behavior. Its existing CSV integration provides a useful migration seam.
+- At the initial audit the Ape had hardcoded HP/phase thresholds and embedded projectile collections. The implemented slice now uses editable health/phase-entry profiles and extracted projectile/area effects; encounter decisions still live in `entities.gd`. Its CSV/profile integration is the migration seam.
 - The paused menu already has Map and Monsters tabs. Inventory belongs alongside them.
 - Run data already tracks abilities, pickups, discovery, and kills; inventory and event progress should extend that schema, rather than create a second save system.
 - Current `BreakWall.hit()` subtracts one HP per hit. The requested damage-based heavy walls therefore require a real damage contract; merely renaming current HP would not make stronger attacks work.
@@ -24,12 +36,12 @@ Inspected: `scripts/entities.gd`, `world.gd`, `player.gd`, `adventure.gd`, `map_
 
 These are primary manuals and educational sources consulted for this plan:
 
-| Source | What it provides | Application in Summit |
+| Source | What it provides | Application in Be the Knight |
 | --- | --- | --- |
 | [Godot: scene organization](https://docs.godotengine.org/en/stable/tutorials/best_practices/scene_organization.html) | Focused objects, explicit injected dependencies, and parent-mediated relationships | World supplies collision/spawn services; effects do not search unrelated game objects |
 | [Godot: Resources](https://docs.godotengine.org/en/stable/classes/class_resource.html) | Engine-supported data containers | Compile authored CSV/JSON into validated definitions; keep mutable runtime state separate |
 | [Game Programming Patterns: Component](https://gameprogrammingpatterns.com/component.html) | Separating behavioral domains through composition | Reuse motion, health, attack execution, and spawning without building a subclass for every combination |
-| [GDQuest: finite state machines in Godot 4](https://www.gdquest.com/tutorial/godot/design-patterns/finite-state-machine/) and [companion demos](https://github.com/gdquest-demos/godot-design-patterns) | A practical FSM tutorial and examples | Explicit enter/update/exit contracts for actors; adapt to Summit's existing RefCounted simulation |
+| [GDQuest: finite state machines in Godot 4](https://www.gdquest.com/tutorial/godot/design-patterns/finite-state-machine/) and [companion demos](https://github.com/gdquest-demos/godot-design-patterns) | A practical FSM tutorial and examples | Explicit enter/update/exit contracts for actors; adapt to Be the Knight's existing RefCounted simulation |
 | [GDC: Designing Celeste](https://www.gdcvault.com/play/1024307/Level-Design-Workshop-Designing-Celeste) / [official video](https://www.youtube.com/watch?v=4RlpMhBKNr0) | A developer talk about stage design, arranging area maps, and story | Reference when iterating teaching rooms, optional routes, and encounter pacing |
 
 The proposed structure below is our project-specific design, not a claim that those sources prescribe this exact system. File separation alone is insufficient: each module needs an owner, a small interface, testable inputs, and an explicit lifetime.

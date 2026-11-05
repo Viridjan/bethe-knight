@@ -133,6 +133,16 @@ class Hud extends Control:
 			y += 34.0
 			_text(font,Vector2(M,y+18),"Fragments %d/3" % (int(Game.adv.get("fragments",0)) % 3),18,Color("8ce1cc"))
 			y += 26.0
+			var stress: float = Adventure.Stress.value(Game.adv)
+			_text(font, Vector2(M, y + 16), "Stress", 16, Color("d5acda"))
+			for i in Adventure.Stress.BAR_COUNT:
+				var r := Rect2(M + 64 + i * 25, y + 4, 20, 11)
+				draw_rect(r.grow(1), Color.BLACK)
+				draw_rect(r, Color("272231"))
+				var fill := clampf(stress / Adventure.Stress.BAR_CAPACITY - i, 0.0, 1.0)
+				draw_rect(Rect2(r.position, Vector2(r.size.x * fill, r.size.y)), Color("ba7eaa"))
+			_text(font, Vector2(M, y + 36), "%d/250 · recovery %d%%" % [int(stress), roundi(100 * Adventure.Stress.recovery_multiplier(stress))], 14, Color("c3afc9"))
+			y += 46.0
 		if w.total_berries > 0:
 			_text(font, Vector2(M, y + 18), "★ %d/%d" % [w.collected.size(), w.total_berries], 18, Color("ffd34e"))
 		# top centre: the area's name
@@ -210,6 +220,7 @@ var touchables: Array = []
 var player
 var spawn := Vector2.ZERO
 var total_berries := 0
+var revealed_walls := {}
 var broken := {}  # breakable wall ids (star_key) broken this run (adventure: run.broken)
 var collected := {}  # star id -> true, banked this run (adventure: run.stars, ids prefixed by room)
 # Adventure only: current room of Game.adv_world and its top-left in world pixels.
@@ -228,6 +239,7 @@ var cam_prev := Vector2.ZERO
 var cam_now := Vector2.ZERO
 var freeze := 0.0
 var shake_t := 0.0
+var trigger_router = null
 var deaths := 0
 var time := 0.0
 var respawn_timer := 0.0
@@ -294,6 +306,8 @@ func _ready() -> void:
 		room_origin = Vector2(Game.adv_world.rooms[room].pos * T)
 		for k in Game.adv.stars:
 			collected[k] = true
+		for k in Game.adv.get("revealed_walls", []):
+			revealed_walls[k] = true
 		for k in Game.adv.get("broken", []):
 			broken[k] = true
 		deaths = Game.adv.deaths
@@ -341,9 +355,13 @@ func _ready() -> void:
 	_scan_floor_gaps()
 	cam_pos = cam_goal()
 	snap_interp()
+	if adventure() and Game.stress_rest_notice > 0:
+		show_interaction("Rested: stress -%d" % int(Game.stress_rest_notice))
+		Game.stress_rest_notice = 0.0
 
 # Recreate the collision grid and entity objects; keep_player preserves the actor during a room transition.
 func _build(keep_player := false) -> void:
+	trigger_router = null
 	if tiles.is_empty():
 		tiles = data.tiles.duplicate()
 	gw = int(data.w)
@@ -391,6 +409,8 @@ func _build(keep_player := false) -> void:
 
 # ---------------- adventure rooms ----------------
 # Distinguish a connected adventure run from a standalone custom level.
+	trigger_router = load("res://scripts/interaction/trigger_router.gd").new(ents, Game.has_ability)
+
 func adventure() -> bool:
 	return not Game.adv.is_empty()
 
@@ -436,6 +456,8 @@ func _register(e) -> void:
 		touch_by_type[e.d.t].append(e)
 		if e is E.Spikes:
 			spikes.append(e)
+
+	if trigger_router != null: trigger_router.register_entity(e)
 
 # Column index: cols[i] lists the entities overlapping x in [i * COL, (i + 1) * COL); edges clamp.
 func _col_add(cols: Array, e) -> void:
@@ -632,6 +654,10 @@ func _process(_delta: float) -> void:
 	near_layers[n] = l
 
 # Remember a destroyed wall or persistent boss object in the current run.
+func reveal_hidden_wall(id: String) -> void:
+	revealed_walls[id] = true
+	_save_run()
+
 func break_wall(id: String) -> void:
 	Game.play_sfx("crumble")
 	broken[id] = true
@@ -681,6 +707,7 @@ func show_note(text: String) -> void:
 func update_stamina(dt: float) -> void:
 	if not adventure() or player.dead:
 		return
+	Adventure.Stress.observe_exhaustion(Game.adv, Adventure.stamina_max(Game.adv))
 	var was: float = Game.adv.stamina
 	var why := "regen"
 	if player.stun_blocks_regen():
@@ -709,6 +736,7 @@ func set_respawn(p: Vector2) -> void:
 # A respawn point is safe when the player standing there is out of water and acid, clear of spikes and on ground.
 func safe_spawn(p: Vector2) -> bool:
 	var body := Rect2i(int(p.x) - 4, int(p.y) - 11, 8, 11)
+	if touch_by_type.get("trap_spikes", []).any(func(trap): return trap.rect.intersects(body.grow(1))): return false
 	if collide_solid(body) != null or liquid_at(body, "water") or liquid_at(body, "acid") or touching_spikes(body.grow(1)):
 		return false
 	var feet := Rect2i(int(p.x) - 3, int(p.y), 6, 1)
@@ -740,6 +768,7 @@ func add_stamina_block(key: String) -> void:
 	Game.play_sfx("unlock")
 	if adventure() and not stamina_block_taken(key):
 		Game.adv.taken.append(key)
+		Adventure.Stress.change(Game.adv, -Adventure.Stress.COLLECTIBLE_RELIEF)
 		Adventure.add_stamina_block(Game.adv)
 		stamina_event("stamina block (+capacity)", Adventure.STAMINA_PER_BLOCK)
 		_save_run()
@@ -758,6 +787,15 @@ func collect_energy_fragment(key: String) -> bool:
 	return true
 
 # Spend adventure stamina for an action; standalone levels have no adventure stamina cost.
+func spend_melee_stamina(amount: float) -> bool:
+	if not adventure() or Game.settings.get("infinite_stamina", false):
+		return true
+	var was: float = Game.adv.stamina
+	if not Adventure.spend_stamina(Game.adv, amount):
+		return false
+	stamina_event("melee", Game.adv.stamina - was)
+	return true
+
 func drain_stamina(amount: float, why := "jump") -> void:
 	if adventure():
 		var was: float = Game.adv.stamina
@@ -789,6 +827,8 @@ func killed_enemy(t: String) -> void:
 	if adventure():
 		saw_enemy(t)
 		Game.adv.kills[t] = int(Game.adv.kills.get(t, 0)) + 1
+		Adventure.Stress.change(Game.adv, -Adventure.Stress.BOSS_RELIEF if t.begins_with("boss_") else -Adventure.Stress.MONSTER_RELIEF)
+		_save_run()
 # The camera's view in room pixels.
 func view_rect() -> Rect2:
 	return Rect2(cam.position - VIEW / 2.0, VIEW) if cam != null else Rect2(bounds)
@@ -818,6 +858,7 @@ func grant_ability(a: String) -> void:
 	Game.play_sfx("unlock")
 	if adventure() and not Game.adv.abilities.has(a):
 		Game.adv.abilities.append(a)
+		Adventure.Stress.change(Game.adv, -Adventure.Stress.COLLECTIBLE_RELIEF)
 		_save_run()
 
 # Copy room-owned counters and persistent object IDs into Game.adv before writing the save file.
@@ -828,6 +869,7 @@ func _save_run() -> void:
 	Game.adv.time = time
 	Game.adv.stars = collected.keys()
 	Game.adv.broken = broken.keys()
+	Game.adv.revealed_walls = revealed_walls.keys()
 	Game.save_adventure()
 
 # ---------------- collision queries (used by player + entities) ----------------
@@ -949,6 +991,9 @@ func add_trail(p) -> void:
 # Count the death and start the short respawn delay.
 func on_player_death(p, _dir: Vector2) -> void:
 	deaths += 1
+	if adventure():
+		Adventure.Stress.change(Game.adv, Adventure.Stress.DEATH_GAIN)
+		_save_run()
 	respawn_timer = 0.6
 	burst(p.center(), p.hair_color(), 12)
 	shake_t = 0.3 if Game.settings.shake else 0.0
@@ -963,10 +1008,13 @@ func respawn() -> void:
 	if adventure() and Game.adv.stamina < Adventure.BASE_STAMINA:
 		stamina_event("respawn (base refill)", Adventure.BASE_STAMINA - Game.adv.stamina)
 		Game.adv.stamina = Adventure.BASE_STAMINA
+	if adventure(): Adventure.Stress.observe_exhaustion(Game.adv, Adventure.stamina_max(Game.adv))
 
 # Bank a following star, persist its ID and show its collection burst.
 func collect_berry(b) -> void:
+	if collected.has(b.id): return
 	Game.play_sfx("pickup")
+	if adventure(): Adventure.Stress.change(Game.adv, -Adventure.Stress.COLLECTIBLE_RELIEF)
 	collected[b.id] = true
 	_save_run()
 	burst(b.pos, Color("e03c3c"), 10)
@@ -1021,6 +1069,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_set_paused(not paused)
 
+# Dynamic one-way platforms keep their broadphase columns aligned with their body.
+func _tick_entity(entity, dt: float) -> void:
+	var before: Rect2i = entity.rect
+	entity.tick(dt)
+	if entity.jumpthru and before.position != entity.rect.position:
+		for column in _col_span(jumpthru_cols, before): jumpthru_cols[column].erase(entity)
+		_col_add(jumpthru_cols, entity)
+
 # Advance a fixed simulation tick unless paused; update player before entities, then particles and camera.
 # Order matters: player movement produces contacts/transitions before entities react to the new position.
 # A fixed DT preserves the original movement feel; the assist speed scales simulated time deliberately.
@@ -1048,7 +1104,8 @@ func _physics_process(_delta: float) -> void:
 		after_player_move()
 		update_stamina(dt)
 	for e in ents:
-		e.update(dt)
+		_tick_entity(e, dt)
+	if trigger_router != null: trigger_router.advance(dt)
 	for i in range(parts.size() - 1, -1, -1):
 		var pt = parts[i]
 		pt[0] += pt[1] * dt
@@ -1325,7 +1382,10 @@ func _draw_hitboxes(cull: Rect2i) -> void:
 			draw_arc(circle[0],circle[1],0,TAU,64,HITBOX_KEY[2][1],-1.0)
 	draw_rect(Rect2(player.hitbox()), HITBOX_KEY[3][1], false, -1.0)
 	draw_rect(Rect2(player.damage_rect()), HITBOX_KEY[4][1], false, -1.0)  # what hazards test against
-	if player.attacking():
+	if player.punching():
+		if player.attack_reaches_rect(player.punch_box()):
+			draw_rect(Rect2(player.punch_box()), Color(1, 0.8, 0.3, 0.5))
+	elif player.attacking():
 		var c: Vector2 = player.center()
 		var half := deg_to_rad(player.ATTACK_ARC) / 2.0
 		var pts := PackedVector2Array([c])
@@ -1463,6 +1523,7 @@ func _restart() -> void:
 	time = 0
 	collected.clear()
 	broken.clear()
+	revealed_walls.clear()
 	pending_door = null
 	door_block = Rect2i()
 	_build()

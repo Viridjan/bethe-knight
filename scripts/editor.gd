@@ -11,6 +11,8 @@ extends Node2D
 # MMB or Space+drag: pan.  Wheel: zoom.  Ctrl+Z undo, Ctrl+S save, F5 playtest.
 # Shift+drag: select an area; Ctrl+C / Ctrl+X copy or cut it, Ctrl+V pastes at the mouse (also in another room).
 
+const TriggerInspector := preload("res://scripts/editor_triggers.gd")
+const MotionInspector := preload("res://scripts/editor_motion.gd")
 const E := preload("res://scripts/entities.gd")
 const Art := preload("res://scripts/art.gd")
 const TileLayer := preload("res://scripts/tile_layer.gd")
@@ -43,6 +45,10 @@ var sel := Rect2i()  # selected cells (Shift+drag); Ctrl+C / Ctrl+X copy or cut 
 static var clip := {}  # {w, h, tiles: [String], entities: [Dictionary]}; kept across rooms
 var panning := false
 var space_down := false
+
+var trigger_panel: TriggerInspector
+var motion_panel: MotionInspector
+var motion_mode: OptionButton
 
 var ui: CanvasLayer
 var name_edit: LineEdit
@@ -157,6 +163,8 @@ func _build_ui() -> void:
 	enemy_spin.tooltip_text = "Generated enemy budget when building; 0 disables population. Safe placement and peaceful regions still apply."
 	enemy_spin.value_changed.connect(func(v: float): level.enemy_count = int(v))
 	tools.add_child(enemy_spin)
+	_tool_button(tools, "motion", "Object movement", Color("65deec"))
+	_tool_button(tools, "triggers", "Traps and triggers", Color("e3b46e"))
 	navigation_box = VBoxContainer.new()
 	tools.add_child(navigation_box)
 	_refresh_navigation()
@@ -209,6 +217,13 @@ func _build_ui() -> void:
 	root.add_child(bottom)
 	status = Label.new()
 	bottom.add_child(status)
+	motion_panel = MotionInspector.new()
+	root.add_child(motion_panel)
+	motion_panel.setup(self)
+	motion_mode = motion_panel.mode
+	trigger_panel = TriggerInspector.new()
+	root.add_child(trigger_panel)
+	trigger_panel.setup(self)
 
 const GROUP_ORDER := ["Terrain", "Hazards", "Movement", "Pickups", "Doors & people", "Triggers", "Enemies & bosses", "Placeholders", "Other"]
 # Palette section for a tool id: terrain pieces, hazards, movement gadgets, pickups, doors and people, and one section
@@ -218,13 +233,13 @@ static func palette_group(t: String) -> String:
 		return "Placeholders"
 	if t.begins_with("enemy") or t.begins_with("boss") or t.begins_with("ape") or t in ["auto_walk", "vent_plug"]:
 		return "Enemies & bosses"
-	if t in ["tile", "jumpthru", "crumble", "falling", "breakable", "breakwall", "waterfall", "water", "acid"]:
+	if t in ["tile", "jumpthru", "crumble", "falling", "breakable", "breakwall", "hidden_wall", "waterfall", "water", "acid"]:
 		return "Terrain"
-	if t.begins_with("spikes") or t in ["rockfall"]:
+	if t.begins_with("spikes") or t in ["rockfall", "trap_spikes"]:
 		return "Hazards"
 	if t.begins_with("spring") or t.begins_with("booster") or t in ["refill", "refill_two", "bumper", "feather", "dream", "zip"]:
 		return "Movement"
-	if t in ["camera_zone"]:
+	if t in ["camera_zone", "trigger_zone", "pressure_plate"]:
 		return "Triggers"
 	if t.begins_with("ability") or t.begins_with("stamina") or t in ["strawberry", "goal", "energy_fragment"]:
 		return "Pickups"
@@ -301,6 +316,7 @@ func _tool_button(parent: Control, id: String, text: String, col: Color) -> void
 	var b := Button.new()
 	b.text = text
 	b.tooltip_text = _tool_help(id)
+	b.set_meta("tool_id", id)
 	b.toggle_mode = true
 	b.button_group = tool_group
 	b.focus_mode = Control.FOCUS_NONE
@@ -311,7 +327,11 @@ func _tool_button(parent: Control, id: String, text: String, col: Color) -> void
 		if on:
 			tool = id
 			zip_pending = null
-			rect_start = null)
+			rect_start = null
+			dragging_paint = 0
+			if is_instance_valid(motion_panel): motion_panel.visible = id == "motion"
+			if is_instance_valid(trigger_panel): trigger_panel.visible = id == "triggers"
+			_redraw())
 	parent.add_child(b)
 
 # Refresh the load popup from level files currently available on disk.
@@ -368,6 +388,8 @@ func _new() -> void:
 # Every whole-level replacement goes through here so pending edits never point at stale data.
 # Adopt a level dictionary, reset transient placement state and synchronize terrain and controls.
 func _set_level(d: Dictionary) -> void:
+	if is_instance_valid(motion_panel): motion_panel.clear_selection()
+	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	level = d
 	zip_pending = null
 	rect_start = null
@@ -375,8 +397,26 @@ func _set_level(d: Dictionary) -> void:
 	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
 	_refresh()
 
+func _motion_error(entity: Dictionary) -> String:
+	if not entity.has("motion"): return ""
+	if not MotionInspector.Runtime.Settings.supports(entity): return "This room/encounter anchor cannot patrol"
+	return MotionInspector.Runtime.Settings.validate(entity.motion, Vector2i(level.w * T, level.h * T))
+
+func _validate_motion() -> bool:
+	var graph_error := TriggerInspector.Settings.validate_level(level.entities)
+	if not graph_error.is_empty():
+		_status(graph_error)
+		return false
+	for entity in level.entities:
+		var error := _motion_error(entity)
+		if not error.is_empty():
+			_status("%s: %s" % [entity.t, error])
+			return false
+	return true
+
 # Write the room to its correct custom-level or world-room filename, then remember the saved snapshot.
 func _save() -> bool:
+	if not _validate_motion(): return false
 	var f := Game.save_level(level, Game.editor_dir, Game.editor_file)
 	_status("Saved as %s.json" % f if f != "" else "Save failed")
 	if f == "": return false
@@ -413,6 +453,10 @@ func _resize() -> void:
 	_push_undo()
 	var nw := int(w_spin.value)
 	var nh := int(h_spin.value)
+	for entity in level.entities:
+		if int(entity.x) < nw * T and int(entity.y) < nh * T and entity.has("motion") and not MotionInspector.Runtime.Settings.validate(entity.motion, Vector2i(nw * T, nh * T)).is_empty():
+			_status("Resize would cut a patrol path. Edit its points first.")
+			return
 	var rows := []
 	for y in nh:
 		var old: String = level.tiles[y] if y < level.h else ""
@@ -422,12 +466,14 @@ func _resize() -> void:
 	level.w = nw
 	level.h = nh
 	level.entities = level.entities.filter(func(e): return int(e.x) < nw * T and int(e.y) < nh * T)
+	_prune_trigger_links()
 	zip_pending = null
 	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
 	_refresh()
 
 # Play from a start marker, a respawn slab, or a temporary safe floor position.
 func _playtest() -> void:
+	if not _validate_motion(): return
 	var trial := level.duplicate(true)
 	if not trial.entities.any(func(e): return e.t in ["spawn", "respawn"]):
 		var point := _playtest_floor()
@@ -461,6 +507,8 @@ func _playtest_floor() -> Vector2i:
 # Full rebuild: load, undo, new, resize.
 # Recreate all preview objects after a structural edit such as load, resize or undo.
 func _refresh() -> void:
+	if is_instance_valid(motion_panel): motion_panel.clear_selection()
+	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	_refresh_navigation()
 	preview.clear()
 	for d in level.entities:
@@ -476,6 +524,43 @@ func _refresh_one(i: int) -> void:
 	else:
 		preview[i] = e
 	_redraw()
+
+func _new_object_id(reserved: Array = []) -> String:
+	var ids: Array = level.entities.map(func(e): return e.get("object_id", "")) + reserved
+	var number := 1
+	while "object_%d" % number in ids: number += 1
+	return "object_%d" % number
+
+func _select_trigger(index: int) -> void:
+	tool = "triggers"
+	motion_panel.visible = false
+	for button in tool_group.get_buttons():
+		if button.get_meta("tool_id", "") == "triggers": button.set_pressed_no_signal(true)
+	trigger_panel.select_object(index)
+	_redraw()
+
+func _prune_trigger_links() -> void:
+	var ids: Array = level.entities.map(func(e): return e.get("object_id", ""))
+	for entity in level.entities:
+		if entity.t not in TriggerInspector.Settings.SOURCES: continue
+		for edge in ["on_enter", "on_exit"]:
+			if entity.get("trigger", {}).has(edge): entity.trigger[edge] = entity.trigger[edge].filter(func(link): return link.target in ids)
+
+func _motion_entity_at(point: Vector2) -> int:
+	for i in range(preview.size() - 1, -1, -1):
+		if preview[i] != null and Rect2(preview[i].rect).grow(2 / cam.zoom.x).has_point(point): return i
+	return -1
+
+func _select_motion(index: int) -> void:
+	tool = "motion"
+	trigger_panel.visible = false
+	for button in tool_group.get_buttons():
+		if button.get_meta("tool_id", "") == "motion": button.set_pressed_no_signal(true)
+	motion_panel.select_object(index)
+	_redraw()
+
+func _motion_add_point(point: Vector2i) -> void:
+	motion_panel.add_point(point)
 
 # ---------------- editing ----------------
 # Convert the camera-adjusted mouse position from pixels to a tile coordinate.
@@ -522,22 +607,41 @@ func _copy(cut: bool) -> void:
 			for x in range(sel.position.x, sel.end.x):
 				_set_tile(Vector2i(x, y), false)
 		level.entities = level.entities.filter(func(e): return not inside.call(e))
+		_prune_trigger_links()
 		_refresh()
 	_status("%s %dx%d, %d objects (Ctrl+V pastes at the mouse)" % ["Cut" if cut else "Copied", sel.size.x, sel.size.y, clip.entities.size()])
 
 # Paste the clipboard with its top-left at cell c: tiles overwrite, objects are added without replacing existing spawn markers.
 func _paste(c: Vector2i) -> void:
+	if clip.is_empty(): return
+	var bounds := Rect2i(0, 0, level.w * T, level.h * T)
+	var copies: Array = clip.entities.duplicate(true)
+	var remap := {}
+	for copy in copies:
+		if copy.has("object_id"):
+			var fresh := _new_object_id(remap.values())
+			remap[copy.object_id] = fresh
+			copy.object_id = fresh
+	var incoming := []
+	for copy in copies:
+		_shift(copy, c * T)
+		if not bounds.has_point(Vector2i(int(copy.x), int(copy.y))): continue
+		if copy.t in TriggerInspector.Settings.SOURCES:
+			for edge in ["on_enter", "on_exit"]:
+				for link in copy.get("trigger", {}).get(edge, []): link.target = remap.get(link.target, link.target)
+		var error := _motion_error(copy)
+		if not error.is_empty():
+			_status("Paste cancelled: " + error)
+			return
+		incoming.append(copy)
+	var error := TriggerInspector.Settings.validate_level(level.entities + incoming)
+	if not error.is_empty():
+		_status("Paste cancelled: " + error)
+		return
 	_push_undo()
 	for y in int(clip.h):
-		for x in int(clip.w):
-			_set_tile(c + Vector2i(x, y), clip.tiles[y][x] == "1")
-	var bounds := Rect2i(0, 0, level.w * T, level.h * T)
-	for e in clip.entities:
-		var d: Dictionary = e.duplicate(true)
-		_shift(d, c * T)
-		if not bounds.has_point(Vector2i(int(d.x), int(d.y))):
-			continue
-		level.entities.append(d)
+		for x in int(clip.w): _set_tile(c + Vector2i(x, y), clip.tiles[y][x] == "1")
+	level.entities.append_array(incoming)
 	sel = Rect2i(c, Vector2i(clip.w, clip.h)).intersection(Rect2i(0, 0, level.w, level.h))
 	_refresh()
 	_status("Pasted %dx%d" % [clip.w, clip.h])
@@ -546,6 +650,10 @@ func _paste(c: Vector2i) -> void:
 func _shift(d: Dictionary, off: Vector2i) -> void:
 	d.x = int(d.x) + off.x
 	d.y = int(d.y) + off.y
+	if d.get("motion", {}).get("mode", "") == "path":
+		for point in d.motion.points:
+			point[0] += off.x
+			point[1] += off.y
 	if d.has("tx"):
 		d.tx = int(d.tx) + off.x
 		d.ty = int(d.ty) + off.y
@@ -679,6 +787,7 @@ func _place_rect(a: Vector2i, b: Vector2i) -> void:
 	var d := {"t": tool, "x": lo.x * T, "y": lo.y * T, "w": (hi.x - lo.x + 1) * T, "h": (hi.y - lo.y + 1) * T}
 	if tool == "jumpthru":
 		d.h = T
+	if tool in TriggerInspector.Settings.TRAPS or tool in TriggerInspector.Settings.SOURCES: d.object_id = _new_object_id()
 	level.entities.append(d)
 	if tool == "zip":
 		zip_pending = d
@@ -733,6 +842,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			_right(mb.pressed)
 	elif event is InputEventMouseMotion:
+		if tool == "motion" and motion_panel.dragging_point:
+			motion_panel.drag_to(_cell_at_mouse() * T)
+			return
 		if event.button_mask & (MOUSE_BUTTON_MASK_LEFT | MOUSE_BUTTON_MASK_RIGHT) == 0:
 			dragging_paint = 0  # the button was released over the UI, where we never saw it
 			rect_start = null
@@ -755,6 +867,12 @@ func _unhandled_input(event: InputEvent) -> void:
 # Begin or finish a left-button placement gesture, including sized objects and moving-platform targets.
 func _left(pressed: bool) -> void:
 	var c := _cell_at_mouse()
+	if tool == "triggers":
+		if pressed: trigger_panel.canvas_click(get_global_mouse_position())
+		return
+	if tool == "motion":
+		motion_panel.canvas_left(Vector2i(get_global_mouse_position().round()), pressed)
+		return
 	if pressed and _arrow_at(get_global_mouse_position()) != null:  # an edge arrow: edit that room
 		_request_room(_arrow_at(get_global_mouse_position()).name)
 		return
@@ -804,6 +922,15 @@ func _left(pressed: bool) -> void:
 
 # Begin or finish an erase gesture, saving the appropriate undo snapshot.
 func _right(pressed: bool) -> void:
+	if tool == "triggers":
+		trigger_panel.link_edge = ""
+		_redraw()
+		return
+	if tool == "motion":
+		if pressed:
+			motion_panel.selected_point = motion_panel.point_at(get_global_mouse_position())
+			motion_panel.remove_point()
+		return
 	if pressed:
 		_push_undo()
 		dragging_paint = -1
@@ -821,9 +948,12 @@ func _right(pressed: bool) -> void:
 
 # Remove an object and keep the data and preview arrays aligned.
 func _erase_entity(i: int) -> void:
+	if is_instance_valid(motion_panel): motion_panel.clear_selection()
+	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	if is_same(level.entities[i], zip_pending):
 		zip_pending = null
 	level.entities.remove_at(i)
+	_prune_trigger_links()
 	preview.remove_at(i)
 	_redraw()
 
@@ -836,6 +966,9 @@ func _zoom(f: float) -> void:
 
 # Update temporary messages and editor hover/drag visuals between input events.
 func _process(dt: float) -> void:
+	if is_instance_valid(motion_panel): motion_panel.advance_preview(dt)
+	if is_instance_valid(trigger_panel): trigger_panel.advance_preview(dt)
+	if tool == "triggers" and trigger_panel.link_edge != "": _redraw()
 	var v := Vector2(Input.get_axis("ui_left", "ui_right"), Input.get_axis("ui_up", "ui_down"))
 	if v != Vector2.ZERO and not Input.is_key_pressed(KEY_CTRL) and not (get_viewport().gui_get_focus_owner() is LineEdit):
 		cam.position += v * 400 * dt / cam.zoom.x
@@ -843,12 +976,16 @@ func _process(dt: float) -> void:
 	var c := _cell_at_mouse()
 	msg_t -= dt
 	var over = _arrow_at(get_global_mouse_position())
-	if over != null:
+	if msg_t > 0:
+		status.text = msg
+	elif over != null:
 		status.text = "Click: edit %s (Ctrl + arrow key)" % over.name
+	elif tool == "triggers":
+		status.text = "Click a target; right-click cancels linking." if trigger_panel.link_edge != "" else "Traps and triggers: select an object to configure timing or links."
+	elif tool == "motion":
+		status.text = "Object movement: select an object; drag path points; right-click a point to delete. Use the inspector to add points or preview."
 	elif zip_pending != null:
 		status.text = "Zip mover: click where it should travel to"
-	elif msg_t > 0:
-		status.text = msg
 	else:
 		status.text = "Tile %d, %d   |   LMB place/paint  RMB erase  MMB/Space+drag pan  Wheel zoom  Ctrl+Z undo  Shift+drag select  Ctrl+X/C/V cut/copy/paste  Ctrl+S save  F5 playtest" % [c.x, c.y]
 
@@ -914,6 +1051,9 @@ func _draw() -> void:
 	if zip_pending != null:
 		var from := Vector2(zip_pending.x, zip_pending.y) + Vector2(zip_pending.w, zip_pending.h) / 2.0
 		draw_line(from, Vector2(c * T) + Vector2(4, 4), Color("d0b040"), 1.0 / cam.zoom.x)
+
+	if is_instance_valid(motion_panel): motion_panel.draw_guides(self)
+	if is_instance_valid(trigger_panel): trigger_panel.draw_guides(self)
 
 # Use live source geometry, saved neighboring rooms and valid explicit door targets.
 func _connected_rooms() -> Array:
@@ -1042,7 +1182,12 @@ func _frame_room() -> void:
 
 # Palette help includes the effect and the gesture used to place the selected object.
 func _tool_help(id: String) -> String:
+	if id == "triggers": return "Select a trap or trigger to edit timing and typed links. Link on enter/exit, then click a trap or moving target."
+	if id == "motion": return "Select a placed object to edit surface/sticky patrol or open/closed paths. Drag numbered path points; right-click a point to delete. Changes use normal undo and saving."
 	var help := {
+		"trap_spikes":"Timed retracting spikes. Drag a rectangle, then edit four timings with Traps and triggers.",
+		"trigger_zone":"Invisible entry/exit zone. Drag its area, then link targets with Traps and triggers.",
+		"pressure_plate":"Floor pressure plate. Link entry to start movement and exit to stop it.",
 		"tile":"Paint solid ground with the left mouse button; erase with the right mouse button.",
 		"spawn":"Starting point and checkpoint: walking onto it updates the respawn location silently. Invisible during play. Multiple points are allowed; place on a safe floor with clear headroom.",
 		"respawn":"Walk onto this checkpoint to update the player's respawn point. Place on a safe floor.",
@@ -1055,6 +1200,7 @@ func _tool_help(id: String) -> String:
 		"house_door":"Door activated by Interact. Set its ID and target as room:door_id after placing it.",
 		"building":"Background scenery that the player can walk through.",
 		"water":"Swimmable water. Drag to cover its basin.", "acid":"Deadly liquid. Drag to cover its basin.",
+		"hidden_wall":"Concealed solid wall. Punch directly to reveal; use the sword to break it.",
 		"breakwall":"Breakable barrier opened by the attack ability.",
 		"energy_fragment":"Interactable energy fragment. Three fragments grant one capacity upgrade.",
 		"discovery_npc":"Character the player can speak to with Interact.",

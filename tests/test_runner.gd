@@ -99,7 +99,7 @@ func step(n := 1) -> void:
 			w.after_player_move()
 			w.update_stamina(DT)
 		for e in w.ents:
-			e.update(DT)
+			w._tick_entity(e, DT)
 
 # Return the active scripted player in the current disposable test World.
 func p():
@@ -1147,6 +1147,7 @@ func check_combat_enemies() -> void:
 	enemy = w.ents.filter(func(e): return e.d.t == "enemy_thornmite")[0]
 	p().pos = Vector2(80, 216)
 	p().attack_dir = Vector2.RIGHT
+	p().attack_timer = p().ATTACK_TIME
 	p()._attack_hits()
 	p()._attack_hits()
 	check(enemy.hp == 1, "Existing melee sector damages a real enemy once per swing")
@@ -2451,7 +2452,7 @@ func check_stamina() -> void:
 	check(run.stamina == 32.0, "regeneration stops at the top of the base")
 	run.stamina = 0.0
 	Adventure.regen_stamina(run, 0.01)
-	check(is_equal_approx(run.stamina, 0.02), "the base always regenerates, even from 0, at 2 per second (%s)" % run.stamina)
+	check(run.stress == 5 and is_equal_approx(run.stamina, 0.0198), "the base regenerates from zero with the exhaustion stress penalty (%s)" % run.stamina)
 	Adventure.regen_stamina(run, 100.0)
 	check(not Adventure.spend_stamina(run, 160) and run.stamina == 32.0, "can't spend more than you have")
 	Adventure.add_stamina_block(run)
@@ -2599,6 +2600,7 @@ func check_stamina() -> void:
 	step()
 	check(not p().attacking(), "no attack before the attack ability")
 	w.grant_ability("attack")
+	Game.adv.stamina = Adventure.stamina_max(Game.adv)
 	step(5)
 	p().tap = {"attack": true}
 	step()
