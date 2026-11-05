@@ -83,7 +83,7 @@ What carries over well:
 
 ## 6. Backlog: ready to build later
 
-Each item names where it would go. None of these exist yet.
+Historical proposal list. Some items now have implementations (including camera zones, regions and transition polish); see [the current deferred-work audit](DEFERRED_WORK.md) before treating an item as missing. Each item below records the original proposed implementation.
 
 1. **Hurt / knockback states** (mzm request pseudo-states). Add `ST_HURT` to the enum and `STATE_NAMES` in `player.gd`. Add a `hurt(dir)` that `_set_state`s into it with knockback speed and invincibility frames, and an `hp` value in `adv`. Spikes would call `hurt` instead of `die` when `hp > 1`.
 2. **More abilities**: wall jump, double dash (replaces the `air_dashes` setting inside the adventure), feather-free flight.

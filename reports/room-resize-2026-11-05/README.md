@@ -14,3 +14,7 @@ Left/top changes translate tiles, object positions, zip destinations and patrol 
 - `tests/test.tscn`: two existing map assertions remain: East Shore water/acid rows and the jump-only Jungle Falls bot route.
 - GDScript lint and `git diff --check`: pass.
 - Rendered Godot review: `handles.png` and `preview.png`. `capture.tscn` regenerates these using the actual editor.
+
+## Conditional-room follow-up
+
+Fixed the West Shore post-Guardian variant after a left-side expansion: matched its 163×23 dimensions and shifted its unique objects by 344 pixels using the shared doorway IDs as anchors. Editor saves now translate/crop conditional-room objects alongside the base, synchronize dimensions and terrain, validate their movement paths, and restore saved room files if a write fails. Resize-save-undo and the post-Guardian island route checks pass.

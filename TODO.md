@@ -1,12 +1,12 @@
 # TODO
 
-Current delivery audit: [implemented, partial and missing requests](docs/IMPLEMENTATION_STATUS.md) (2026-11-05). Design documents do not imply playable completion.
+Current delivery audit: [implemented, partial and missing requests](docs/IMPLEMENTATION_STATUS.md) (2026-11-05). Design documents do not imply playable completion. Current deferred-work check: [DEFERRED_WORK.md](docs/DEFERRED_WORK.md).
 
 ### Partial-system foundations
 - [x] Ordinary enemy family health overrides in Enemy loadouts, including library monsters; preserve variant modifiers and legacy defaults; validate and save profiles.
 - [x] Extract existing floor/crawler motion and bounded brood death-spawn definitions into shared modules, with actual enemy regression tests.
 - [x] Author movement overrides for movable enemies/objects: surface/sticky patrol, starting direction/support, speed, open/closed paths, waypoint pauses, draggable points, collision-aware preview and undo/save/load. See [patrol authoring](docs/PATROL_AUTHORING.md).
-- [ ] Extend the foundations to condition-gated death actions and general phases. Next world primitives: timed traps and linked triggers.
+- [ ] Extend the foundations to condition-gated death actions and general phases. Timed spikes and typed trap/movement triggers are implemented; author teaching encounters next.
 
 ### Be the Knight: identity and new design
 - [x] Rename the application/menu to Be the Knight and establish Be as the protagonist; retain the legacy save directory and source asset identifiers.
@@ -41,7 +41,7 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [ ] Stamina orb refills everything for now; decide how much collectibles restore
 - [x] Water drains stamina: 2.08 every 0.1 s, no regeneration in water; at 0 stamina in water the player dies (`Adventure.water_stamina`, `World.update_stamina`)
 - [x] HUD: stamina as a lightning bolt and one bar per block (top left, stars under it), area name (top centre), timer and deaths with a skull (top right)
-- [ ] Interact button (keyboard, controller, touch)
+- [x] Interact button (keyboard, controller, touch)
 - [ ] NPC entity + dialogue box; "..." reply for silent NPCs
 - [ ] Quests and story flags (village quest gives a skill point; quest NPC unlocks the raft)
 - [ ] Skill points: regeneration, damage, speed, other stats; active abilities later

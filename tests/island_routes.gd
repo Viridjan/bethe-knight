@@ -47,7 +47,7 @@ func _ready() -> void:
 	world.set_physics_process(false)
 	world.broken["i16_guardian_chamber:guardian_112_16"] = true
 	_use_panel(world, "i01_west_shore")
-	check(world.data.w == 120 and world.ents.any(func(e): return e.d.get("id", "") == "home"), "Post-Guardian West Shore retains its long beach and reward door")
+	check(world.data.w == story.rooms.i01_west_shore.level.w and world.ents.any(func(e): return e.d.get("id", "") == "home"), "Post-Guardian West Shore retains its long beach and reward door")
 	# Step away from the arrival panel before deliberately returning through it.
 	world.player.pos.x += 32
 	world.player.interact = false

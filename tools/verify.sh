@@ -30,6 +30,7 @@ run '^STRESS: 0 failure\(s\)' res://tests/stress.tscn
 run '^PARTIAL FOUNDATIONS: 0 failure\(s\)' res://tests/partial_foundations.tscn
 run '^PATROL AUTHORING: 0 failure\(s\)' res://tests/patrol_authoring.tscn
 run '^TRAPS TRIGGERS: 0 failure\(s\)' res://tests/traps_triggers.tscn
+run '^STORY TRAVERSAL: 0 failure\(s\)' res://tests/story_traversal.tscn
 run '^ROOM RESIZE: 0 failure\(s\)' res://tests/room_resize.tscn
 run '^WORLD SELECTION: 0 failure\(s\)' res://tests/world_selection.tscn
 run '^WEB MENU OK' res://tests/web_menu.tscn

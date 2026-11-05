@@ -58,18 +58,32 @@ func check_world_save(editor, fixture: Dictionary) -> void:
 	Game.editor_file = "a"
 	Game.world_path = folder+"world.json"
 	Game.save_level(fixture,folder,"a")
-	Game.write_safe(Game.world_path,JSON.stringify({"start":"a","rooms":{"a":[10,20]}}))
+	var alternate := fixture.duplicate(true)
+	alternate.entities.append({"t":"house_door","id":"reward","x":88,"y":64,"w":8,"h":16})
+	Game.save_level(alternate,folder,"a_after")
+	Game.write_safe(Game.world_path,JSON.stringify({"start":"a","rooms":{"a":[10,20]},"variants":{"a":[{"room":"a_after","when":"boss"}]}}))
 	editor._set_level(fixture.duplicate(true))
 	editor.saved_origin_shift = Vector2i.ZERO
 	editor._resize_bounds(Rect2i(-2,-3,22,19))
 	check(editor._save(),"Resized room saves")
+	var after := Game.load_level("a_after",folder)
+	check(after.w == 22 and after.h == 19 and after.entities[-1].x == 104 and after.entities[-1].y == 88,"Resizing also aligns conditional variants and their unique objects")
 	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 	check(world.rooms.a.pos == Vector2i(8,17),"Saving a left/top resize moves world origin, keeping the opposite edges fixed")
 	editor._undo()
 	check(editor._save(),"Undo after saving can be saved again")
+	after = Game.load_level("a_after",folder)
+	check(after.w == 20 and after.h == 16 and after.entities[-1].x == 88,"Undo also restores variant size and object coordinates")
 	world = Game.Adventure.load_world(Game.world_path)
 	check(world.rooms.a.pos == Vector2i(10,20) and world.rooms.a.level.w == 20,"Saving undo restores world placement and dimensions")
 	var manifest_before := FileAccess.get_file_as_string(Game.world_path)
+	after.entities[-1].motion = {"mode":"path","speed":2,"points":[[88,64],[144,64]]}
+	# Use a movable object for this variant-only path.
+	after.entities[-1].t = "refill"
+	Game.save_level(after,folder,"a_after")
+	editor._resize_bounds(Rect2i(0,0,14,16))
+	check(not editor._save() and Game.load_level("a",folder).w == 20 and Game.load_level("a_after",folder).w == 20 and FileAccess.get_file_as_string(Game.world_path) == manifest_before,"A variant-only path cut refuses saving without partially changing saved files")
+	editor._undo()
 	editor._new()
 	editor._resize_bounds(Rect2i(-2,0,int(editor.level.w)+2,int(editor.level.h)))
 	check(editor._save() and FileAccess.get_file_as_string(Game.world_path) == manifest_before,"A new custom room resized from the left saves without changing the world manifest")

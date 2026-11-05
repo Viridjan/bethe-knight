@@ -448,22 +448,47 @@ func _save() -> bool:
 	if not _validate_motion(): return false
 	var shift := origin_shift - saved_origin_shift
 	var manifest := {}
-	var old_disk := {}
-	if Game.editor_return == "world_editor" and Game.editor_file != "" and Game.editor_dir == Game.world_path.get_base_dir()+"/" and shift != Vector2i.ZERO:
+	var backups := {}
+	var variants := {}
+	if Game.editor_return == "world_editor" and Game.editor_file != "" and Game.editor_dir == Game.world_path.get_base_dir()+"/":
 		var parsed = JSON.parse_string(FileAccess.get_file_as_string(Game.world_path))
 		if not parsed is Dictionary or not parsed.get("rooms",{}).has(Game.editor_file):
-			_status("Cannot update room position: world manifest is unavailable.")
+			_status("Cannot update room: world manifest is unavailable.")
 			return false
 		manifest = parsed
+		backups[Game.editor_file] = Game.load_level(Game.editor_file,Game.editor_dir)
+		for entry in manifest.get("variants",{}).get(Game.editor_file,[]):
+			var name: String = str(entry.room)
+			if name == Game.editor_file or variants.has(name): continue
+			var alternate := Game.load_level(name,Game.editor_dir)
+			if alternate.is_empty():
+				_status("Cannot save: conditional room %s is missing." % name)
+				return false
+			backups[name] = alternate.duplicate(true)
+			var fitted := _fit_resize_entities(alternate.entities,Rect2i(shift,Vector2i(level.w,level.h)))
+			if fitted.has("error"):
+				_status("%s: %s" % [name,fitted.error])
+				return false
+			alternate.entities = fitted.entities
+			alternate.w = level.w
+			alternate.h = level.h
+			alternate.tiles = level.tiles.duplicate()
+			variants[name] = alternate
 		var position: Array = manifest.rooms[Game.editor_file]
 		manifest.rooms[Game.editor_file] = [int(position[0])+shift.x,int(position[1])+shift.y]
-		old_disk = Game.load_level(Game.editor_file,Game.editor_dir)
+	for name in variants:
+		if Game.save_level(variants[name],Game.editor_dir,name) == "":
+			_restore_resize_files(backups)
+			_status("Variant save failed; saved rooms restored. Your edits are still open.")
+			return false
 	var f := Game.save_level(level, Game.editor_dir, Game.editor_file)
 	_status("Saved as %s.json" % f if f != "" else "Save failed")
-	if f == "": return false
-	if not manifest.is_empty() and not Game.write_safe(Game.world_path,JSON.stringify(manifest,"\t")):
-		Game.save_level(old_disk,Game.editor_dir,Game.editor_file)
-		_status("World position save failed; saved room restored. Your edits are still open.")
+	if f == "":
+		_restore_resize_files(backups)
+		return false
+	if not manifest.is_empty() and shift != Vector2i.ZERO and not Game.write_safe(Game.world_path,JSON.stringify(manifest,"\t")):
+		_restore_resize_files(backups)
+		_status("World position save failed; saved rooms restored. Your edits are still open.")
 		return false
 	saved_origin_shift = origin_shift
 	Game.editor_file = f
@@ -471,6 +496,10 @@ func _save() -> bool:
 	saved_level = level.duplicate(true)
 	_refresh_navigation()
 	return true
+
+func _restore_resize_files(backups: Dictionary) -> void:
+	for name in backups:
+		if not backups[name].is_empty(): Game.save_level(backups[name],Game.editor_dir,name)
 
 # Go back to the menu or the World Editor; with unsaved edits, ask first: Save, Don't save, or Cancel (stay).
 func _leave() -> void:
@@ -515,26 +544,11 @@ func _resize_bounds(bounds: Rect2i) -> bool:
 			var old_x: int = x + bounds.position.x
 			row += str(level.tiles[old_y][old_x]) if old_y >= 0 and old_y < level.h and old_x >= 0 and old_x < level.w else "0"
 		resized.tiles.append(row)
-	var extent := Rect2i(Vector2i.ZERO,bounds.size*T)
-	var kept := []
-	for entity in resized.entities:
-		_shift(entity,-bounds.position*T)
-		if E.TYPES[entity.t][1]:
-			var clipped := Rect2i(int(entity.x),int(entity.y),int(entity.get("w",T)),int(entity.get("h",T))).intersection(extent)
-			if not clipped.has_area(): continue
-			entity.x = clipped.position.x
-			entity.y = clipped.position.y
-			entity.w = clipped.size.x
-			entity.h = clipped.size.y
-		elif not extent.has_point(Vector2i(int(entity.x),int(entity.y))): continue
-		if entity.has("motion") and not MotionInspector.Runtime.Settings.validate(entity.motion,extent.size).is_empty():
-			_status("Resize would cut a patrol path. Edit its points first.")
-			return false
-		if entity.has("tx") and not extent.has_point(Vector2i(int(entity.tx),int(entity.ty))):
-			_status("Resize would cut a mover destination. Edit its target first.")
-			return false
-		kept.append(entity)
-	resized.entities = kept
+	var fitted := _fit_resize_entities(resized.entities,bounds)
+	if fitted.has("error"):
+		_status(fitted.error)
+		return false
+	resized.entities = fitted.entities
 	_push_undo()
 	level = resized
 	origin_shift += bounds.position
@@ -550,6 +564,27 @@ func _resize_bounds(bounds: Rect2i) -> bool:
 	_refresh()
 	_status("Resized to %d × %d tiles (Ctrl+Z to undo)" % [level.w,level.h])
 	return true
+
+# Shared with conditional room files so their unique objects follow the same crop.
+func _fit_resize_entities(entities: Array, bounds: Rect2i) -> Dictionary:
+	var extent := Rect2i(Vector2i.ZERO,bounds.size*T)
+	var kept := []
+	for entity in entities:
+		_shift(entity,-bounds.position*T)
+		if E.TYPES[entity.t][1]:
+			var clipped := Rect2i(int(entity.x),int(entity.y),int(entity.get("w",T)),int(entity.get("h",T))).intersection(extent)
+			if not clipped.has_area(): continue
+			entity.x = clipped.position.x
+			entity.y = clipped.position.y
+			entity.w = clipped.size.x
+			entity.h = clipped.size.y
+		elif not extent.has_point(Vector2i(int(entity.x),int(entity.y))): continue
+		if entity.has("motion") and not MotionInspector.Runtime.Settings.validate(entity.motion,extent.size).is_empty():
+			return {"error":"Resize would cut a patrol path. Edit its points first."}
+		if entity.has("tx") and not extent.has_point(Vector2i(int(entity.tx),int(entity.ty))):
+			return {"error":"Resize would cut a mover destination. Edit its target first."}
+		kept.append(entity)
+	return {"entities":kept}
 
 func _resize_handle(point: Vector2) -> Vector2i:
 	var margin := 9.0 / cam.zoom.x

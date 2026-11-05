@@ -26,7 +26,7 @@ surface/sticky and open/closed path controls, speed/support/direction settings,
 point editing and motion preview. Runtime adapters preserve attack ownership,
 carry riders, update dynamic collision and stop at walls. See
 [PATROL_AUTHORING.md](PATROL_AUTHORING.md). Room and encounter anchors remain
-explicitly excluded; general triggers and timed traps are still pending.
+explicitly excluded. Timed retracting spikes, trigger zones and pressure plates were subsequently implemented; see the current deferred-work audit in `docs/DEFERRED_WORK.md`.
 
 ## Implemented
 
@@ -52,8 +52,8 @@ rule about reusable refill objects.
 
 | Requested feature | Status | What exists now / what is missing |
 | --- | --- | --- |
-| Timed traps: activation period, stay-up duration, deployment and retraction timing | **Missing** | No general trap type, timing state machine or corresponding authoring controls. `RockFall` is a specialised timed hazard, not the requested four-stage trap |
-| Triggers targeting traps and other moving objects | **Partial, specialised** | `AutoWalk`, sound notes and object contact reactions exist. No general condition/action links, pressure-plate targets, cooldown/retrigger policy or link validation |
+| Timed traps: activation period, stay-up duration, deployment and retraction timing | **Implemented for spikes** | `interaction/trap_cycle.gd`, `entities.gd:TimedSpikes`, room inspector and `tests/traps_triggers.tscn`; more trap types and authored teaching encounters remain |
+| Triggers targeting traps and other moving objects | **Implemented, bounded scope** | `trigger_zone` / `pressure_plate`, typed trap/movement actions, cooldown/once/ability conditions, inspector and link validation; general story-event graphs remain separate |
 | Patrol for movable objects | **Implemented, bounded scope** | Shared optional motion for movable enemies/platforms/hazards/pickups/decorations; room/encounter anchors are explicitly excluded |
 | Surface patrol and sticky authoring | **Implemented for movable bodies** | Shared inspector exposes support normal, tangent direction, speed, pause and sticky corners. Sticky chase/pathfinding and general artwork rotation remain separate |
 | Authored open/closed path patrol | **Implemented** | Numbered draggable points, creation/deletion, loop/ping-pong, speed/pauses, preview, undo, copy/paste and room save/load |
@@ -75,7 +75,7 @@ rule about reusable refill objects.
 | Three stats: Dexterity, Constitution, Attack | **Missing** | No allocation budget, save schema, derived-stat service, stat-based movement/regen/damage, or progression UI. Final displayed names are pending |
 | Lower base movement/recovery for the stat system | **Not applied** | Stress modifies existing recovery; the separate proposed starting-stat nerfs have not been applied or route-balanced |
 | Constitution allowing several hits | **Missing** | `Player.die()` still turns ordinary lethal contacts into respawn. No multi-hit health/damage/invulnerability contract |
-| Low-cost basic attack with an additional enemy-hit cost | **Missing** | `Player._attack_update` / `_attack_hits` start swings and call `hit`; they do not implement the requested two-part stamina cost or stronger damage values |
+| Low-cost basic attack with an additional enemy-hit cost | **Implemented for punch and sword** | `combat/player_melee.gd`, player/world hooks: 2 stamina per attempt plus 4 on first accepted enemy hit; stronger stat-based damage remains missing |
 | Kraken boat encounter and underwater arena | **Missing** | No `boss_kraken` registry/profile or playable boat encounter. Story entity scan found no boat/Kraken note marker either |
 | Kraken entry conditions explained at the boat/map/inventory | **Helper only** | `Stress.kraken_requirements()` checks full first energy bar, 250 stress and a supplied underwater Boolean. It has no production caller; no prompt/checklist or real underwater-capability integration |
 | Kraken opening, climbable tentacles, head window, sweep/radial attacks and three phases | **Missing** | Design only; no encounter/controller/collision/effect code |
@@ -83,7 +83,7 @@ rule about reusable refill objects.
 | Additional Kraken attack | **Proposal** | Undertow and its phase variations were suggested; they have not been approved or implemented |
 | Pogoable versus non-pogoable hazards and environment-specific visuals | **Missing** | `Spikes` are directional lethal contacts, with no pogo `hit()` response or separate hazard category. No requested thorn/vine skin distinction |
 | Progressive hidden-tile discovery with wall-occluded visibility | **Missing** | `World.reveal_t` is the room-transition sweep, not hidden-tile discovery. No per-tile reveal state/LOS/revealed-border logic; map thumbnails have no such concealment layer |
-| Hidden walls matching normal terrain, 3–4 hit-count breakage and distinct sound | **Missing as a distinct wall type** | Existing BreakWall is visibly styled as breakwall and subtracts exactly 1 per hit; no camouflaged hidden-wall policy or distinct discovery sound |
+| Hidden walls matching normal terrain, 3–4 hit-count breakage and distinct sound | **Partial** | `HiddenWall` disguises terrain, direct punches reveal without damage, discovery persists and swords break it (default 3 hits). Discovery currently reuses impact sound; broader hidden-tile discovery remains missing |
 | Tough damage-based blocks/walls versus hit-count secret walls | **Partial** | Existing BreakWall has an `hp` field but always subtracts 1. Stronger attack damage is not passed through; the two requested destruction policies are not separated |
 | Semantic wall/terrain traits | **Missing as a general taxonomy** | Runtime uses solid/grid flags and class-specific checks; no shared reveal/patrol/breakability trait system consumed across tools and runtime |
 | Lake Caves and jungle teaching/optional-route pass | **Pending** | Existing platforms/spikes remain, but the requested timed-trap teaching sections and new hazard distinctions have not been authored or playtested |
@@ -92,12 +92,7 @@ rule about reusable refill objects.
 
 ## What the world scan confirms
 
-The current story manifest contains one Ape, one Guardian, seven BreakWalls, two
-RockFall hazards, many ordinary spikes/platforms and existing interactable fragments/
-NPCs. It contains no registered Kraken, generic timed trap, path-controller object,
-key item, hidden-wall type or differentiated pogo hazard. Those absences agree with
-the runtime registry and editor palettes. Existing hazards are not evidence that
-the requested new design pass has been completed.
+Runtime/editor now include timed spikes, linked triggers, authored paths and hidden walls. These primitives do not establish that teaching rooms, inventory, the Kraken or broader story-event systems have been delivered. Counts of placed story entities change during manual room editing and should be obtained from the current files rather than treated as fixed acceptance criteria.
 
 ## Proposed delivery order
 

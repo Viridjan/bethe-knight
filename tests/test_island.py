@@ -14,7 +14,12 @@ class Island(unittest.TestCase):
     def setUpClass(cls):
         cls.W = World(str(ROOT))
         cls.island = {n for n in cls.W.rooms if n.startswith("i")}
-        cls.ground, cls.touched = explore(cls.W, MODELS["cautious"], set(), [(706, 65)])  # the beach by the raft
+        # Derive the landing from the authored raft: rooms can move and grow on the left.
+        ox, oy, shore = cls.W.rooms["i01_west_shore"]
+        raft = next(e for e in shore["entities"] if e.get("id") == "raft")
+        landing = (ox + (int(raft["x"]) + int(raft.get("w", 8))) // 8,
+                   oy + (int(raft["y"]) + int(raft.get("h", 8))) // 8 - 1)
+        cls.ground, cls.touched = explore(cls.W, MODELS["cautious"], set(), [landing])
 
     def test_every_island_room_is_reachable_jump_only(self):
         self.assertEqual(self.island - set(rooms_of(self.W, self.ground)), set())

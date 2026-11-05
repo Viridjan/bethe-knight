@@ -1,0 +1,45 @@
+Initial complete run (before Python island landing fix):
+ok    res://tests/test.tscn (0 leak warnings)
+ok    res://tests/punch.tscn (0 leak warnings)
+ok    res://tests/smoke.tscn (0 leak warnings)
+ok    res://tests/identity.tscn (0 leak warnings)
+ok    res://tests/stress.tscn (0 leak warnings)
+ok    res://tests/partial_foundations.tscn (5 leak warnings)
+ok    res://tests/patrol_authoring.tscn (0 leak warnings)
+ok    res://tests/traps_triggers.tscn (0 leak warnings)
+ok    res://tests/story_traversal.tscn (0 leak warnings)
+ok    res://tests/room_resize.tscn (0 leak warnings)
+ok    res://tests/world_selection.tscn (0 leak warnings)
+ok    res://tests/web_menu.tscn (0 leak warnings)
+ok    res://tests/attack_catalog.tscn (5 leak warnings)
+ok    res://tests/ape_composition.tscn (0 leak warnings)
+ok    res://tests/ape_fixture_variants.tscn (0 leak warnings)
+ok    res://tests/ape_followups.tscn (0 leak warnings)
+ok    res://tests/ape_effect_tooltips.tscn (0 leak warnings)
+ok    res://tests/ape_split_spawns.tscn (0 leak warnings)
+ok    res://tests/attack_catalog_rollback.tscn (0 leak warnings)
+ok    --script tests/sfx.gd (0 leak warnings)
+ok    --script tests/roar.gd (0 leak warnings)
+ok    --script tests/music.gd (0 leak warnings)
+ok    --script tests/environment_music.gd (0 leak warnings)
+ok    --script tests/ape_art.gd (0 leak warnings)
+ok    --script tests/discoveries.gd (1 leak warnings)
+ok    res://tests/progression_editor.tscn (0 leak warnings)
+ok    res://tests/ape_return_barrier.tscn (0 leak warnings)
+ok    res://tests/editor_playtest.tscn (0 leak warnings)
+ok    res://tests/editor_scroll.tscn (0 leak warnings)
+ok    res://tests/editor_navigation.tscn (0 leak warnings)
+ok    res://tests/island_routes.tscn (0 leak warnings)
+ok    --script tests/character_style.gd (0 leak warnings)
+ok    res://tests/bench.tscn (0 leak warnings)
+FAIL  python unittest
+ok    gdlint
+ok    pyflakes
+ok    git diff --check
+1 failing
+
+Follow-up after fixing the stale island landing coordinate:
+Python unittest: 76 tests, OK (exit 0).
+Pyflakes tests/test_island.py: pass (exit 0).
+Git diff --check: pass.
+Godot runners and GDScript/Python lint passed in the initial run; only the Python test fixture changed afterward.
