@@ -43,6 +43,12 @@ var zip_pending = null  # zip mover dict waiting for its target click
 var sel_start = null  # Vector2i cell where a Shift+drag selection began
 var sel := Rect2i()  # selected cells (Shift+drag); Ctrl+C / Ctrl+X copy or cut them
 static var clip := {}  # {w, h, tiles: [String], entities: [Dictionary]}; kept across rooms
+var origin_shift := Vector2i.ZERO
+var saved_origin_shift := Vector2i.ZERO
+var resize_side := Vector2i.ZERO
+var resize_start := Vector2.ZERO
+var resize_preview := Rect2i()
+var resize_origin_history: Array[Vector2i] = []
 var panning := false
 var space_down := false
 
@@ -84,6 +90,14 @@ func _create_tile_layer() -> void:
 func _ready() -> void:
 	level = Game.editor_level.duplicate(true) if not Game.editor_level.is_empty() else Game.new_level()
 	saved_level = level.duplicate(true)
+	var resume: Dictionary = Game.editor_resize_resume
+	Game.editor_resize_resume = {}
+	if resume.get("file",null) == Game.editor_file and resume.get("dir",null) == Game.editor_dir:
+		origin_shift = resume.origin
+		saved_origin_shift = resume.saved_origin
+		saved_level = resume.saved_level
+		undo_stack = resume.undo_stack
+		resize_origin_history.assign(resume.origin_history)
 	cam = Camera2D.new()
 	cam.zoom = Vector2(3, 3)
 	add_child(cam)
@@ -94,6 +108,9 @@ func _ready() -> void:
 	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
 	_refresh()
 	_frame_room()
+
+func _exit_tree() -> void:
+	Input.set_default_cursor_shape(Input.CURSOR_ARROW)
 
 # ---------------- UI ----------------
 # Create the name/size controls, load/save actions, object palette and status bar.
@@ -163,6 +180,7 @@ func _build_ui() -> void:
 	enemy_spin.tooltip_text = "Generated enemy budget when building; 0 disables population. Safe placement and peaceful regions still apply."
 	enemy_spin.value_changed.connect(func(v: float): level.enemy_count = int(v))
 	tools.add_child(enemy_spin)
+	_tool_button(tools, "room_size", "Room size (drag edges)", Color("91efba"))
 	_tool_button(tools, "motion", "Object movement", Color("65deec"))
 	_tool_button(tools, "triggers", "Traps and triggers", Color("e3b46e"))
 	navigation_box = VBoxContainer.new()
@@ -349,6 +367,7 @@ func _load_index(i: int) -> void:
 		return
 	_push_undo()
 	_set_level(d)
+	saved_origin_shift = Vector2i.ZERO
 	Game.editor_dir = Game.LEVEL_DIR
 	Game.editor_file = load_menu.get_popup().get_item_text(i)
 	_status("Loaded " + d.name)
@@ -369,19 +388,27 @@ func _status(t: String) -> void:
 # Save a deep snapshot before an edit and keep the undo history within its maximum size.
 func _push_undo() -> void:
 	undo_stack.append(level.duplicate(true))
+	resize_origin_history.append(origin_shift)
 	if undo_stack.size() > MAX_UNDO:
 		undo_stack.pop_front()
+		resize_origin_history.pop_front()
 
 # Restore the most recent snapshot and rebuild previews to match it.
 func _undo() -> void:
 	if undo_stack.is_empty():
 		return
+	var restored_origin: Vector2i = resize_origin_history.pop_back() if not resize_origin_history.is_empty() else Vector2i.ZERO
+	var camera_delta := origin_shift - restored_origin
 	_set_level(undo_stack.pop_back())
+	origin_shift = restored_origin
+	cam.position += Vector2(camera_delta * T)
+	_refresh_navigation()
 
 # Replace the editable level with a fresh room.
 func _new() -> void:
 	_push_undo()
 	_set_level(Game.new_level())
+	saved_origin_shift = Vector2i.ZERO
 	Game.editor_dir = Game.LEVEL_DIR
 	Game.editor_file = ""
 
@@ -391,6 +418,8 @@ func _set_level(d: Dictionary) -> void:
 	if is_instance_valid(motion_panel): motion_panel.clear_selection()
 	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	level = d
+	origin_shift = Vector2i.ZERO
+	_cancel_resize()
 	zip_pending = null
 	rect_start = null
 	_sync_fields()
@@ -417,9 +446,26 @@ func _validate_motion() -> bool:
 # Write the room to its correct custom-level or world-room filename, then remember the saved snapshot.
 func _save() -> bool:
 	if not _validate_motion(): return false
+	var shift := origin_shift - saved_origin_shift
+	var manifest := {}
+	var old_disk := {}
+	if Game.editor_return == "world_editor" and Game.editor_file != "" and Game.editor_dir == Game.world_path.get_base_dir()+"/" and shift != Vector2i.ZERO:
+		var parsed = JSON.parse_string(FileAccess.get_file_as_string(Game.world_path))
+		if not parsed is Dictionary or not parsed.get("rooms",{}).has(Game.editor_file):
+			_status("Cannot update room position: world manifest is unavailable.")
+			return false
+		manifest = parsed
+		var position: Array = manifest.rooms[Game.editor_file]
+		manifest.rooms[Game.editor_file] = [int(position[0])+shift.x,int(position[1])+shift.y]
+		old_disk = Game.load_level(Game.editor_file,Game.editor_dir)
 	var f := Game.save_level(level, Game.editor_dir, Game.editor_file)
 	_status("Saved as %s.json" % f if f != "" else "Save failed")
 	if f == "": return false
+	if not manifest.is_empty() and not Game.write_safe(Game.world_path,JSON.stringify(manifest,"\t")):
+		Game.save_level(old_disk,Game.editor_dir,Game.editor_file)
+		_status("World position save failed; saved room restored. Your edits are still open.")
+		return false
+	saved_origin_shift = origin_shift
 	Game.editor_file = f
 	Game.editor_level = level.duplicate(true)
 	saved_level = level.duplicate(true)
@@ -428,7 +474,7 @@ func _save() -> bool:
 
 # Go back to the menu or the World Editor; with unsaved edits, ask first: Save, Don't save, or Cancel (stay).
 func _leave() -> void:
-	if level == saved_level:
+	if level == saved_level and origin_shift == saved_origin_shift:
 		Game.goto(Game.editor_return)
 		return
 	if get_children().any(func(c): return c is ConfirmationDialog):
@@ -450,26 +496,109 @@ func _leave() -> void:
 
 # Resize tile rows, discard objects outside the new bounds and rebuild the affected previews.
 func _resize() -> void:
-	_push_undo()
-	var nw := int(w_spin.value)
-	var nh := int(h_spin.value)
-	for entity in level.entities:
-		if int(entity.x) < nw * T and int(entity.y) < nh * T and entity.has("motion") and not MotionInspector.Runtime.Settings.validate(entity.motion, Vector2i(nw * T, nh * T)).is_empty():
+	_resize_bounds(Rect2i(0,0,int(w_spin.value),int(h_spin.value)))
+
+# Bounds are in old tile coordinates; their origin chooses which sides change.
+func _resize_bounds(bounds: Rect2i) -> bool:
+	if bounds.size.x < 10 or bounds.size.y < 6 or bounds.size.x > 400 or bounds.size.y > 400:
+		_status("Room size must be 10–400 tiles wide and 6–400 tiles high.")
+		return false
+	if bounds == Rect2i(0,0,level.w,level.h): return true
+	var resized := level.duplicate(true)
+	resized.w = bounds.size.x
+	resized.h = bounds.size.y
+	resized.tiles = []
+	for y in resized.h:
+		var old_y: int = y + bounds.position.y
+		var row := ""
+		for x in resized.w:
+			var old_x: int = x + bounds.position.x
+			row += str(level.tiles[old_y][old_x]) if old_y >= 0 and old_y < level.h and old_x >= 0 and old_x < level.w else "0"
+		resized.tiles.append(row)
+	var extent := Rect2i(Vector2i.ZERO,bounds.size*T)
+	var kept := []
+	for entity in resized.entities:
+		_shift(entity,-bounds.position*T)
+		if E.TYPES[entity.t][1]:
+			var clipped := Rect2i(int(entity.x),int(entity.y),int(entity.get("w",T)),int(entity.get("h",T))).intersection(extent)
+			if not clipped.has_area(): continue
+			entity.x = clipped.position.x
+			entity.y = clipped.position.y
+			entity.w = clipped.size.x
+			entity.h = clipped.size.y
+		elif not extent.has_point(Vector2i(int(entity.x),int(entity.y))): continue
+		if entity.has("motion") and not MotionInspector.Runtime.Settings.validate(entity.motion,extent.size).is_empty():
 			_status("Resize would cut a patrol path. Edit its points first.")
-			return
-	var rows := []
-	for y in nh:
-		var old: String = level.tiles[y] if y < level.h else ""
-		var row := old.substr(0, nw) if old.length() >= nw else old + "0".repeat(nw - old.length())
-		rows.append(row)
-	level.tiles = rows
-	level.w = nw
-	level.h = nh
-	level.entities = level.entities.filter(func(e): return int(e.x) < nw * T and int(e.y) < nh * T)
-	_prune_trigger_links()
+			return false
+		if entity.has("tx") and not extent.has_point(Vector2i(int(entity.tx),int(entity.ty))):
+			_status("Resize would cut a mover destination. Edit its target first.")
+			return false
+		kept.append(entity)
+	resized.entities = kept
+	_push_undo()
+	level = resized
+	origin_shift += bounds.position
+	cam.position -= Vector2(bounds.position*T)
 	zip_pending = null
-	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
+	rect_start = null
+	dragging_paint = 0
+	sel = Rect2i()
+	sel_start = null
+	_prune_trigger_links()
+	_sync_fields()
+	tile_layer.setup(level.tiles,level.w,level.h,level.get("environment",""))
 	_refresh()
+	_status("Resized to %d × %d tiles (Ctrl+Z to undo)" % [level.w,level.h])
+	return true
+
+func _resize_handle(point: Vector2) -> Vector2i:
+	var margin := 9.0 / cam.zoom.x
+	var size_px := Vector2(level.w*T,level.h*T)
+	if not Rect2(-Vector2.ONE*margin,size_px+Vector2.ONE*margin*2).has_point(point): return Vector2i.ZERO
+	var side := Vector2i.ZERO
+	if absf(point.x) <= margin: side.x = -1
+	elif absf(point.x-size_px.x) <= margin: side.x = 1
+	if absf(point.y) <= margin: side.y = -1
+	elif absf(point.y-size_px.y) <= margin: side.y = 1
+	return side
+
+func _begin_resize(side: Vector2i, point: Vector2) -> void:
+	resize_side = side
+	resize_start = point
+	resize_preview = Rect2i(0,0,level.w,level.h)
+	_redraw()
+
+func _preview_resize(point: Vector2) -> void:
+	var delta := Vector2i(((point-resize_start)/T).round())
+	var low := Vector2i.ZERO
+	var high := Vector2i(level.w,level.h)
+	for axis in 2:
+		var minimum := 10 if axis == 0 else 6
+		if resize_side[axis] < 0: low[axis] = clampi(delta[axis],high[axis]-400,high[axis]-minimum)
+		elif resize_side[axis] > 0: high[axis] = clampi(high[axis]+delta[axis],minimum,400)
+	resize_preview = Rect2i(low,high-low)
+	_redraw()
+
+func _cancel_resize() -> void:
+	resize_side = Vector2i.ZERO
+	resize_preview = Rect2i()
+	_redraw()
+
+# Capture release even over the toolbar/palette, so a drag cannot get stuck.
+func _input(event: InputEvent) -> void:
+	if resize_side == Vector2i.ZERO: return
+	if event is InputEventMouseMotion:
+		_preview_resize(get_global_mouse_position())
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+		_preview_resize(get_global_mouse_position())
+		var bounds := resize_preview
+		_cancel_resize()
+		_resize_bounds(bounds)
+	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_cancel_resize()
+		_status("Resize cancelled")
+	else: return
+	get_viewport().set_input_as_handled()
 
 # Play from a start marker, a respawn slab, or a temporary safe floor position.
 func _playtest() -> void:
@@ -482,6 +611,7 @@ func _playtest() -> void:
 			return
 		trial.entities.append({"t":"spawn", "x":point.x, "y":point.y})
 	Game.editor_level = level.duplicate(true)
+	Game.editor_resize_resume = {"file":Game.editor_file,"dir":Game.editor_dir,"origin":origin_shift,"saved_origin":saved_origin_shift,"saved_level":saved_level.duplicate(true),"undo_stack":undo_stack.duplicate(true),"origin_history":resize_origin_history.duplicate()}
 	Game.play(trial, true)
 
 # Choose clear grounded space without adding a permanent marker to the room.
@@ -802,7 +932,7 @@ func _place_rect(a: Vector2i, b: Vector2i) -> void:
 
 # Translate keyboard/mouse gestures into undo, saving, playtesting, painting, erasing and panning.
 func _unhandled_input(event: InputEvent) -> void:
-	if is_instance_valid(navigation_dialog): return
+	if is_instance_valid(navigation_dialog) or resize_side != Vector2i.ZERO: return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode == KEY_Z and event.ctrl_pressed:
 			_undo()
@@ -866,6 +996,11 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # Begin or finish a left-button placement gesture, including sized objects and moving-platform targets.
 func _left(pressed: bool) -> void:
+	if tool == "room_size":
+		if pressed:
+			var side := _resize_handle(get_global_mouse_position())
+			if side != Vector2i.ZERO: _begin_resize(side,get_global_mouse_position())
+		return
 	var c := _cell_at_mouse()
 	if tool == "triggers":
 		if pressed: trigger_panel.canvas_click(get_global_mouse_position())
@@ -922,6 +1057,7 @@ func _left(pressed: bool) -> void:
 
 # Begin or finish an erase gesture, saving the appropriate undo snapshot.
 func _right(pressed: bool) -> void:
+	if tool == "room_size": return
 	if tool == "triggers":
 		trigger_panel.link_edge = ""
 		_redraw()
@@ -973,6 +1109,13 @@ func _process(dt: float) -> void:
 	if v != Vector2.ZERO and not Input.is_key_pressed(KEY_CTRL) and not (get_viewport().gui_get_focus_owner() is LineEdit):
 		cam.position += v * 400 * dt / cam.zoom.x
 		_redraw()
+	var cursor := Input.CURSOR_ARROW
+	if tool == "room_size":
+		var side := resize_side if resize_side != Vector2i.ZERO else _resize_handle(get_global_mouse_position())
+		if side.x != 0 and side.y != 0: cursor = Input.CURSOR_FDIAGSIZE if side.x == side.y else Input.CURSOR_BDIAGSIZE
+		elif side.x != 0: cursor = Input.CURSOR_HSIZE
+		elif side.y != 0: cursor = Input.CURSOR_VSIZE
+	Input.set_default_cursor_shape(cursor)
 	var c := _cell_at_mouse()
 	msg_t -= dt
 	var over = _arrow_at(get_global_mouse_position())
@@ -980,6 +1123,8 @@ func _process(dt: float) -> void:
 		status.text = msg
 	elif over != null:
 		status.text = "Click: edit %s (Ctrl + arrow key)" % over.name
+	elif tool == "room_size":
+		status.text = "Drag any room edge or corner; release to resize. Escape cancels. Ctrl+Z undoes. Added space is empty."
 	elif tool == "triggers":
 		status.text = "Click a target; right-click cancels linking." if trigger_panel.link_edge != "" else "Traps and triggers: select an object to configure timing or links."
 	elif tool == "motion":
@@ -1029,6 +1174,16 @@ func _draw() -> void:
 		Rect2(Vector2(b.end.x, b.position.y), Vector2(maxf(0, visible.end.x - b.end.x), b.size.y))]:
 		if strip.has_area(): draw_rect(strip, outside)
 	draw_rect(b, Color(1, 1, 1, 0.5), false, 1.0 / cam.zoom.x)
+	if tool == "room_size":
+		var outline := Rect2(resize_preview.position*T,resize_preview.size*T) if resize_side != Vector2i.ZERO else b
+		draw_rect(outline,Color("91efba"),false,2.0/cam.zoom.x)
+		for horizontal in [0.0,0.5,1.0]:
+			for vertical in [0.0,0.5,1.0]:
+				if horizontal == 0.5 and vertical == 0.5: continue
+				var center := outline.position + outline.size*Vector2(horizontal,vertical)
+				draw_rect(Rect2(center-Vector2.ONE*4/cam.zoom.x,Vector2.ONE*8/cam.zoom.x),Color("91efba"))
+		if resize_side != Vector2i.ZERO:
+			draw_string(ThemeDB.fallback_font,outline.position-Vector2(0,8/cam.zoom.x),"%d × %d" % [resize_preview.size.x,resize_preview.size.y],HORIZONTAL_ALIGNMENT_LEFT,-1,16/cam.zoom.x,Color.WHITE)
 	var c := _cell_at_mouse()
 	if rect_start != null:
 		var lo := Vector2(mini(rect_start.x, c.x), mini(rect_start.y, c.y)) * T
@@ -1062,6 +1217,7 @@ func _connected_rooms() -> Array:
 	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 	if not world.get("rooms", {}).has(Game.editor_file): return result
 	var source: Dictionary = world.rooms[Game.editor_file].duplicate(true)
+	source.pos += origin_shift-saved_origin_shift
 	source.level = level
 	for name in world.rooms:
 		if name == Game.editor_file: continue
@@ -1085,7 +1241,7 @@ func _edge_arrows(names: Array) -> Array:
 	if Game.editor_return != "world_editor": return out
 	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 	if not world.get("rooms", {}).has(Game.editor_file): return out
-	var me := Rect2i(world.rooms[Game.editor_file].pos, Vector2i(level.w, level.h))
+	var me := Rect2i(world.rooms[Game.editor_file].pos+origin_shift-saved_origin_shift, Vector2i(level.w, level.h))
 	for name in names:
 		var o := Rect2i(world.rooms[name].pos, Vector2i(world.rooms[name].level.w, world.rooms[name].level.h))
 		var ys := Vector2(maxi(me.position.y, o.position.y), mini(me.end.y, o.end.y))  # shared rows / columns
@@ -1131,7 +1287,7 @@ func _request_room(name: String) -> void:
 	if name not in _connected_rooms():
 		_status("Room is no longer connected")
 		return
-	if level == saved_level:
+	if level == saved_level and origin_shift == saved_origin_shift:
 		_open_connected_room(name)
 		return
 	if is_instance_valid(navigation_dialog): return
@@ -1161,6 +1317,8 @@ func _open_connected_room(name: String) -> void:
 	Game.editor_level = data.duplicate(true)
 	saved_level = data.duplicate(true)
 	undo_stack.clear()
+	resize_origin_history.clear()
+	saved_origin_shift = Vector2i.ZERO
 	sel = Rect2i()
 	sel_start = null
 	dragging_paint = 0
@@ -1182,6 +1340,7 @@ func _frame_room() -> void:
 
 # Palette help includes the effect and the gesture used to place the selected object.
 func _tool_help(id: String) -> String:
+	if id == "room_size": return "Drag any room edge or corner to resize from that side. Release to apply, Escape to cancel, Ctrl+Z to undo. Left/top resizing also shifts objects and patrol paths."
 	if id == "triggers": return "Select a trap or trigger to edit timing and typed links. Link on enter/exit, then click a trap or moving target."
 	if id == "motion": return "Select a placed object to edit surface/sticky patrol or open/closed paths. Drag numbered path points; right-click a point to delete. Changes use normal undo and saving."
 	var help := {

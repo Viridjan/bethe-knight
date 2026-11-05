@@ -110,6 +110,7 @@ var tuning: Dictionary = {}
 var level: Dictionary = {}
 var playtest := false
 var editor_level: Dictionary = {}
+var editor_resize_resume: Dictionary = {}  # transient resize/undo state while playtesting
 var editor_dir := LEVEL_DIR  # where the level editor saves (the world folder when editing a world room)
 var editor_file := ""  # fixed file name when editing a world room (renaming must not break world.json)
 var editor_return := "menu"  # screen the editor's Menu button goes back to

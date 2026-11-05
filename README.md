@@ -88,6 +88,8 @@ Save them as a named preset in `user://tuning/` (the last saved/loaded preset is
 See `docs/ADDING_ENTITIES.md`.
 
 ## Level editor
+
+Select **Room size (drag edges)** in the left palette, then drag any edge or corner. The preview snaps to tiles; release to apply, Escape to cancel, Ctrl+Z to undo. Left/top resizing shifts tiles, objects and movement paths together, and saving updates the world room position so the opposite edges stay fixed. New space is empty; shrinking crops terrain and objects, and refuses changes that cut a retained patrol path or mover destination. The W/H fields and Resize button still resize the right/bottom sides.
 LMB paint/place (drag to size blocks; zip mover asks for a target click) · RMB erase ·
 MMB or Space+drag pan · wheel zoom · Ctrl+Z undo · Ctrl+S save · F5 playtest ·
 Shift+drag select an area, Ctrl+X / Ctrl+C cut or copy it, Ctrl+V paste at the mouse (also into another room).
