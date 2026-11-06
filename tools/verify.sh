@@ -26,6 +26,7 @@ run '^0 failure\(s\)' res://tests/test.tscn
 run '^PUNCH: 0 failure\(s\)' res://tests/punch.tscn
 run '^SMOKE OK' res://tests/smoke.tscn
 run '^IDENTITY: 0 failure\(s\)' res://tests/identity.tscn
+run '^STAMINA RECOVERY: 0 failure\(s\)' res://tests/stamina_recovery.tscn
 run '^STRESS: 0 failure\(s\)' res://tests/stress.tscn
 run '^PARTIAL FOUNDATIONS: 0 failure\(s\)' res://tests/partial_foundations.tscn
 run '^PATROL AUTHORING: 0 failure\(s\)' res://tests/patrol_authoring.tscn

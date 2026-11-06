@@ -23,6 +23,21 @@ func _ready() -> void:
 	if not editor.has_method("_box_select"):
 		check(false, "World editor supports rectangular room selection")
 	else:
+		# Exercise press/release without motion events: fast drags must use the release position.
+		var mouse := InputEventMouseButton.new()
+		mouse.button_index = MOUSE_BUTTON_LEFT
+		mouse.pressed = true
+		mouse.position = editor.to_screen(Vector2(-1, -1))
+		editor._gui_input(mouse)
+		mouse.pressed = false
+		mouse.position = editor.to_screen(Vector2(25, 11))
+		editor._gui_input(mouse)
+		check(editor.selected_rooms.size() == 2, "Mouse release completes a fast selection rectangle")
+		mouse.pressed = true
+		mouse.ctrl_pressed = true
+		mouse.position = editor.to_screen(Vector2(1, 1))
+		editor._gui_input(mouse)
+		check(not editor.selected_rooms.has("a") and editor.selected_rooms.has("b"), "Control-click removes only the clicked room from the group")
 		editor._box_select(Rect2(Vector2(-1, -1), Vector2(26, 12)), false)
 		check(editor.selected_rooms.size() == 2, "Drag selection includes both rooms and excludes distant rooms")
 		editor._begin_room_drag("a", Vector2.ZERO)

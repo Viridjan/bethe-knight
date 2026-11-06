@@ -25,24 +25,26 @@ func _process(_dt: float) -> void:
 		history.pop_front()
 	queue_redraw()
 
-# Current continuous rate and why: water drains, otherwise regeneration up to the top of the current block.
+# Current continuous rate and why, using the same capacity/stress rules as gameplay.
 func rate() -> Array:
 	var run: Dictionary = Game.adv
 	if world.player.dead:
 		return [0.0, "dead"]
+	if world.player.stun_blocks_regen():
+		return [0.0, "stunned: no regen"]
+	if world.player.state == Player.ST_CLIMB:
+		return [0.0, "climbing: no regen"]
 	if world.in_water():
 		return [-Adventure.WATER_DRAIN, "in water: drain (no regen)"]
-	var top := regen_top(run.stamina)
+	var top := regen_top(run)
 	if run.stamina < top:
-		var k := Adventure.regen_factor(run.stamina / Adventure.stamina_max(run))
-		return [Adventure.STAMINA_REGEN_MAX * k, "regen x%.2f to %.0f (top of this block)" % [k, top]]
-	return [0.0, "idle (block full or fully spent block above base)"]
+		var k := Adventure.regen_factor(run.stamina / top) * Adventure.Stress.recovery_multiplier(Adventure.Stress.value(run))
+		return [Adventure.STAMINA_REGEN_MAX * k, "regen x%.2f to %.0f (full capacity)" % [k, top]]
+	return [0.0, "idle (all stamina bars full)"]
 
-# Where regeneration stops: the base always refills; above it, only up to the top of a partly spent block.
-static func regen_top(e: float) -> float:
-	if e <= Adventure.BASE_STAMINA:
-		return Adventure.BASE_STAMINA
-	return Adventure.BASE_STAMINA + ceilf((e - Adventure.BASE_STAMINA) / Adventure.STAMINA_PER_BLOCK) * Adventure.STAMINA_PER_BLOCK
+# Empty bars remain recoverable; owned blocks alone determine the target.
+static func regen_top(run: Dictionary) -> float:
+	return Adventure.stamina_max(run)
 
 func _line(font: Font, y: float, s: String, col := Color.WHITE) -> float:
 	draw_string(font, Vector2(12, y), s, HORIZONTAL_ALIGNMENT_LEFT, W - 24, 15, col)

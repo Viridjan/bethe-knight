@@ -2444,7 +2444,7 @@ func check_bestiary() -> void:
 	check(mv.tab == 1, "E switches tabs on the keyboard")
 	mv.queue_free()
 
-# Stamina (docs/STORY_DESIGN.md section 3): 100 per block, regen only inside a partly spent block,
+# Stamina: every owned bar can regenerate, including fully depleted bars,
 # a hit costs a block, the last block is a death.
 # Regression coverage for stamina. The assertions below state the expected behavior of this case.
 func check_stamina() -> void:
@@ -2472,10 +2472,10 @@ func check_stamina() -> void:
 	check(run.blocks == 2 and run.stamina == 52.0 and Adventure.stamina_max(run) == 52.0, "a new block adds a full 20")
 	Adventure.spend_stamina(run, 32)
 	Adventure.regen_stamina(run, 10.0)
-	check(run.stamina == 32.0, "a fully spent block doesn't refill")
+	check(run.stamina == 52.0, "a fully spent block refills naturally")
 	Adventure.spend_stamina(run, 32)
 	Adventure.regen_stamina(run, 100.0)
-	check(run.stamina == 32.0, "the base refills, but not the spent block above it")
+	check(run.stamina == 52.0, "regeneration crosses bar boundaries up to full capacity")
 	Adventure.refill_stamina(run)
 	Adventure.spend_stamina(run, 10)
 	Adventure.regen_stamina(run, 100.0)
@@ -2531,7 +2531,8 @@ func check_stamina() -> void:
 	# each jump costs 5 stamina and needs it: with less there's no jump
 	make_world([])
 	step(5)
-	Game.adv.stamina = 100.0
+	var jump_energy := Adventure.stamina_max(Game.adv)
+	Game.adv.stamina = jump_energy
 	p().tap = {"jump": true}
 	step()
 	var after_jump: float = Game.adv.stamina
@@ -2540,7 +2541,7 @@ func check_stamina() -> void:
 	var y0: float = p().pos.y
 	p().tap = {"jump": true}
 	step(4)
-	check(absf(after_jump - 95.0) < 0.3 and p().on_ground and p().pos.y == y0, "a jump costs 5 stamina; with less there's no jump (%s)" % after_jump)
+	check(absf(after_jump - (jump_energy - 5.0)) < 0.3 and p().on_ground and p().pos.y == y0, "a jump costs 5 stamina; with less there's no jump (%s)" % after_jump)
 	check(w.stamina_log.size() > 0 and w.stamina_log[-1][1] == "jump" and is_equal_approx(w.stamina_log[-1][2], -5.0), "stamina changes are logged with their cause (%s)" % [w.stamina_log])
 	check(w.stamina_totals.has("jump") and w.stamina_totals.jump[0] >= 1 and is_equal_approx(w.stamina_totals.jump[1], -5.0 * w.stamina_totals.jump[0]) and w.stamina_totals.has("regen"),
 		"F3 recap: totals per cause (%s)" % [w.stamina_totals])
@@ -2550,7 +2551,7 @@ func check_stamina() -> void:
 		wall.append([20, y])
 	make_world([], wall)
 	step(5)
-	Game.adv.stamina = 100.0
+	Game.adv.stamina = jump_energy
 	p().pos = Vector2(20 * 8 - 4, 22 * 8)  # in the air, hugging the wall on the right
 	p().speed = Vector2.ZERO
 	p().on_ground = false
@@ -2564,7 +2565,7 @@ func check_stamina() -> void:
 	p().jump_grace_timer = 0.0
 	p().tap = {"jump": true}
 	step()
-	check(absf(after_wall - 95.0) < 0.3 and w.stamina_log[0][1] == "wall jump" and p().speed.x >= 0.0,
+	check(absf(after_wall - (jump_energy - 5.0)) < 0.3 and w.stamina_log[0][1] == "wall jump" and p().speed.x >= 0.0,
 		"a wall jump costs 5 stamina; with less there's none (%s, then speed %s)" % [after_wall, p().speed])
 	var EP = load("res://scripts/stamina_panel.gd")
 	var ep = EP.new()
@@ -2573,8 +2574,8 @@ func check_stamina() -> void:
 	ep._process(0.0)
 	var vr := Rect2(Vector2.ZERO, ep.get_viewport_rect().size)
 	check(vr.encloses(ep.get_global_rect()) and ep.size.x > 100, "F3 panel is on screen (%s in %s)" % [ep.get_global_rect(), vr])
-	check(EP.regen_top(30.0) == 32.0 and EP.regen_top(40.0) == 52.0 and EP.regen_top(52.0) == 52.0 and ep.rate()[0] >= 0.0 and ep.history.size() == 1,
-		"F3 stamina panel: regen top per block, live rate and history")
+	check(EP.regen_top({"blocks":1}) == 32.0 and EP.regen_top({"blocks":2}) == 52.0 and EP.regen_top({"blocks":3}) == 72.0 and ep.rate()[0] >= 0.0 and ep.history.size() == 1,
+		"F3 stamina panel: full-capacity regen target, live rate and history")
 	ep.free()
 	Game.adv.stamina = 100.0
 

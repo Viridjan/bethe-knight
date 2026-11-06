@@ -125,12 +125,7 @@ Arena and collision:
 Stamina is also health:
 - It replaces hearts. The icon is still undecided; it shows as **blocks**.
 - **1 block = 100 stamina** in code. Every value below is in code units.
-- In code now (scripts/adventure.gd; F3 in game shows it all live): energy is called **stamina** (2026-10-25). The run
-  starts with a **base of 40** that always regenerates; each stamina block picked up adds **20**. Regeneration is
-  3/s with the bar empty, rising linearly to 12/s at half full, then down to 4/s full; none in water or while climbing. A jump or
-  wall jump costs and needs 5. Climbing drains the same bar (one full base bar = one Celeste climb meter); the
-  ground doesn't refill it. Water drains 40/s; 0 in water drowns. A hit is always a death; the respawn refills the
-  base bar. A stamina orb refills to max (back after 2.5 s). Hair turns grey below 20%.
+- In code now (`scripts/adventure.gd`): stamina starts with a **base of 32**; each stamina block adds **20**. All owned bars regenerate to full, including completely emptied ones. Regeneration is 2/s empty, rising to 6/s at half capacity and falling to 3/s full, scaled by stress; none in water, while climbing or during the blocking portion of a stun. A jump or wall jump costs and needs 5. Climbing drains the same bar; standing on ground does not instantly refill it. Water drains 40/s; 0 in water drowns. A hit causes respawn, which immediately restores at least the base bar. A stamina orb instantly refills to max. Hair turns grey below 20%.
 - With 1 block the player can use one ability, then has to rest before using another.
 - The 2nd block comes from the first city.
 

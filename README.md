@@ -42,7 +42,7 @@ Run, variable jump, coyote time, input buffering, wall jump, wall slide, climb +
 climb hop, 8-way dash, super/hyper jump, wavedash, super wall jump, corner correction, duck, fast fall.
 
 **Stamina (adventure):** a base of 32 that always regenerates, plus 20 per stamina block; a jump or wall jump costs 5,
-climbing drains it, water drains 40/s. Regeneration: 2/s empty, 6/s at half, 3/s full (`scripts/adventure.gd`).
+climbing drains it, water drains 40/s. All owned bars regenerate to full, even after being completely emptied. Regeneration: 2/s empty, 6/s at half, 3/s full (`scripts/adventure.gd`).
 A fall of 10+ tiles is a hard landing: stamina to 0 and a 1 s stun (stars over the head; regeneration restarts with the
 second star). F3 shows a stamina recap.
 
@@ -69,6 +69,10 @@ The game ships one world, the story (`res://worlds/story/`, chapter 1 in progres
 
 **World editor** (main menu → World Editor, only when run from source because it writes `res://worlds/story/`):
 drag rooms on the grid; where two rooms touch and both have open tiles on the shared edge, that's a passage (green).
+Drag empty space to select multiple rooms, then drag a selected room to move the group.
+Shift-drag adds rooms; Ctrl-click toggles individual rooms. Nearby compatible passages snap together
+when **Snap passage connections** is enabled; hold Alt to bypass snapping and Escape to cancel a move.
+See [selection and snapping controls](docs/WORLD_EDITOR_SELECTION.md).
 "+ Add empty room (draft)" (placed right of the selected room) or "+ Add copy of my level", Edit room (or double-click a
 room; Esc goes back and asks to save), Playtest from here, Set as start. **Build drafts** turns draft rooms into
 connected, playable rooms (`tools/story/build_drafts.py`: a maze with one way into each, two shortcuts behind an ability

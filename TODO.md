@@ -30,7 +30,7 @@ Current delivery audit: [implemented, partial and missing requests](docs/IMPLEME
 Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 
 ### Systems
-- [x] Stamina as health: a base of 50 that always regenerates, blocks of 75 on top; a hit costs 100 (respawn), nothing left = death; regen 6/s (extra blocks only inside the current one) (`Adventure.*_stamina`, HUD line, `stamina_block` + `stamina_orb` pickups)
+- [x] Stamina as health: base 32 plus 20 per extra block; all owned bars regenerate fully, even when emptied, with stress scaling. Contacts cause respawn; zero stamina underwater causes drowning. (`Adventure.*_stamina`, HUD, `stamina_block` + `stamina_orb` pickups)
 - [x] Attack is an adventure ability (`ability_attack` orb); existing worlds list it in their start abilities
 - [x] Story world starts with jump only (`worlds/story`, `"abilities": []`)
 - [ ] Big wavedash jump is a later gate (needs dash): decide which later level gives dash

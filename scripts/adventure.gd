@@ -22,7 +22,7 @@ const ABILITIES := ["dash", "climb", "attack"]
 # run.blocks counts the base as the first block (so 1 = just the base).
 const BASE_STAMINA := 32.0  # 40 until 2026-10-29 (-20%: too much for the first part); whole numbers (a jump costs 5)
 const STAMINA_PER_BLOCK := 20.0  # what an stamina block pickup adds
-const STAMINA_REGEN_MAX := 6.0  # per second at half full (see regen_factor), only inside a partly spent block
+const STAMINA_REGEN_MAX := 6.0  # per second at half full (see regen_factor), across the full owned capacity
 const STAMINA_REGEN_EMPTY := 2.0  # per second with the bar empty
 const STAMINA_REGEN_FULL := 3.0  # per second with the bar full
 const WATER_DRAIN := 40.0  # per second while in water (4 every 0.1 s); no regeneration there
@@ -207,16 +207,12 @@ static func new_run(world: Dictionary) -> Dictionary:
 static func stamina_max(run: Dictionary) -> float:
 	return BASE_STAMINA + (run.blocks - 1) * STAMINA_PER_BLOCK
 
-# The base always regenerates, even from 0. Above it, regeneration stops at the top of the current
-# block: an extra block spent to its bottom stays empty.
-# Regenerate within the permitted current stamina block without refilling already spent upper blocks.
+# Every owned stamina bar regenerates, including fully depleted bars.
 static func regen_stamina(run: Dictionary, dt: float) -> void:
-	var top := BASE_STAMINA
-	if run.stamina > BASE_STAMINA:
-		top = BASE_STAMINA + ceilf((run.stamina - BASE_STAMINA) / STAMINA_PER_BLOCK) * STAMINA_PER_BLOCK
+	var top := stamina_max(run)
 	Stress.observe_exhaustion(run, stamina_max(run))
 	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run)) * Stress.recovery_multiplier(Stress.value(run))
-	run.stamina = minf(maxf(top, run.stamina), run.stamina + rate * dt)
+	run.stamina = minf(top, run.stamina + rate * dt)
 	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Regeneration speed as a share of STAMINA_REGEN_MAX, by how full the bar is (0..1): from 2/s empty, linearly up
