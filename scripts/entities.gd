@@ -28,6 +28,7 @@ const IslandArt := preload("res://scripts/island_art.gd")
 const MonsterLib := preload("res://scripts/monster_library.gd")
 const AttackCatalog := preload("res://scripts/attack_catalog.gd")
 const AttackEffects := preload("res://scripts/effects/attack_effects.gd")
+const CorneredCoverage := preload("res://scripts/combat/cornered_coverage.gd")
 
 # The entity registry: the one place a type is declared.
 # type id (saved in level JSON) -> [editor label, sized (drag a rect in the editor), palette color, class]
@@ -2897,28 +2898,38 @@ class Ape extends Ent:
 			"dying":
 				if timer <= 0:
 					_beaten()
-	# The player is between the Ape and a wall, and the scream would cover all the floor up to that wall: no way to
-	# dodge it, so it leaps instead.
-	func _cornered(p) -> bool:
-		var side := signf(p.center().x - center().x)
-		if side == 0.0: return false  # vertically aligned: there is no horizontal gap to search
+	# Static coverage adapters must use the same shape/hit predicate as real damage.
+	# Moving projectiles/leaps need a separate time-aware coverage definition.
+	func _cornered_coverage() -> Dictionary:
+		var attack_id: String = profile.get("cornered_coverage_attack","ape_scream")
+		if attack_id != "ape_scream": return {}
 		var c := center()
-		var x := c.x
-		while absf(x - c.x) <= scream_radius() and w.collide_solid(Rect2i(int(x), int(c.y), 1, 1)) == null:
-			x += side
-		return absf(x - c.x) <= scream_radius()
+		var area: float = AttackCatalog.shared().value(attack_id,"coverage_area_units2",PI*25.0)
+		var radius := sqrt(area/PI)*T
+		return {"bounds":Rect2(c-Vector2.ONE*radius,Vector2.ONE*radius*2),"hits":func(box): return AttackEffects.circle_hits(c,radius,box)}
+
+	func _cornered(p) -> bool:
+		if w == null: return false
+		var solid := func(box): return w.collide_solid(box,self) != null
+		var support := func(box): return solid.call(box) or w.collide_jumpthru_outside(box,Rect2i(box.position-Vector2i(0,1),box.size)) != null
+		return CorneredCoverage.evaluate(rect,p.hitbox(),p.damage_rect(),p.on_ground,_cornered_coverage(),solid,support).cornered
 
 	# Change the boss phase and set its duration, emitting the appropriate one-time attack cue.
 	func _select_attack(distance_units: float, above: bool, corner: bool, allow_throw: bool) -> String:
 		var phase_name := "enraged" if enraged() else "normal"
 		var near_rules: Array = AttackCatalog.shared().ordered_attacks("boss_ape", phase_name, ["ape_scream"])
 		var near_limit: float = AttackCatalog.max_range(near_rules[0]) if not near_rules.is_empty() else NEAR / T
+		var conditions := {"player_cornered":corner, "player_vertical":above, "player_near":distance_units < near_limit, "player_far":distance_units >= near_limit}
+		var bindings := {}
+		for row in AttackCatalog.shared().ordered_attacks("boss_ape",phase_name): bindings[row.attack_name] = row
+
 		return AttackCatalog.shared().select_attack("boss_ape", phase_name, [], distance_units,
 			func(id):
-				if id == "ape_retreat": return corner and not above  # cornered: away to the far side, then its follow-up
+				if AttackCatalog.attack_condition(bindings.get(id,{})) != "default": return true
+				if id == "ape_retreat": return corner  # covered ground corridor: retreat, then follow-up
 				if id == "ape_throw": return allow_throw
 				if id == "ape_leap": return above or corner or distance_units >= near_limit  # (cornered too, if the retreat is skipped)
-				return id == "ape_scream" and not above and not corner, 1.0, skip_waits, clock)
+				return id == "ape_scream" and not above and not corner, 1.0, skip_waits, clock, conditions)
 	func _ape_param(id: String, field: String, fallback: float) -> float:
 		if attack_snapshot.get("name", "") == id:
 			var cell := str(attack_snapshot.get(field, ""))

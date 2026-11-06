@@ -83,6 +83,22 @@ func _rounded_profiles() -> Dictionary:
 		result.boss_ape.phase2_wave_scales = result.boss_ape.phase2_wave_scales.map(func(v): return roundf(float(v) * 100.0) / 100.0)
 	return result
 
+# Decision conditions are separate from automatic impact/landing effects.
+const ATTACK_CONDITIONS := {"default":"Normal rules", "player_cornered":"Player cornered", "player_vertical":"Player above/below", "player_near":"Player nearby", "player_far":"Player far away", "always":"Always"}
+
+# Only attacks with an accurate static runtime footprint may be coverage references.
+static func coverage_attacks(enemy_id: String) -> Array:
+	return ["ape_scream"] if enemy_id == "boss_ape" else []
+
+static func attack_condition(row: Dictionary) -> String:
+	var condition := str(row.get("trigger_condition",""))
+	if not condition.is_empty(): return condition
+	return "player_cornered" if row.get("enemy_id","") == "boss_ape" and row.get("attack_name","") == "ape_retreat" else "default"
+
+static func attack_trigger_matches(row: Dictionary, context: Dictionary) -> bool:
+	var condition := attack_condition(row)
+	return condition in ["default","always"] or bool(context.get(condition,false))
+
 static func triggered(row: Dictionary) -> bool:
 	return row.get("activation_mode", "selected") == "triggered"
 
@@ -127,6 +143,8 @@ func reload() -> bool:
 	assignments = b.rows
 	attack_columns = a.columns
 	assignment_columns = b.columns
+	if "trigger_condition" not in assignment_columns: assignment_columns.append("trigger_condition")
+	for row in assignments: row.trigger_condition = attack_condition(row)
 	error = validate()
 	if not error.is_empty():
 		attacks = previous[0]; assignments = previous[1]
@@ -200,6 +218,9 @@ func validate() -> String:
 		var key := "%s/%s/%s" % [row.enemy_id, row.phase, row.attack_name]
 		if row.get("activation_mode", "selected") not in ["", "selected", "triggered"]: return _fail("ranges", i, "activation_mode", "Activation must be selected or triggered: " + key)
 		if triggered(row) and (row.enemy_id != "boss_ape" or row.attack_name not in RUNTIME_ONLY): return _fail("ranges", i, "activation_mode", "Unknown triggered effect: " + key)
+		var condition := attack_condition(row)
+		if condition not in ATTACK_CONDITIONS or (row.enemy_id != "boss_ape" and condition != "default") or (triggered(row) and condition != "default"):
+			return _fail("ranges",i,"trigger_condition","Unsupported attack trigger: " + key)
 		if bindings.has(key): return _fail("ranges", i, "attack_name", "Duplicate range binding: " + key)
 		bindings[key] = true
 		for field in ["min_range_units", "max_range_units", "priority"]:
@@ -227,6 +248,7 @@ func _validate_profiles() -> String:
 	if not enemy_profiles.has("boss_ape"): return ""  # legacy CSV-only fixtures/world tooling
 	var p: Variant = enemy_profiles.boss_ape
 	if not p is Dictionary: return "Ape profile must be an object"
+	if p.get("cornered_coverage_attack","ape_scream") not in [""]+coverage_attacks("boss_ape"): return "Unsupported Ape cornered coverage attack"
 	for field in ["max_hp", "phase2_hp"]:
 		var value: Variant = p.get(field, null)
 		if not (value is int or value is float) or not is_finite(float(value)) or float(value) != floorf(float(value)) or float(value) < 1 or float(value) > 10000:
@@ -366,9 +388,9 @@ func move_binding(row: Dictionary, step: int) -> void:
 # The first attack in priority order that's in range and eligible; each has a skip chance (percent): when it's rolled,
 # that attack passes and the next one is tried. With `waits` (the enemy's own {attack: time}) and its clock `now`, a
 # skipped attack sits out its recovery instead of being rolled again next frame.
-func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0, waits: Dictionary = {}, now: float = 0.0) -> String:
+func select_attack(enemy_id: String, phase: String, available: Array, distance: float, eligible: Callable = Callable(), range_scale: float = 1.0, waits: Dictionary = {}, now: float = 0.0, context: Dictionary = {}) -> String:
 	for row in ordered_attacks(enemy_id, phase, available):
-		if triggered(row): continue
+		if triggered(row) or not attack_trigger_matches(row,context): continue
 		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
 		if not performs(enemy_id, row.attack_name): continue  # added in the editor, not in its code yet
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue

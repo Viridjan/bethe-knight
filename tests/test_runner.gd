@@ -1928,6 +1928,7 @@ func check_ape() -> void:
 	make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
 	ape = find.call(E.Ape)[0]
 	p().pos = Vector2(30 * 8 - 5, floor_y)
+	p().on_ground = true
 	ape.phase = "idle"
 	ape.timer = 0.0
 	ape.update(0.0)
@@ -1953,6 +1954,7 @@ func check_ape() -> void:
 		make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
 		ape = find.call(E.Ape)[0]
 		p().pos = Vector2(30 * 8 - 5, floor_y)
+		p().on_ground = true
 		ape.phase = "idle"
 		ape.timer = 0.0
 		ape.update(0.0)
@@ -1974,6 +1976,7 @@ func check_ape() -> void:
 	make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
 	ape = find.call(E.Ape)[0]
 	p().pos = Vector2(30 * 8 - 5, floor_y)
+	p().on_ground = true
 	ape.phase = "idle"
 	ape.timer = 0.0
 	ape.update(0.0)
@@ -1985,6 +1988,7 @@ func check_ape() -> void:
 	make_world([{"t": "boss_ape", "x": 30 * 8 - 32 - 12, "y": floor_y - 32}], cwall)
 	ape = find.call(E.Ape)[0]
 	p().pos = Vector2(30 * 8 - 5, floor_y)
+	p().on_ground = true
 	ape.phase = "idle"
 	ape.timer = 0.0
 	ape.update(0.0)

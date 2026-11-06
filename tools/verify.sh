@@ -38,6 +38,8 @@ run '^WEB MENU OK' res://tests/web_menu.tscn
 run '^ATTACK CATALOG OK' res://tests/attack_catalog.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_composition.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_fixture_variants.tscn
+run '^CORNERED COVERAGE: 0 failure\(s\)' res://tests/cornered_coverage.tscn
+run '^APE ATTACK TRIGGERS: 0 failure\(s\)' res://tests/ape_attack_triggers.tscn
 run '^APE FOLLOWUPS: 0 failure\(s\)' res://tests/ape_followups.tscn
 run '^APE EFFECT TOOLTIPS: 0 failure\(s\)' res://tests/ape_effect_tooltips.tscn
 run '^APE SPLIT SPAWNS: 0 failure\(s\)' res://tests/ape_split_spawns.tscn

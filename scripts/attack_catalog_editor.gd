@@ -264,7 +264,7 @@ func _select_row(index: int) -> void:
 		["Trajectory", ["flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"], true],
 		["Advanced", ["name", "base_weight"], true]
 	]
-	if ranges: groups = [["Assignment", ["enemy_id", "phase", "attack_name"], false], ["Distance", ["min_range_units", "max_range_units", "priority"], false]]
+	if ranges: groups = [["Assignment", ["enemy_id", "phase", "attack_name"], false], ["Distance", ["max_range_units", "priority"], false]]
 	var keep: Array = _applicable(row) + ["codex_online_name", "name", "type", "base_weight"] if not ranges else []
 	for group in groups:
 		var columns: Array = group[1].filter(func(column): return row.has(column) and (ranges or column in keep))
@@ -306,7 +306,7 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cell.add_theme_constant_override("separation", 4)
 	grid.add_child(cell)
-	var labels := {"codex_online_name": "Name", "name": "ID", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Maximum", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
+	var labels := {"codex_online_name": "Name", "name": "ID", "windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area (u²)", "initial_speed_units_s": "Initial speed", "horizontal_speed_units_s": "Horizontal speed", "vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "multishot": "Multishot", "aimed_shot": "Aimed shot #", "spread_deg": "Spread (°)", "max_distance_units": "Max distance", "shockwave_s": "Shockwave time", "min_range_units": "Minimum", "max_range_units": "Range", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 	var label := Game.label(labels.get(column, column.replace("_", " ").capitalize()), 14)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.tooltip_text = _help(column)
@@ -526,6 +526,20 @@ func _effect_help(e: Array, effect: String = "") -> String:
 	return "\n".join(lines)
 
 
+func _attack_trigger_picker(row: Dictionary) -> OptionButton:
+	var pick := OptionButton.new()
+	var conditions: Array = Catalog.ATTACK_CONDITIONS.keys()
+	for condition in conditions: pick.add_item(Catalog.ATTACK_CONDITIONS[condition])
+	pick.select(conditions.find(Catalog.attack_condition(row)))
+	pick.custom_minimum_size = Vector2(140,ROW_H)
+	pick.add_theme_font_size_override("font_size",12)
+	pick.disabled = not writable
+	pick.tooltip_text = "Condition that enables this attack. Range, priority and Skip % still apply. Player cornered: the player is grounded between the enemy and a wall, and the chosen coverage attack hits every standing position between them. A solid block in any of the first three rows above the floor counts as a wall. Normal rules keeps this attack's built-in selection rules."
+	pick.set_meta("attack_trigger",row.attack_name)
+	pick.set_meta("phase",row.phase)
+	pick.item_selected.connect(func(index): _binding_change(row,"trigger_condition",conditions[index]))
+	return pick
+
 func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> void:
 	var widths := [22, 190, 48, 48, 48, 26, 26, 26, 56]
 	var binding_line := HBoxContainer.new()
@@ -536,21 +550,21 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 	var selected_count := ordered.size()
 	if phased:
 		binding_line.add_child(Game.label("Phase %s · #%d" % ["1" if row.phase == "normal" else "2", k + 1], 12))
-	for column in ["min_range_units", "max_range_units", "skip_chance"]:
+	for column in ["max_range_units", "skip_chance"]:
 		var edit := _small_edit(writable)
 		edit.text = _shown(column, str(row.get(column, "0")))
-		if column == "max_range_units" and float(str(row.get(column, "0"))) == 0:
-			edit.text = ""  # 0 = no maximum
-		if column == "max_range_units":
-			edit.placeholder_text = "no max"
+		if column == "max_range_units": edit.placeholder_text = "0"
 		edit.custom_minimum_size.x = widths[2]
 		edit.tooltip_text = _help(column)
 		if catalog.error_at.table == "ranges" and catalog.assignments.find(row) == catalog.error_at.index and catalog.error_at.field == column:
 			edit.add_theme_color_override("font_color", Color("ff7070"))
 		edit.text_changed.connect(func(v): _binding_change(row, column, v))
-		var label := Game.label({"min_range_units": "Min", "max_range_units": "Max", "skip_chance": "Skip %"}[column], 12)
+		var label := Game.label({"max_range_units": "Range", "skip_chance": "Skip %"}[column], 12)
 		binding_line.add_child(label)
 		binding_line.add_child(edit)
+	if row.enemy_id == "boss_ape":
+		binding_line.add_child(Game.label("Trigger",12))
+		binding_line.add_child(_attack_trigger_picker(row))
 	for b in [["up", -1, k == 0], ["down", 1, k == selected_count - 1], ["cross", 0, false]]:
 		var btn := Game.button("", (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
 		btn.icon = _glyph(b[0])
@@ -800,11 +814,32 @@ func _ape_profile_fields() -> void:
 			dirty = true
 			dirty_changed.emit()
 			_update_feedback())
+	var coverage := HBoxContainer.new()
+	coverage.add_child(Game.label("Cornered coverage",12))
+	coverage.add_child(_cornered_coverage_picker("boss_ape"))
+	block.add_child(coverage)
 
-# Two groups side by side; compact numeric inputs leave labels readable.
+func _cornered_coverage_picker(enemy_id: String) -> OptionButton:
+	var profile: Dictionary = catalog.enemy_profile(enemy_id)
+	var choices: Array = [""]+Catalog.coverage_attacks(enemy_id)
+	var pick := OptionButton.new()
+	pick.add_item("Disabled")
+	for id in choices.slice(1): pick.add_item(str(catalog.attack(id).get("codex_online_name",id)))
+	pick.select(choices.find(profile.get("cornered_coverage_attack","ape_scream" if enemy_id=="boss_ape" else "")))
+	pick.custom_minimum_size.y = ROW_H
+	pick.add_theme_font_size_override("font_size",12)
+	pick.disabled = not writable
+	pick.tooltip_text = "Attack whose actual damage footprint must cover the ground corridor for Player cornered. Separate from the reaction chosen on each attack row. Only accurate static coverage adapters are listed; moving attacks need a coverage model first."
+	pick.item_selected.connect(func(index):
+		profile.cornered_coverage_attack = choices[index]
+		dirty = true
+		dirty_changed.emit()
+		_update_feedback())
+	return pick
+
+# Cards use their natural width and wrap together as the details pane narrows.
 func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) -> void:
-	var groups := GridContainer.new()
-	groups.columns = 2
+	var groups := HFlowContainer.new()
 	groups.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	groups.add_theme_constant_override("h_separation", 8)
 	groups.add_theme_constant_override("v_separation", 6)
@@ -820,11 +855,12 @@ func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) ->
 		var columns: Array = definition[1].filter(func(column): return column in applicable)
 		if columns.is_empty(): continue
 		var panel := PanelContainer.new()
-		panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		panel.add_theme_stylebox_override("panel", _surface("18202b", "2c3b4e", 7))
+		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+		panel.add_theme_stylebox_override("panel", _surface("18202b", "2c3b4e", 6))
 		groups.add_child(panel)
 		var content := VBoxContainer.new()
-		content.add_theme_constant_override("separation", 5)
+		content.add_theme_constant_override("separation", 3)
 		panel.add_child(content)
 		var heading := Game.label(definition[0], 12)
 		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -843,11 +879,6 @@ func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) ->
 			var edit := _compact_field(grid, attack, column, score)
 			edit.custom_minimum_size.x = 52
 			edit.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		if columns.size() % 2 == 1:
-			grid.add_child(Control.new())
-			var filler := Control.new()
-			filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			grid.add_child(filler)
 
 # A value as shown in a box: the CSV's rounding, without trailing zeros (40, 0.5; the CSV keeps 40.00).
 func _shown(column: String, cell: String) -> String:
@@ -890,8 +921,8 @@ func _refresh_effect_help() -> void:
 
 # Short tags for the compact view, in display order; the fields an attack's type always needs.
 const TAGS := {"windup_s": "Wind-up", "animation_s": "Execution", "recovery_s": "Recovery", "flight_time_s": "Flight time", "coverage_area_units2": "Area",
-	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal speed",
-	"vertical_speed_units_s": "Vertical speed", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
+	"initial_speed_units_s": "Speed", "multishot": "Multishot", "aimed_shot": "Aimed shot", "spread_deg": "Spread °", "horizontal_speed_units_s": "Horizontal",
+	"vertical_speed_units_s": "Vertical", "gravity_units_s2": "Gravity", "max_distance_units": "Max distance", "shockwave_s": "Shockwave", "base_weight": "Weight", "follow_up": "Then", "follow_up_count": "Times", "follow_up_gap_s": "Every (s)"}
 
 
 # The boxes each attack type shows (the same for every attack of that type).
@@ -1057,6 +1088,7 @@ func _show_score(label: Label, attack: Dictionary) -> void:
 	label.text = "%.2f" % sc.score if sc.valid else "-"
 
 func _binding_change(row: Dictionary, column: String, value: String) -> void:
+	if column == "max_range_units": row.min_range_units = "0"  # Range is a maximum-only editor control.
 	row[column] = "0" if column == "max_range_units" and value.strip_edges().is_empty() else value  # empty = no maximum
 	dirty = true
 	dirty_changed.emit()
@@ -1211,7 +1243,7 @@ func _help(field: String) -> String:
 		"spread_deg": return "Degrees between neighbouring shots. 0 spaces them evenly around the full circle."
 		"priority": return "Higher values are checked first, whatever their ranges."
 		"skip_chance": return "Percent chance this attack passes its turn when it could be used; the next one in the list is tried."
-		"max_range_units": return "Center-to-center radial distance in tiles, exclusive. Empty (0) = no maximum."
+		"max_range_units": return "Maximum center-to-center distance in tiles (exclusive). 0 = any range; an empty field also means 0."
 		"follow_up": return "Another attack done right after this one (e.g. ape_throw). Empty = none."
 		"follow_up_count": return "How many times the follow-up comes."
 		"follow_up_gap_s": return "Seconds between one follow-up and the next."

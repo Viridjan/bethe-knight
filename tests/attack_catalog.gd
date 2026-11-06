@@ -134,6 +134,15 @@ func _ready() -> void:
 		editor.catalog = catalog
 		add_child(editor)
 		check(editor.view == "enemies" and editor.enemy_tab.button_pressed, "Monster editor opens on enemy loadouts")
+		var range_rule: Dictionary = catalog.ordered_attacks("enemy_monster", "default", ["leap"])[0]
+		var saved_rule := range_rule.duplicate(true)
+		range_rule.min_range_units = "100"
+		editor._binding_change(range_rule,"max_range_units","0")
+		check(range_rule.min_range_units == "0" and catalog.select_attack("enemy_monster","default",["leap"],1) == "leap" and catalog.select_attack("enemy_monster","default",["leap"],500) == "leap", "Range 0 allows any distance and clears an imported hidden minimum")
+		editor._binding_change(range_rule,"max_range_units","5")
+		check(catalog.select_attack("enemy_monster","default",["leap"],4) == "leap" and catalog.select_attack("enemy_monster","default",["leap"],5) == "", "Single Range field limits the maximum distance")
+		range_rule.merge(saved_rule,true)
+
 		editor._show_table(false)
 		check(editor.table.item_count == catalog.attacks.size(), "Monsters CSV editor lists all attacks")
 		check(editor.get("search") != null, "Monster editor provides searchable navigation")
