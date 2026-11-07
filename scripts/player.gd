@@ -174,6 +174,7 @@ var hurtbox := HURT_NORMAL
 var state := ST_NORMAL
 var prev_state := ST_NORMAL
 var dead := false
+var air_jump_used := false
 var underwater := false  # centre inside water: Normal becomes Normal (Underwater)
 var in_waterfall := false  # layer: hurtbox inside a waterfall
 var bubble_t := 0.0
@@ -449,11 +450,13 @@ func _swim_update(dt: float) -> int:
 		return ST_NORMAL
 	if can_dash():
 		return _start_dash()
+	var thick: bool = w.liquid_at(hurt_rect(),"thick_water")
+	var water_speed := WATER_MAX_X*(0.45 if thick else 1.0)
 	# horizontal: the same as mid-water, also along the floor (no walking: the air poses, swim speed)
-	if absf(speed.x) > WATER_MAX_X:
-		speed.x = approach(speed.x, WATER_MAX_X * signf(speed.x), WATER_DRAG * dt)
+	if absf(speed.x) > water_speed:
+		speed.x = approach(speed.x, water_speed * signf(speed.x), WATER_DRAG * dt)
 	else:
-		speed.x = approach(speed.x, WATER_MAX_X * move_x, WATER_ACCEL * dt)
+		speed.x = approach(speed.x, water_speed * move_x, WATER_ACCEL * dt)
 	if not on_ground:
 		speed.y = approach(speed.y, WATER_MAX_FALL, GRAVITY * (1.0 - WATER_BUOYANCY) * dt)
 	speed.y = maxf(speed.y, -WATER_MAX_RISE)
@@ -464,7 +467,7 @@ func _swim_update(dt: float) -> int:
 		else:  # Jumping (Underwater)
 			jump_buf = 0
 			sfx("splash", 1.3)
-			speed.y = WATER_STROKE
+			speed.y = WATER_STROKE*(0.7 if thick else 1.0)
 	bubble_t -= dt
 	if bubble_t <= 0:
 		bubble_t = 0.45
@@ -720,6 +723,7 @@ func update(dt: float) -> void:
 
 	if on_ground and not was_on_ground and fall_dist >= HARD_FALL and state == ST_NORMAL and w.adventure():
 		_hard_landing()
+	if on_ground: air_jump_used = false
 	if on_ground or speed.y < 0 or state in [ST_CLIMB, ST_SWIM, ST_DREAM_DASH, ST_STAR_FLY, ST_BOOST]:
 		fall_dist = 0.0
 	else:
@@ -1508,6 +1512,9 @@ func _normal_update(dt: float) -> int:
 					super_wall_jump(1)
 				else:
 					wall_jump(1)
+			elif w.adventure() and Game.has_ability("double_jump") and not air_jump_used:
+				air_jump_used = true
+				jump()
 	return ST_NORMAL
 
 # ---------------- CLIMB ----------------

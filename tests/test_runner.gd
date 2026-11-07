@@ -2472,7 +2472,7 @@ func check_stamina() -> void:
 	check(run.stamina == base, "regeneration stops at the top of the base")
 	run.stamina = 0.0
 	Adventure.regen_stamina(run, 0.01)
-	check(run.stress == 5 and is_equal_approx(run.stamina, 0.0396), "the base regenerates from zero with the exhaustion stress penalty (%s)" % run.stamina)
+	check(run.stress == 5 and is_equal_approx(run.stamina, 0.04), "the base regenerates from zero before a stress block is filled (%s)" % run.stamina)
 	Adventure.regen_stamina(run, 100.0)
 	check(not Adventure.spend_stamina(run, 160) and run.stamina == base, "can't spend more than you have")
 	Adventure.add_stamina_block(run)
@@ -2587,7 +2587,7 @@ func check_stamina() -> void:
 	Game.adv.stamina = 100.0
 
 	# HUD stamina bars: one per block, filled by its share of the stamina
-	var fills: Array = load("res://scripts/world.gd").Hud.block_fills(base + block / 2, 3)
+	var fills: Array = load("res://scripts/world.gd").Hud.block_fills(base + block * 0.5, 3)
 	check(fills == [1.0, 0.5, 0.0], "HUD stamina bars: the base, then block by block (%s)" % [fills])
 	Game.adv.stamina = 0.19 * Adventure.stamina_max(Game.adv)
 	var grey: bool = p().hair_color() == p().HAIR_USED
@@ -2938,7 +2938,7 @@ func _ready() -> void:
 	step(40)
 	var after_landing: float = Game.adv.stamina
 	Game.adv = keep_adv
-	check(climbed_to < base - 3 and is_equal_approx(as_climb, climbed_to * 110.0 / base) and after_landing <= climbed_to + base * 0.2,
+	check(climbed_to < base - 4 and is_equal_approx(as_climb, climbed_to * 110.0 / base) and after_landing <= climbed_to + Game.Adventure.STAMINA_REGEN_MAX * 40.0 / 60.0,
 		"adventure climbing drains the stamina bar, and landing doesn't refill it (%s, then %s)" % [climbed_to, after_landing])
 	# infinite stamina (assist option): hang on the same wall for 20 s
 	Game.settings.infinite_stamina = true

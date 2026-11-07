@@ -2,6 +2,23 @@
 
 Current delivery audit: [implemented, partial and missing requests](docs/IMPLEMENTATION_STATUS.md) (2026-11-05). Design documents do not imply playable completion. Current deferred-work check: [DEFERRED_WORK.md](docs/DEFERRED_WORK.md).
 
+## Current priority: lighthouse, crossing and volcanic island
+Map direction: [room clusters, branching long routes, secret pockets and shortcut plan](docs/STORY_DESIGN.md#0-current-map-plan-room-clusters-and-branching-connections). Apply this topology before final room placement.
+
+Confirmed story/HUD systems are implemented; map placement and route authoring remain. See [system behavior and authoring](docs/NONMAP_SYSTEMS.md). These take precedence over conflicting older quest, Kraken and stress proposals below.
+
+- [x] Lighthouse NPC system grants the sword and a quest for three crystals. The sword is an ability; placing the NPC and removing the earlier sand-cave reward remain map work.
+- [ ] Small old-ruins area below the lighthouse: at least two varied compact rooms, open entrance, sword-breakable obstacles guarding the three interactable quest crystals. Quest stages, unique pickups, turn-in and boat unlock are implemented; author the ruins and placements.
+- [x] Items and Abilities pages alongside Map/Monsters. Initially show quest crystals and acquired sword; ability-page redesign can follow later.
+- [ ] Boat-only sea crossing between lighthouse shores. West Shore's left rock wall has already been removed in current map edits; preserve that improvement, finish the arrival lighthouse and ensure both shores meet the sea without a direct walk-through connection.
+- [x] First-crossing system (boat/dock placement remains): dodge rushing Kraken tentacles on a large boat; the encounter destroys the boat and washes Be ashore without it. This replaces the earlier first-crossing boss-fight/head-window/stat-gate proposal; it must not require unimplemented abilities to reach the island.
+- [ ] Volcanic-island progression: west/east/north/south shores, complex marshes with thick-water behavior/environment, rocky plateau and a large volcanic zone. Preserve useful existing island rooms while adapting the routes.
+- [x] Plateau giant-foot system: enormous walking rock inhabitants/enemies, raised-foot passage, warning and dodgeable ground stomps. Placement is map work; climbing them is a later progression feature.
+- [x] Volcanic heat: red tint and continuous stamina drain, plus double-jump and heat-resistance abilities. Movement-gated route design and reward placement remain map work.
+- [x] HUD: no top-left text; wider segmented stamina bar attached directly above segmented stress bar. Stress-capacity upgrades add blocks. Each completely filled stress block contributes an equal share of a maximum 30% stamina-regeneration penalty; four owned blocks means 7.5% per completed block. New runs default to one stress block; old saves retain five. Upgrade locations remain map work.
+
+Recently completed: full stamina regeneration, four-sided/corner room resizing with variant synchronization, compact attack cards, one maximum Range field, per-phase Ape attack triggers and coverage-based Player cornered. Other enemies still need accurate attack-footprint/context adapters before using that condition.
+
 ### Partial-system foundations
 - [x] Ordinary enemy family health overrides in Enemy loadouts, including library monsters; preserve variant modifiers and legacy defaults; validate and save profiles.
 - [x] Extract existing floor/crawler motion and bounded brood death-spawn definitions into shared modules, with actual enemy regression tests.
@@ -10,9 +27,9 @@ Current delivery audit: [implemented, partial and missing requests](docs/IMPLEME
 
 ### Be the Knight: identity and new design
 - [x] Rename the application/menu to Be the Knight and establish Be as the protagonist; retain the legacy save directory and source asset identifiers.
-- [ ] Kraken: review [encounter, phases, ink, enemy model and stat proposal](docs/BE_THE_KNIGHT_DESIGN.md). Require exactly the full first energy bar and 250 stress; settle underwater capability and explain all conditions at the boat.
-- [x] Stress: persist 0–250 across deaths; +20 death, +5 exhaustion entry, −50 monster, −100 boss/collectible, −100 on a save opened after at least 12 hours (once). Recovery targets at 0/50/100/150/200/250 stress: 100/90/80/75/70/65%; smoothly interpolate partial bars; persist rest claims and avoid dash-only hair triggers. See `tests/stress.tscn`.
-- [ ] Kraken: build isolated boat encounter, safe-top/dangerous-bottom tentacles, one-hit head windows, four alternating sweep rounds, radial volleys 1/2/3 and transition ink; consider the proposed Undertow attack.
+- Historical Kraken stat/underwater entry gates in [the older design](docs/BE_THE_KNIGHT_DESIGN.md) are superseded for the first crossing by the current quest-unlocked tentacle-dodging sequence above.
+- [x] Persistent stress with owned capacity, upgrades and completed-block penalties up to 30%; death/exhaustion gains, relief and durable rest claims preserved. See `tests/stress.tscn` and `docs/NONMAP_SYSTEMS.md`.
+- Historical Kraken head-window/phased combat and Undertow are separate older proposals, not requirements for the newly specified first crossing.
 - [ ] Ink: darkness once at 10%; borders stack independently, with agreed geometry/cap and attempt cleanup.
 - [ ] Review Enemy-tab composition model before changing its schema/UI; preserve the combined Ape page and omit redundant phase boxes.
 - [ ] Three working stats (Dexterity, Constitution, Attack): confirm final names/point budget; measure critical routes before base movement/recovery nerfs. Keep underwater survival separate from steering.
@@ -30,7 +47,7 @@ Current delivery audit: [implemented, partial and missing requests](docs/IMPLEME
 Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 
 ### Systems
-- [x] Stamina as health: base 32 plus 20 per extra block; all owned bars regenerate fully, even when emptied, with stress scaling. Contacts cause respawn; zero stamina underwater causes drowning. (`Adventure.*_stamina`, HUD, `stamina_block` + `stamina_orb` pickups)
+- [x] Stamina as health: base 27 plus 17 per extra block; all owned bars regenerate fully, even when emptied, with stress scaling. Contacts cause respawn; zero stamina underwater causes drowning. (`Adventure.*_stamina`, HUD, `stamina_block` + `stamina_orb` pickups)
 - [x] Attack is an adventure ability (`ability_attack` orb); existing worlds list it in their start abilities
 - [x] Story world starts with jump only (`worlds/story`, `"abilities": []`)
 - [ ] Big wavedash jump is a later gate (needs dash): decide which later level gives dash
@@ -40,10 +57,10 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [ ] Decide wall grab stamina drain (20 or 30/s)
 - [ ] Stamina orb refills everything for now; decide how much collectibles restore
 - [x] Water drains stamina: 2.08 every 0.1 s, no regeneration in water; at 0 stamina in water the player dies (`Adventure.water_stamina`, `World.update_stamina`)
-- [x] HUD: stamina as a lightning bolt and one bar per block (top left, stars under it), area name (top centre), timer and deaths with a skull (top right)
+- [x] HUD: attached text-free stamina/stress rows (top left), area name (top centre), timer and deaths with a skull (top right)
 - [x] Interact button (keyboard, controller, touch)
-- [ ] NPC entity + dialogue box; "..." reply for silent NPCs
-- [ ] Quests and story flags (village quest gives a skill point; quest NPC unlocks the raft)
+- [x] NPC entity + dialogue box; "..." reply for silent NPCs
+- [x] Lighthouse quest, item/key transactions and story flags; boat unlock. Other authored village quests and skill-point rewards remain pending.
 - [ ] Skill points: regeneration, damage, speed, other stats; active abilities later
 - [ ] Positional stereo audio: sounds attached to sprites, panned by position
 - [ ] Research height cues for audio (above/below; HRTF or elevation tricks) before building
@@ -57,7 +74,7 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [ ] Breakable sand platforms
 - [ ] Moving bridges between platforms (flexible)
 - [ ] Net trap + capture animation
-- [ ] Raft (needs the quest flag)
+- [x] Quest-locked boat and first-crossing shipwreck system; raft/boat placements remain map work.
 - [ ] Stone lighthouse with a mirror-aimed magic flame
 - [x] Wandering jungle enemy: Mosstrot (`enemy_mosstrot`, walks back and forth, never chases; touching it hurts)
 
@@ -70,7 +87,7 @@ Design: `docs/STORY_DESIGN.md`. Systems first, since the rooms depend on them.
 - [x] Jungle: Jungle Edge (hollow trunk, leaf climb) → drop → Jungle Falls (waterfall, lake, tunnel hill) → Jungle Hills (tunnel hill, trunk, leaf climb); the Ape is a note at the end
 - [x] Ape boss arena (`a1_ape_arena`): open fighting floor, ledges at both exits and a gated hole to the left branch; tree, bridge pit and tree instructions removed; 56 tiles wide (70%); entering walks you in (`auto_walk`) and the way back shuts (`boss_gate` with `closes_behind`)
 - [x] Right branch room: sand cave climbing at about 25° (`s1_sand_cave`), crumble blocks over pits stand in for breakable sand
-- [ ] Sand cave: Ape chase, rock fall that seals it, sword reward (notes for now)
+- [ ] Sand cave: finish the authored chase/rockfall event chain if still needed. Sword reward moves to the lighthouse quest in the current progression.
 - [x] Shore (`s2_shore`): the mountain's foot with a star out of reach, the sea, the lighthouse tower (a house door at its foot); raft is a note
 - [x] Lighthouse Stairs (`lh1_lighthouse_stairs`): the tower's inside, two screens of zigzag platforms between a door at the bottom and one onto the gallery
 - [x] Lighthouse top (`s3_lighthouse_top`): silent village and the mirrored flame as notes until NPCs exist

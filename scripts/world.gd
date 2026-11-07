@@ -70,6 +70,7 @@ class Letterbox extends Control:
 
 # Screen-space heads-up display: draws counters/resources without moving with the world camera.
 class Hud extends Control:
+	const ResourceBars := preload("res://scripts/ui/resource_bars.gd")
 	const M := 16.0  # margin from the screen edges
 	const BOLT := [Vector2(10, 0), Vector2(1, 16), Vector2(8, 16), Vector2(4, 28), Vector2(18, 10), Vector2(11, 10), Vector2(16, 0)]
 	const SKULL := ["  ####  ", " ###### ", "##.##.##", "########", " ##..## ", "  # # # "]  # 8x6, "." = eye/nose holes
@@ -114,37 +115,9 @@ class Hud extends Control:
 		var w = world
 		var sz := get_viewport_rect().size
 		var y := M
-		# top left: stamina (adventure) as a bolt and one bar per block, then the stars
-		if w.adventure():
-			var bolt := PackedVector2Array(BOLT.map(func(p): return p + Vector2(M, y)))
-			draw_colored_polygon(bolt, Color("ffd84a"))
-			draw_polyline(bolt + PackedVector2Array([bolt[0]]), Color.BLACK, 2.0)
-			var col := bar_color(Game.adv.stamina / Adventure.stamina_max(Game.adv))
-			var x := M + 26.0
-			var fills := block_fills(Game.adv.stamina, int(Game.adv.blocks))
-			for i in fills.size():
-				var f: float = fills[i]
-				var cap: float = Adventure.BASE_STAMINA if i == 0 else Adventure.STAMINA_PER_BLOCK
-				var r := Rect2(x, y + 7, roundf(cap * 0.92), 14)  # bar width follows what it holds (0.92 px per stamina)
-				draw_rect(r.grow(2), Color.BLACK)
-				draw_rect(r, Color(0.12, 0.15, 0.2))
-				draw_rect(Rect2(r.position, Vector2(r.size.x * f, r.size.y)), col)
-				x += r.size.x + 8.0
-			y += 34.0
-			_text(font,Vector2(M,y+18),"Fragments %d/3" % (int(Game.adv.get("fragments",0)) % 3),18,Color("8ce1cc"))
-			y += 26.0
-			var stress: float = Adventure.Stress.value(Game.adv)
-			_text(font, Vector2(M, y + 16), "Stress", 16, Color("d5acda"))
-			for i in Adventure.Stress.BAR_COUNT:
-				var r := Rect2(M + 64 + i * 25, y + 4, 20, 11)
-				draw_rect(r.grow(1), Color.BLACK)
-				draw_rect(r, Color("272231"))
-				var fill := clampf(stress / Adventure.Stress.BAR_CAPACITY - i, 0.0, 1.0)
-				draw_rect(Rect2(r.position, Vector2(r.size.x * fill, r.size.y)), Color("ba7eaa"))
-			_text(font, Vector2(M, y + 36), "%d/250 · recovery %d%%" % [int(stress), roundi(100 * Adventure.Stress.recovery_multiplier(stress))], 14, Color("c3afc9"))
-			y += 46.0
-		if w.total_berries > 0:
-			_text(font, Vector2(M, y + 18), "★ %d/%d" % [w.collected.size(), w.total_berries], 18, Color("ffd34e"))
+		# Two attached resource rows; item counts belong to the map's Items page.
+		if w.heat_drain()>0: draw_rect(Rect2(Vector2.ZERO,sz),Color(0.75,0.12,0.03,0.12))
+		if w.adventure(): ResourceBars.draw(self,Game.adv,bar_color(Game.adv.stamina/Adventure.stamina_max(Game.adv)),minf(360,sz.x*0.28))
 		# top centre: the area's name
 		var area: String = w.data.get("name", "")
 		var aw := font.get_string_size(area, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
@@ -264,6 +237,8 @@ var spawn_queue: Array = []  # entity dicts to add after this tick (spawn_entity
 var leaving_ents: Array = []
 # Adventure: after crossing into a room sideways the player is walked to the middle of its second tile column.
 var walk_dir := 0
+var dialogue: Control
+var crossing: Control
 var door_near = null  # house door the player stands at this tick (interact to go through)
 var walk_target_x := 0.0
 var leaving_rect := Rect2()  # that room, in this room's coordinates
@@ -710,16 +685,17 @@ func update_stamina(dt: float) -> void:
 	Adventure.Stress.observe_exhaustion(Game.adv, Adventure.stamina_max(Game.adv))
 	var was: float = Game.adv.stamina
 	var why := "regen"
-	if player.stun_blocks_regen():
-		why = "stunned"  # a hard landing: no regeneration until the second star
-	elif player.state == player.ST_CLIMB:
-		why = "climbing"  # on the wall: no regeneration (the climb drains it)
-	elif not in_water():
-		Adventure.regen_stamina(Game.adv, dt)
-	else:
-		why = "water"
-		if not Adventure.water_stamina(Game.adv, dt):
-			player.die(Vector2.UP)
+	var heat := heat_drain()
+	if player.stun_blocks_regen():why="stunned"
+	elif player.state==player.ST_CLIMB:why="climbing"
+	elif in_water():
+		why="water"
+		if not Adventure.water_stamina(Game.adv,dt):player.die(Vector2.UP)
+	elif heat<=0:Adventure.regen_stamina(Game.adv,dt)
+	if heat>0 and not player.dead:
+		why="water + heat" if why=="water" else "heat"
+		Adventure.drain_stamina(Game.adv,heat*dt)
+		if Game.adv.stamina<=0:player.die(Vector2.UP)
 	if Game.adv.stamina != was:
 		_tally(why, Game.adv.stamina - was, dt)
 
@@ -748,15 +724,18 @@ func safe_spawn(p: Vector2) -> bool:
 	return true
 
 # Check whether the player centre is inside a water entity.
+func heat_drain() -> float:
+	return preload("res://scripts/progression/environment_rules.gd").heat(data,Game.adv)
+
 func in_water() -> bool:
 	return liquid_at(player.hurt_rect(), "water")
 
 # True when r overlaps an entity of type t (water, waterfall...).
 # Test a rectangle against liquid objects of one named type, including non-collidable water.
 func liquid_at(r: Rect2i, t: String) -> bool:
-	for e in touch_by_type.get(t, []):
-		if e.rect.intersects(r):
-			return true
+	for kind in ([t,"thick_water"] if t=="water" else [t]):
+		for e in touch_by_type.get(kind,[]):
+			if e.rect.intersects(r): return true
 	return false
 
 # Check the persistent pickup list before showing a one-time stamina-capacity upgrade.
@@ -772,6 +751,49 @@ func add_stamina_block(key: String) -> void:
 		Adventure.add_stamina_block(Game.adv)
 		stamina_event("stamina block (+capacity)", Adventure.STAMINA_PER_BLOCK)
 		_save_run()
+
+func open_dialogue(speaker: String, message: String) -> void:
+	if dialogue != null or crossing != null: return
+	dialogue = load("res://scripts/ui/dialogue.gd").new()
+	dialogue.speaker = speaker
+	dialogue.message = message
+	ui.add_child(dialogue)
+	dialogue.closed.connect(func(): dialogue = null)
+	player.interact = false
+	player.speed = Vector2.ZERO
+
+func start_sea_crossing(boat) -> void:
+	if not adventure() or crossing != null or dialogue != null: return
+	if not Adventure.Story.can_sail(Game.adv):
+		open_dialogue("Captain","The boat was lost at sea." if Adventure.Story.has_event(Game.adv,"boat_lost") else "Return three crystals to the lighthouse keeper before setting sail.")
+		return
+	var link: String = str(boat.d.get("to",""))
+	var destination := link.get_slice(":",0) if link.contains(":") else room
+	var id := link.get_slice(":",1) if link.contains(":") else link
+	if not Game.adv_world.rooms.has(destination) or not Game.adv_world.rooms[destination].level.entities.any(func(e): return e.t in E.DOOR_TYPES and e.get("id","")==id):
+		open_dialogue("Captain","There is no safe arrival dock configured for this boat.")
+		return
+	crossing = load("res://scripts/ui/boat_crossing.gd").new()
+	crossing.world = self
+	ui.add_child(crossing)
+	player.interact=false
+	player.speed=Vector2.ZERO
+	crossing.cancelled.connect(func(): crossing=null)
+	crossing.completed.connect(func():
+		crossing=null
+		Adventure.Story.finish_crossing(Game.adv)
+		_go_door(boat)
+		player.speed=Vector2.ZERO
+		_save_run()
+		open_dialogue("Washed ashore","The boat is gone. You made it to the volcanic island."))
+
+func talk_lighthouse(speaker: String) -> void:
+	if not adventure():
+		open_dialogue(speaker,"I am looking for three crystals beneath this lighthouse.")
+		return
+	var message := Adventure.Story.lighthouse_talk(Game.adv)
+	_save_run()
+	open_dialogue(speaker,message)
 
 func show_interaction(text: String) -> void:
 	note_label.text = text
@@ -1035,6 +1057,7 @@ func complete() -> void:
 # ---------------- loop ----------------
 # Handle gameplay shortcuts only after interface controls had a chance to consume the event.
 func _unhandled_input(event: InputEvent) -> void:
+	if dialogue != null or crossing != null: return
 	if done or paused:
 		pass
 	elif event.is_action_pressed("map") or (map_view != null and event.is_action_pressed("pause")):
@@ -1083,7 +1106,7 @@ func _tick_entity(entity, dt: float) -> void:
 func _physics_process(_delta: float) -> void:
 	cam_prev = cam_now  # no tick (paused, frozen) = no motion to interpolate
 	player.prev_pos = player.pos
-	if paused or done or map_view != null:
+	if paused or done or map_view != null or dialogue != null or crossing != null:
 		return
 	if debug_panel != null and (debug_panel.typing() or debug_panel.sim_paused):
 		if debug_panel.typing() or debug_panel.step_frames == 0:
@@ -1334,7 +1357,7 @@ func _draw() -> void:
 		if e is E.Building:
 			continue
 		if e.vis_rect().intersects(cull):  # offscreen entities still update, just don't draw
-			if e.d.t == "water" or e.d.t == "waterfall":
+			if e.d.t in ["water","waterfall","thick_water"]:
 				over.append(e)
 			else:
 				e.draw(self)

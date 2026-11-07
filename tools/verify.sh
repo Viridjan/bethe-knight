@@ -28,6 +28,9 @@ run '^SMOKE OK' res://tests/smoke.tscn
 run '^IDENTITY: 0 failure\(s\)' res://tests/identity.tscn
 run '^STAMINA RECOVERY: 0 failure\(s\)' res://tests/stamina_recovery.tscn
 run '^STRESS: 0 failure\(s\)' res://tests/stress.tscn
+run '^NONMAP PROGRESSION: 0 failure\(s\)' res://tests/nonmap_progression.tscn
+run '^NONMAP ENTITIES: 0 failure\(s\)' res://tests/nonmap_entities.tscn
+run '^SEA CROSSING: 0 failure\(s\)' res://tests/sea_crossing.tscn
 run '^PARTIAL FOUNDATIONS: 0 failure\(s\)' res://tests/partial_foundations.tscn
 run '^PATROL AUTHORING: 0 failure\(s\)' res://tests/patrol_authoring.tscn
 run '^TRAPS TRIGGERS: 0 failure\(s\)' res://tests/traps_triggers.tscn

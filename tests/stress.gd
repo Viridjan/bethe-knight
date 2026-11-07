@@ -9,10 +9,11 @@ func _ready() -> void:
 	var stress = load("res://scripts/progression/stress.gd")
 	var world := {"start": "test", "rooms": {"test": {}}, "abilities": []}
 	var run: Dictionary = Adventure.new_run(world)
-	check(run.stress == 0, "New runs start with five empty stress bars")
+	check(run.stress == 0 and run.stress_blocks == 1, "New runs start with one empty stress block")
+	run.stress_blocks = 5  # Exercise legacy capacity and event amounts.
 	for i in 6:
-		check(is_equal_approx(stress.recovery_multiplier(i * 50), [1.0, 0.9, 0.8, 0.75, 0.7, 0.65][i]), "Stress recovery target %d" % (i * 50))
-	check(is_equal_approx(stress.recovery_multiplier(125), 0.775), "Partial bars interpolate smoothly")
+		check(is_equal_approx(stress.recovery_multiplier(i * 50), [1.0, 0.94, 0.88, 0.82, 0.76, 0.70][i]), "Stress recovery target %d" % (i * 50))
+	check(is_equal_approx(stress.recovery_multiplier(125), 0.88), "Partial blocks do not add another penalty")
 	stress.change(run, 900)
 	check(run.stress == 250, "Stress caps at five full bars")
 	stress.change(run, -999)
@@ -35,7 +36,7 @@ func _ready() -> void:
 	stressed.stress = 250
 	Adventure.regen_stamina(clean, 0.1)
 	Adventure.regen_stamina(stressed, 0.1)
-	check(is_equal_approx((stressed.stamina - 16) / (clean.stamina - 16), 0.65), "Actual stamina regeneration uses the stress multiplier")
+	check(is_equal_approx((stressed.stamina - 16) / (clean.stamina - 16), 0.70), "Actual stamina regeneration uses the stress multiplier")
 	run.stress = 250
 	run.stamina = Adventure.BASE_STAMINA
 	check(stress.kraken_requirements(run, Adventure.BASE_STAMINA, true).all(func(r): return r.met), "Kraken requires a full base bar, max stress and underwater survival")
@@ -63,6 +64,7 @@ func check_world_events(stress, world: Dictionary) -> void:
 	make_world([{"t": "enemy_hornback", "x": 200, "y": 200}, {"t": "boss_ape", "x": 300, "y": 190}])
 	Game.adv_world = {"rooms": {"test": {"pos": Vector2i.ZERO, "level": Game.level}}}
 	Game.adv = Adventure.new_run(world)
+	Game.adv.stress_blocks = 5
 	Game.adv_temp = true
 	w.room = "test"
 	w.spawn_room = "test"
@@ -110,6 +112,7 @@ func check_world_events(stress, world: Dictionary) -> void:
 
 func check_rest(stress, world: Dictionary) -> void:
 	var run := Adventure.new_run(world)
+	run.stress_blocks = 5
 	run.stress = 200
 	run.last_saved_at = 100000
 	var now := 100000 + 12 * 60 * 60
@@ -139,6 +142,7 @@ func check_rest(stress, world: Dictionary) -> void:
 func check_continue_flow() -> void:
 	var actual_world: Dictionary = Adventure.load_world(Game.world_path)
 	Game.adv = Adventure.new_run(actual_world)
+	Game.adv.stress_blocks = 5
 	Game.adv.stress = 200
 	Game.adv_temp = false
 	Game.save_path = "user://stress_continue.cfg"

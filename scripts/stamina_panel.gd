@@ -30,6 +30,9 @@ func rate() -> Array:
 	var run: Dictionary = Game.adv
 	if world.player.dead:
 		return [0.0, "dead"]
+	var heat: float = world.heat_drain()
+	if heat > 0:
+		return [-heat - (Adventure.WATER_DRAIN if world.in_water() else 0.0), "heat: drain (no regen)"]
 	if world.player.stun_blocks_regen():
 		return [0.0, "stunned: no regen"]
 	if world.player.state == Player.ST_CLIMB:
@@ -38,7 +41,7 @@ func rate() -> Array:
 		return [-Adventure.WATER_DRAIN, "in water: drain (no regen)"]
 	var top := regen_top(run)
 	if run.stamina < top:
-		var k := Adventure.regen_factor(run.stamina / top) * Adventure.Stress.recovery_multiplier(Adventure.Stress.value(run))
+		var k := Adventure.regen_factor(run.stamina / top) * Adventure.Stress.recovery_multiplier(run)
 		return [Adventure.STAMINA_REGEN_MAX * k, "regen x%.2f to %.0f (full capacity)" % [k, top]]
 	return [0.0, "idle (all stamina bars full)"]
 

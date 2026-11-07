@@ -13,7 +13,7 @@ const E := preload("res://scripts/entities.gd")
 const Adventure := preload("res://scripts/adventure.gd")
 const T := 8
 const Bestiary := preload("res://scripts/bestiary.gd")
-const TABS := ["Map", "Monsters"]
+const TABS := ["Map", "Monsters", "Items", "Abilities"]
 
 var world
 var layers: Array = []  # [world-pixel Rect2, ImageTexture, is current room]
@@ -23,6 +23,8 @@ var pan := Vector2.ZERO
 var dragging := false
 var tab := 0
 var tab_buttons: Array[Button] = []
+var progress: ScrollContainer
+var progress_content: VBoxContainer
 var bestiary: Control
 
 # Remember the World being viewed; the map reads it without advancing gameplay.
@@ -83,10 +85,21 @@ func _ready() -> void:
 	bestiary.offset_top = 70
 	bestiary.offset_bottom = -40
 	add_child(bestiary)
+	progress = ScrollContainer.new()
+	progress.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	progress.offset_left = 32
+	progress.offset_right = -32
+	progress.offset_top = 80
+	progress.offset_bottom = -48
+	add_child(progress)
+	progress_content = VBoxContainer.new()
+	progress_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	progress_content.add_theme_constant_override("separation",14)
+	progress.add_child(progress_content)
 	var bar := HBoxContainer.new()
 	bar.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	bar.position = Vector2(-300, 12)
-	bar.custom_minimum_size = Vector2(280, 0)
+	bar.position = Vector2(-480, 12)
+	bar.custom_minimum_size = Vector2(460, 0)
 	bar.alignment = BoxContainer.ALIGNMENT_END
 	add_child(bar)
 	var group := ButtonGroup.new()
@@ -108,7 +121,35 @@ func _set_tab(i: int) -> void:
 		tab_buttons[j].button_pressed = j == i
 		tab_buttons[j].modulate = Color(1, 1, 1, 1.0 if j == i else 0.45)
 	bestiary.visible = i == 1
+	progress.visible = i in [2,3]
+	if progress.visible: _progress_page(i)
 	queue_redraw()
+
+func _progress_page(index: int) -> void:
+	for child in progress_content.get_children():
+		progress_content.remove_child(child)
+		child.queue_free()
+	if not world.adventure():
+		progress_content.add_child(Game.label("Available in Adventure.",20))
+		return
+	if index==2:
+		progress_content.add_child(Game.label("Lighthouse crystals  %d / 3" % Adventure.Story.count(Game.adv,"crystal"),24))
+		var stage: String = Game.adv.get("quests",{}).get(Adventure.Story.QUEST,"")
+		var text := "Speak to the lighthouse keeper." if stage=="" else ("Crystals delivered. Boat travel unlocked." if stage=="completed" else "Recover three crystals from the ruins and return to the keeper.")
+		if Adventure.Story.has_event(Game.adv,"boat_lost"): text = "Crystals delivered. Your boat was lost during the crossing."
+		var hint := Game.label(text,18)
+		hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		progress_content.add_child(hint)
+		for id in Game.adv.get("items",{}):
+			if id!="crystal": progress_content.add_child(Game.label("%s  ×%d" % [str(id).replace("_"," ").capitalize(),Adventure.Story.count(Game.adv,id)],20))
+		progress_content.add_child(Game.label("Energy fragments  %d / 3" % (int(Game.adv.get("fragments",0))%3),18))
+		progress_content.add_child(Game.label("Stress capacity  %d blocks" % Adventure.Stress.blocks(Game.adv),18))
+	else:
+		var names := {"attack":"Sword","dash":"Dash","climb":"Wall climb","double_jump":"Double jump","heat_resist":"Heat resistance"}
+		for id in Game.adv.get("abilities",[]): progress_content.add_child(Game.label(names.get(id,str(id).capitalize()),24))
+		if Game.adv.get("abilities",[]).is_empty(): progress_content.add_child(Game.label("No abilities acquired yet.",20))
+		progress_content.add_child(Game.label("Punch is always available.",18))
 
 # Switch tabs with keyboard or gamepad shoulder buttons and consume the handled event.
 func _input(event: InputEvent) -> void:
@@ -134,8 +175,8 @@ func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.02, 0.06, 0.92))
 	var font := get_theme_default_font()
 	var hint := "L1 / R1 (Q / E) tabs · %s / Esc close" % Game.key_name("map")
-	if tab == 1:
-		draw_string(font, Vector2(24, 36), "Monsters", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.WHITE)
+	if tab != 0:
+		draw_string(font, Vector2(24, 36), TABS[tab], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color.WHITE)
 		draw_string(font, Vector2(24, size.y - 18), hint, HORIZONTAL_ALIGNMENT_LEFT, -1, 16, Color(0.7, 0.7, 0.8))
 		return
 	var xf := _xform()

@@ -1,6 +1,14 @@
-# Deferred-work audit — 2026-11-05
+# Deferred-work audit — updated 2026-11-07
 
 Checked TODO.md, IMPLEMENTATION_STATUS.md, the architecture and Be/Kraken design plans, the entity registry, and the existing editor/runtime primitives. This is a backlog audit, not authorization to implement all proposals.
+
+## Latest confirmed systems delivered
+
+The non-map lighthouse quest, sword reward, unique crystal pickups, item/key transactions, persistent story flags, Items/Abilities tabs, boat survival/shipwreck encounter, thick water, plateau giant feet, heat, double jump/heat resistance and attached HUD/stress upgrades are implemented. See [NONMAP_SYSTEMS.md](NONMAP_SYSTEMS.md) for concrete behavior, defaults and authoring.
+
+Ruins rooms, barriers, NPC/crystal/boat placements, arrival lighthouse, shore connections, environment layouts and movement-gated routes remain map work. The earlier sand-cave sword must be moved during that pass. New themes currently reuse existing artwork; giants are not yet climbable. The old Kraken combat/stat gates and interpolated stress rule do not apply to this crossing.
+
+Recent completed work is not deferred: full stamina recovery, resize from every edge/corner, conditional-room synchronization, compact attack controls, one maximum Range field, Ape attack triggers and the coverage-based Player cornered detector. That detector is reusable; other enemies still need real attack-shape/context adapters. The current West Shore map already has sea rather than solid tiles along its left edge; do not report that terrain correction as wholly unimplemented.
 
 ## Explicitly saved for later
 
@@ -8,12 +16,12 @@ Checked TODO.md, IMPLEMENTATION_STATUS.md, the architecture and Be/Kraken design
 
 ## Requested systems still incomplete
 
-- **Kraken/boat encounter:** entry-condition presentation, underwater-capability integration, tentacles/head windows, sweep/radial phases and ink overlays. The eligibility helper and design exist; the encounter does not. Undertow is only a proposed extra attack.
-- **Inventory, keys, quests and story transactions:** Map has no item inventory. General item consumption/retention, NPC quest branches, raft unlocks and reusable one-time event authoring remain missing or specialised.
+- **Kraken/boat encounter:** the latest quest-unlocked first-crossing tentacle dodge, boat destruction and washed-ashore handoff are implemented; author the docks. Older head-window/phased fights, ink and Undertow remain separate historical designs, not acceptance criteria for this crossing.
+- **Inventory, keys, quests and story transactions:** Items/Abilities pages, consumed/retained-key transactions, NPC conditions/rewards and one-time named flags now exist. General story-event graphs remain separate.
 - **Stats and damage:** Dexterity/Constitution/Attack allocation, derived values, multi-hit player damage and stat-based attack damage. Final naming/budget and route-safe movement/recovery changes still need decisions. The basic punch/sword costs are already implemented.
 - **General enemy composition:** extracted health, movement, brood and Ape effects exist, but general phases/conditions, active summoners and attached attack effects are not a complete shared system. Broader Enemy-tab redesign is still a proposal requiring review.
 - **Terrain/content:** progressive occluded tile discovery, pogo/non-pogo hazard distinctions, damage-based tough walls, additional timed-trap types, and Lake Caves/jungle teaching routes. Punch-revealed hidden walls already exist; a dedicated discovery sound is still absent.
-- **Chapter-one story interactions:** full dialogue/quests, net capture animation, flexible moving bridges, raft quest behavior and lighthouse mirror/flame puzzle. Elf/mage artwork is not evidence of implemented quests or dialogue. Branch destinations and several rewards remain undecided.
+- **Chapter-one story interactions:** dialogue/quest entity placement, net capture animation, flexible moving bridges, raft quest behavior and lighthouse mirror/flame puzzle. Elf/mage artwork is not evidence of implemented quests or dialogue. Branch destinations and several rewards remain undecided.
 - **Presentation/audio/export:** region-by-region real-world references/city-jungle pass, positional/elevation audio research, and optional Web export/hosting remain listed. Visible Art Gallery naming still includes the legacy Nori asset category.
 
 ## Decisions and old idea lists

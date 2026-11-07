@@ -10,6 +10,14 @@ subset; a design document, a helper without a caller, or an old similar mechanic
 does not count as a playable implementation of the full request. Gameplay was not
 changed during this audit. Existing user edits to the two jungle rooms were preserved.
 
+## Current follow-up (2026-11-07)
+
+The non-map portion of the lighthouse/island follow-up is implemented: quest/unique crystals/sword reward, item/key transactions, named events, Items/Abilities pages, boat tentacle-dodging survival and shipwreck handoff, thick water, giant feet, heat, double jump/heat resistance, attached HUD and stress-capacity/30% rule. See [NONMAP_SYSTEMS.md](NONMAP_SYSTEMS.md) for authoring, defaults, verification and limits. All room layouts and entity placements remain unchanged; ruins, docks, NPC placements and movement-gated routes still need the map pass.
+
+The older status table below records the earlier architecture audit. The current follow-up above supersedes its inventory, first-crossing and stress entries; it does not mark the unrelated older proposals complete.
+
+Subsequent completed work: full stamina regeneration; room-edge/corner resizing with variant synchronization; compact attack fields and one Range control; configurable Ape attack conditions; coverage-based Player cornered with grounded-player/order/floor/real-shape checks. The helper is reusable, but other enemy adapters remain to be written. This follow-up is a source/document status check, not a new full gameplay verification run.
+
 ## First partial-system batch (2026-11-05)
 
 Implemented after this audit: ordinary family HP overrides and validation in the

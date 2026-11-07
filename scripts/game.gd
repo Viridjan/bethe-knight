@@ -381,6 +381,7 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 	var environment = d.get("environment", "")
 	if not environment is String or (environment != "" and environment not in load("res://scripts/environment_art.gd").THEMES):
 		return {}
+	if d.has("heat_drain") and not _is_num(d.heat_drain,0,100): return {}
 	var w = d.get("w")
 	var h = d.get("h")
 	if not (_is_whole(w) and _is_whole(h)):
@@ -402,6 +403,7 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 			return {}
 		if not (_is_num(e.get("x"), -MAX_COORD, MAX_COORD) and _is_num(e.get("y"), -MAX_COORD, MAX_COORD)):
 			return {}
+		if not preload("res://scripts/progression/story_settings.gd").validate(e).is_empty(): return {}
 		if e.has("motion"):
 			var settings = preload("res://scripts/motion/patrol_settings.gd")
 			if not settings.supports(e) or not settings.validate(e.motion, Vector2i(w * 8, h * 8)).is_empty(): return {}

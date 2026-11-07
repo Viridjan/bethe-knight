@@ -12,10 +12,11 @@ extends RefCounted
 # Room files live next to it: <dir>/<room_name>.json. Notes and future ideas: docs/METROID_NOTES.md.
 
 const Stress := preload("res://scripts/progression/stress.gd")
+const Story := preload("res://scripts/progression/story_progress.gd")
 
 const T := 8
 # Moves the player starts the adventure without; ability pickups ("ability_<name>") unlock them.
-const ABILITIES := ["dash", "climb", "attack"]
+const ABILITIES := ["dash", "climb", "attack", "double_jump", "heat_resist"]
 
 # Stamina is the player's health and ability fuel (docs/STORY_DESIGN.md section 3).
 # A run starts with a base of 27 that always regenerates; each stamina block picked up adds 17.
@@ -199,6 +200,7 @@ static func _open_overlap(a: Dictionary, b: Dictionary, r: Rect2i) -> bool:
 static func new_run(world: Dictionary) -> Dictionary:
 	return {"room": world.start, "spawn": null, "abilities": world.get("abilities", []).duplicate(), "visited": [world.start],
 		"revealed_walls": [], "stars": [], "deaths": 0, "time": 0.0, "done": false,
+		"story_version": 1, "items": {}, "quests": {}, "events": [], "stress_blocks": 1,
 		"stress": 0.0, "stress_exhausted": false, "last_saved_at": 0,
 		"blocks": 1, "stamina": BASE_STAMINA, "taken": [],  # taken: one-time pickups, "room:x:y"
 		"seen": [], "kills": {}, "fragments": 0}  # fragments: total pieces; each three grant one capacity block
@@ -211,7 +213,7 @@ static func stamina_max(run: Dictionary) -> float:
 static func regen_stamina(run: Dictionary, dt: float) -> void:
 	var top := stamina_max(run)
 	Stress.observe_exhaustion(run, stamina_max(run))
-	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run)) * Stress.recovery_multiplier(Stress.value(run))
+	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run)) * Stress.recovery_multiplier(run)
 	run.stamina = minf(top, run.stamina + rate * dt)
 	Stress.observe_exhaustion(run, stamina_max(run))
 
@@ -278,6 +280,7 @@ static func restore_run(world: Dictionary, run) -> Dictionary:
 	if run.has("energy") and not run.has("stamina"):  # saves from before energy was renamed stamina
 		run.stamina = run.energy
 		run.erase("energy")
+	if not run.has("stress_blocks"): run.stress_blocks = Stress.BAR_COUNT
 	for k in fresh:
 		if run.has(k) and fresh[k] != null and typeof(run[k]) != typeof(fresh[k]) and not (_finite(run[k]) and _finite(fresh[k])):
 			run.erase(k)  # int and float are interchangeable (JSON and older saves mix them)
@@ -290,6 +293,7 @@ static func restore_run(world: Dictionary, run) -> Dictionary:
 	run.time = maxf(0.0, run.time) if _finite(run.time) else 0.0
 	run.stamina = clampf(run.stamina, 0.0, stamina_max(run)) if _finite(run.stamina) else stamina_max(run)
 	Stress.normalize(run, stamina_max(run))
+	Story.normalize(run)
 	for k in ["abilities", "visited", "stars", "taken", "seen", "revealed_walls"]:
 		run[k] = run[k].filter(func(x): return x is String)
 	var kills := {}

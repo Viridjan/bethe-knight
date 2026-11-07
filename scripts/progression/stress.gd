@@ -10,24 +10,39 @@ const BOSS_RELIEF := 100.0
 const COLLECTIBLE_RELIEF := 100.0
 const REST_RELIEF := 100.0
 const REST_SECONDS := 12 * 60 * 60
-const RECOVERY := [1.0, 0.9, 0.8, 0.75, 0.7, 0.65]
+const MAX_PENALTY := 0.30
+const MAX_BLOCKS := 20
 
 static func finite_number(value) -> bool:
 	return (value is int or value is float) and is_finite(float(value))
 
+static func blocks(run: Dictionary) -> int:
+	var raw = run.get("stress_blocks",BAR_COUNT)  # legacy runs had five bars
+	return clampi(int(raw),1,MAX_BLOCKS) if finite_number(raw) else BAR_COUNT
+
+static func capacity(run: Dictionary) -> float:
+	return blocks(run)*BAR_CAPACITY
+
 static func value(run: Dictionary) -> float:
-	var raw = run.get("stress", 0)
-	return clampf(float(raw), 0.0, MAX_STRESS) if finite_number(raw) else 0.0
+	var raw = run.get("stress",0)
+	return clampf(float(raw),0.0,capacity(run)) if finite_number(raw) else 0.0
 
 static func change(run: Dictionary, amount: float) -> float:
 	var before := value(run)
-	run.stress = clampf(before + amount, 0.0, MAX_STRESS)
-	return run.stress - before
+	run.stress = clampf(before+amount,0.0,capacity(run))
+	return run.stress-before
 
-static func recovery_multiplier(stress: float) -> float:
-	var bars := clampf(stress, 0.0, MAX_STRESS) / BAR_CAPACITY
-	var index := mini(int(bars), BAR_COUNT - 1)
-	return lerpf(RECOVERY[index], RECOVERY[index + 1], bars - index)
+# Dictionary is the production API; numbers retain the legacy five-bar helper API.
+static func recovery_multiplier(input, owned_blocks: int = BAR_COUNT) -> float:
+	var total := blocks(input) if input is Dictionary else clampi(owned_blocks,1,MAX_BLOCKS)
+	var stress := value(input) if input is Dictionary else clampf(float(input),0.0,total*BAR_CAPACITY)
+	var full := floori(stress/BAR_CAPACITY)
+	return 1.0-MAX_PENALTY*full/total
+
+static func add_block(run: Dictionary) -> bool:
+	if blocks(run)>=MAX_BLOCKS: return false
+	run.stress_blocks = blocks(run)+1
+	return true
 
 static func exhausted(run: Dictionary, capacity: float) -> bool:
 	return float(run.stamina) < 0.2 * capacity
@@ -39,6 +54,7 @@ static func observe_exhaustion(run: Dictionary, capacity: float) -> void:
 	run.stress_exhausted = low
 
 static func normalize(run: Dictionary, capacity: float) -> void:
+	run.stress_blocks = blocks(run)
 	run.stress = value(run)
 	var timestamp = run.get("last_saved_at", 0)
 	run.last_saved_at = maxi(0, int(timestamp)) if finite_number(timestamp) else 0

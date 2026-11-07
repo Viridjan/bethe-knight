@@ -1,7 +1,8 @@
 # Be the Knight: story world, chapter 1
 
-Design notes from 2026-10-24. Not built yet; tasks are in `TODO.md` (Story world).
-More details will be added later.
+Original design notes from 2026-10-24, with the map plan updated 2026-11-07.
+Some systems and rooms already exist; `TODO.md` and `docs/NONMAP_SYSTEMS.md` track delivery.
+The current map plan below supersedes conflicting older route/reward descriptions; it is a plan, not a claim that these layouts are built.
 
 ## Identity and framing
 
@@ -15,6 +16,110 @@ The new Kraken encounter and stat progression are recorded in
 stable until their narrative names and connections are deliberately authored.
 
 Be faces right from the start, and the route mostly moves right.
+
+## 0. Current map plan: room clusters and branching connections
+
+Updated 2026-11-07 from the user's direction. Plan the world as **large, dense chunks of rooms**, separated by variable distances and joined by long playable routes. Leave occasional holes inside the chunks for secret rooms. Connections should branch, offer optional discoveries and reconnect through extra paths and shortcuts. The world should feel geographically huge while becoming quick to cross once explored.
+
+### 0.1 Spatial rules
+
+- A chunk is a recognizable local network, not one oversized room. Aim for roughly 4–7 main rooms per substantial chunk, with smaller 2–3-room satellite areas where appropriate. These are planning targets, not a room-count quota. Each named explorable area has at least two rooms; a boss arena is the explicit exception and remains **one tall room** within its surrounding area.
+- Pack rooms horizontally and vertically into irregular silhouettes: shelves, staggered stacks, overlapping levels and recessed bays. Avoid a uniform rectangle or a single line of rooms. Preserve existing useful rooms and IDs where practical.
+- Separate chunks by actual playable geography: coastal tracks, ravines, root tunnels, ridges and aqueduct-like passages. Vary the distances. Space on the overview must correspond to a credible route; do not stretch the diagram without giving the player a place to traverse.
+- Reserve one or two irregular pockets in most large chunks. Some become secret rooms; leave some as natural empty space so every hole is not an automatic reward marker. Draw reserved pockets in the planning diagram, but keep undiscovered rooms concealed in the player's map.
+- Keep most ordinary rooms low and compact, initially using the existing 13–18-tile heights as a starting band. Diversify widths, floor profiles, entrances and occasional medium-height rooms. Reserve major vertical scale for lighthouse climbs, a few shafts, volcano vistas and boss arenas. Confirm every dimension with actual movement/camera metrics before committing geometry.
+
+### 0.2 Connectivity and travel
+
+Use two layers of connections: **local loops inside chunks** and **regional loops between chunks**.
+
+- Most chunks should eventually have at least two independent entrances/exits on different sides or heights. An introduction, isolated reward chamber or boss approach can be a deliberate exception. Count the room connections and gates, not just lines that look close on the overview.
+- A major connector should usually offer a meaningful fork: a safer lower route versus a harder upper route, an NPC/reward detour, or a route opened by a later ability. Most side branches should rejoin the connector or enter another chunk. Keep a few short, rewarding dead ends for contrast.
+- Give a long connector several beats: departure landmark → traversal challenge → fork/discovery → breather → arrival landmark. Split it into multiple low rooms if needed. Avoid repeating the same jump or making long stretches of empty walking.
+- Plan a local return loop for every substantial exploration branch and a regional shortcut for each major inter-chunk trip. Shortcuts might be a sword-opened passage, a gate opened from its far side, a short lift/shaft, or a bridge. Use existing mechanics first; list any new mechanic as a dependency before relying on it.
+- Reveal shortcut destinations before opening them where possible: a familiar skyline, a closed gate visible from the hub, or an overlook above an earlier room. Opening one should make the player recognize where they are.
+- Keep first discovery long enough to establish distance, but make known return routes much shorter. **Initial playtest targets**, excluding exploration/combat pauses: roughly 45–90 seconds for a substantial connector on first traversal; its opened shortcut should take at most half that time, preferably 15–30 seconds. Revisit these targets after blockout rather than padding rooms to meet them.
+- A regional shortcut should skip repeated traversal, not silently bypass the next quest, mandatory encounter or unearned movement gate. Check reachability separately before and after each progression milestone.
+
+### 0.3 First landmass: proposed chunks and loops
+
+| Chunk | Existing anchors / intended contents | Additional paths and shortcuts |
+| --- | --- | --- |
+| Meadow and Lake Caves | Meadow, big-jump overlook, lake/cave network; compact upper/lower room stacks | Loop the cave branches back toward the lake. Keep the wavedash gap visibly reserved for later; reaching Cove Town must not depend on crossing it. Reserve a secret pocket between upper meadow and lower cave rooms. |
+| Cove Town | Town and enterable houses; clear calm meeting point between cave and jungle routes | Main jungle approach plus a lower drainage/root route that reconnects later. A return opening should land near a recognizable town landmark. |
+| Jungle and Ape approach | Existing jungle rooms around waterfall/root routes; quiet approach before the single tall Ape arena | Upper canopy and lower roots form a loop **before** the arena. Post-Ape exits remain gated until victory; no optional passage should bypass the fight. Add a later route back around any permanently sealed chase section. |
+| Treetop Village | Expand the village into at least two rooms, with a safe village floor and a traversal annex | First approach from the jungle branch; later canopy descent reconnects to an earlier jungle junction. Wall-climb reward placement remains a progression decision, not a prerequisite for entering the village. |
+| Lighthouse Coast | Beach, lighthouse stairs/top, NPC sword quest and a small 2–3-room ruins area below | A beach/ruins/lighthouse-base loop makes the quest return short. Add a post-Ape landward return path toward the jungle/town that avoids the sealed chase cave. Keep the tower's initial ascent meaningful; open a faster descent/return once visited. |
+
+The three required quest crystals belong behind clearly readable sword-breakable barriers on the ruins' normal exploration branches. They must not require finding an unmarked secret pocket or a later movement ability. Give the final crystal branch a short return connection near the lighthouse approach. Remove the earlier sand-cave sword reward during this map pass.
+
+Western Wilds and Landing already form an additional branch: preserve them as a separate optional cluster, with their internal loop and a clear return to the mainland network. Do not accidentally promote them into a new prerequisite for the lighthouse quest.
+
+### 0.4 Volcanic island: proposed chunks and loops
+
+Keep four geographically honest shores: **west, north, east and south**. North belongs toward the top of the overview and south toward the bottom. Adjacent land and landmarks should remain consistent at both ends of a connection.
+
+| Chunk | Intended structure | Connections and optional content |
+| --- | --- | --- |
+| West Shore / arrival lighthouse | At least two compact rooms: washed-ashore beach and lighthouse/shelter area; sea on the left | Main route heads inland to the marsh. A coastal branch reconnects to the marsh's lower route. Show the lost boat through the arrival event; do not place a usable replacement boat here. |
+| Marsh | Dense 4–7-room chunk with low, interwoven channels, dry islands and thick-water pockets | Upper dry route and lower wet route diverge/rejoin, with at least one cross-link. Secret pockets fit inside root/stone masses. Introduce thick water in a safe, shallow section; do not require a long submerged swim with starting stamina. |
+| Rocky Plateau | Multi-room terraces and tall rock inhabitants whose feet interrupt horizontal runs | Main ground route plus a quieter shelf/tunnel alternative; connect to north-shore spur, volcano foothills and a marsh return shortcut. Giants are dodgeable obstacles for now: do not require climbing them. |
+| Volcano | Large footprint built from several low/medium rooms and a few exceptional vertical chambers | Early cool foothills and a brief readable heat preview; deeper routes remain gated by later movement/heat planning. Create cross-connections between ascent, east slope and lower tunnels rather than one exhausting staircase. |
+| Underground Maze | Existing junction, flooded hall, echo gallery, lower maze, vent shaft and refuge as a folded network | At least two surface access points, proposed at the marsh/plateau side and east sea-cave side. A cross-link and unlocked vent return provide alternatives to retracing the entire maze. The Guardian is one tall arena, approached from a calm room. |
+| North, South and East Shore satellites | Each shore is an actual area with at least two rooms; vary coves, overlooks and access tunnels | North branches from plateau; south from lower marsh/maze; east from east slope/sea cave. Reconnect each satellite to a second island route where progression permits. Keep future sea-travel exits visible without inventing their destination maps yet. |
+
+**Conceptual connection graph** — lines show intended routes, not current room adjacency; dashed lines are later shortcuts. Mainland and island subgraphs are separate physical landmasses.
+
+```mermaid
+flowchart LR
+  subgraph Mainland
+    ML[Meadow / Lake Caves] <--> CT[Cove Town]
+    CT <--> J[Jungle loops]
+    J --> A[Ape arena]
+    A --> LC[Lighthouse Coast / Ruins]
+    A --> TV[Treetop Village]
+    TV -. later canopy return .-> J
+    LC -. post-Ape return around sealed cave .-> CT
+  end
+  LC -->|quest boat / tentacle crossing / shipwreck| WS
+  subgraph Island
+    WS[West Shore / Lighthouse] <--> M[Marsh loops]
+    M <--> P[Rocky Plateau]
+    P <--> V[Volcano foothills / later heights]
+    M <--> U[Underground Maze]
+    U <--> ES[East Shore / Sea Cave]
+    V <--> ES
+    P <--> NS[North Shore]
+    NS -. later rim shortcut .-> V
+    M <--> SS[South Shore]
+    SS <--> U
+    U -. unlocked vent return .-> P
+    WS -. coastal return .-> M
+  end
+```
+
+Each bidirectional line is a target for the eventual explored network, not permission to ignore gates on the first visit. The coast/ruins quest must unlock departure; the first crossing must run the tentacle event and end with the boat lost. **No cave, bridge, shortcut or touching map seam may connect the two landmasses across the sea.** Cross-island loops remain land routes on the volcanic island; they do not restore mainland travel after the shipwreck. A future return voyage needs an explicit progression decision.
+
+### 0.5 Secrets, rewards and pacing
+
+- Put secret entrances in the structure: a suspicious wall beside a main route, a recessed underside, a gap behind a waterfall, or a later-reachable ceiling ledge. Hint at them through geometry, sound or a partial view; avoid arbitrary mandatory pixel searches.
+- A secret pocket should have a purpose and a safe return. Larger optional spaces can connect two routes, making discovery itself a shortcut. Keep some purely optional reward rooms so not every secret is essential navigation.
+- New discoveries are interactable energy fragments, stress-capacity upgrades, NPCs or optional encounters/minibosses. Three energy fragments grant one stamina-capacity upgrade. Do not add new passive stars. The three lighthouse quest crystals are a separate item type and objective.
+- Alternate calm junctions, traversal, encounters and rewards. Avoid putting an unavoidable giant stomp, deep thick-water drain and heat exposure into one connector before teaching them separately.
+- Place a safe regrouping point before long hostile connectors and major encounters. Do not assume map stations, new save-point behavior or other unimplemented systems exist.
+- Heat cannot be solved by resting while still inside a hot room: it suppresses natural regeneration. Time the early heat preview with current stamina, provide a quick retreat to cool ground, and keep optional upgrades from becoming hidden survival requirements.
+
+### 0.6 Authoring order and acceptance checks
+
+1. Draw the chunk silhouettes, reserved secret pockets and long connectors on the world overview. Label every edge as first-visit, optional, ability-gated, post-encounter or shortcut. Account for the physical coastline and room bounds before moving rooms.
+2. Record the player state at each milestone: jump-only start → Ape defeated → lighthouse sword/quest → three crystals returned → boat crossing/shipwreck → island exploration → explicitly chosen later abilities. List rewards and gates together so no ability is locked behind itself.
+3. Block out one representative chunk plus its branching connector and shortcut. Measure ordinary jumps, camera framing, drain budgets and first/return travel times with current tuning before expanding the rest.
+4. Build the mainland quest loop and preserve return access around sealed sections; then the island arrival/marsh/plateau loop; then maze/surface cross-links and shore satellites; finally later volcano routes and secret pockets. Keep boss arenas single tall rooms and all named areas at least two rooms.
+5. Review the graph at each ability state, with one-way transitions represented honestly. Verify mandatory goals remain reachable, optional branches have an exit, and newly opened shortcuts materially reduce travel. Treat the shipwreck as a deliberate one-way chapter transition, not a missing return edge to “fix.”
+6. Test physical seams/doors, room variants, checkpoints/spawn safety and actual encounter progression after moving/resizing rooms. Test movement reachability separately from the full event/quest run; a boss-free traversal test does not prove quest or shortcut gating works.
+7. Walk the critical path without optional upgrades, then revisit every cluster using opened shortcuts. Check that the map feels broad through changing landmarks and route choices, while familiar destinations require little repeated traversal. Adjust distances and loops before adding final decoration.
+
+This section authorizes planning only. Room files, placements, exact coordinates, later reward assignments and new mechanics are not changed by this document update.
 
 ## 1. Route
 

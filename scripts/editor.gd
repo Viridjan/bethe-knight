@@ -16,6 +16,7 @@ const MotionInspector := preload("res://scripts/editor_motion.gd")
 const E := preload("res://scripts/entities.gd")
 const Art := preload("res://scripts/art.gd")
 const TileLayer := preload("res://scripts/tile_layer.gd")
+const STORY_TYPES := ["lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]
 const T := 8
 const MAX_UNDO := 60
 
@@ -60,6 +61,8 @@ var ui: CanvasLayer
 var name_edit: LineEdit
 var w_spin: SpinBox
 var h_spin: SpinBox
+var environment_pick: OptionButton
+var heat_spin: SpinBox
 var enemy_spin: SpinBox
 var navigation_box: VBoxContainer
 var navigation_dialog: ConfirmationDialog
@@ -180,6 +183,26 @@ func _build_ui() -> void:
 	enemy_spin.tooltip_text = "Generated enemy budget when building; 0 disables population. Safe placement and peaceful regions still apply."
 	enemy_spin.value_changed.connect(func(v: float): level.enemy_count = int(v))
 	tools.add_child(enemy_spin)
+	tools.add_child(_lbl("Environment"))
+	environment_pick=OptionButton.new()
+	environment_pick.add_item("Default")
+	for id in Art.EnvironmentArt.THEMES: environment_pick.add_item(str(id).replace("_"," ").capitalize())
+	environment_pick.tooltip_text="Room appearance. Marsh, plateau and ruins reuse existing theme art; gameplay liquids and obstacles are separate entities."
+	tools.add_child(environment_pick)
+	environment_pick.item_selected.connect(func(index):
+		_push_undo()
+		level.environment="" if index==0 else Art.EnvironmentArt.THEMES[index-1]
+		tile_layer.setup(level.tiles,level.w,level.h,level.environment)
+		_refresh()
+		_sync_fields())
+	tools.add_child(_lbl("Heat drain / second"))
+	heat_spin=_spin(0,100,int(level.get("heat_drain",2 if level.get("environment","") in ["volcano","volcanic_cave"] else 0)))
+	heat_spin.step=0.25
+	heat_spin.tooltip_text="Continuous energy loss while hot, replacing natural regeneration. Zero disables heat. Default volcano heat is 2 per second."
+	heat_spin.value_changed.connect(func(value):_push_undo();level.heat_drain=value)
+	tools.add_child(heat_spin)
+	_sync_fields.call_deferred()
+
 	_tool_button(tools, "room_size", "Room size (drag edges)", Color("91efba"))
 	_tool_button(tools, "motion", "Object movement", Color("65deec"))
 	_tool_button(tools, "triggers", "Traps and triggers", Color("e3b46e"))
@@ -249,9 +272,9 @@ const GROUP_ORDER := ["Terrain", "Hazards", "Movement", "Pickups", "Doors & peop
 static func palette_group(t: String) -> String:
 	if t == "note" or (E.TYPES.has(t) and E.TYPES[t][3] == E.Placeholder):  # stand-ins and design notes
 		return "Placeholders"
-	if t.begins_with("enemy") or t.begins_with("boss") or t.begins_with("ape") or t in ["auto_walk", "vent_plug"]:
+	if t.begins_with("enemy") or t.begins_with("boss") or t.begins_with("ape") or t in ["auto_walk", "vent_plug", "rock_giant"]:
 		return "Enemies & bosses"
-	if t in ["tile", "jumpthru", "crumble", "falling", "breakable", "breakwall", "hidden_wall", "waterfall", "water", "acid"]:
+	if t in ["tile", "jumpthru", "crumble", "falling", "breakable", "breakwall", "hidden_wall", "waterfall", "water", "thick_water", "acid"]:
 		return "Terrain"
 	if t.begins_with("spikes") or t in ["rockfall", "trap_spikes"]:
 		return "Hazards"
@@ -259,9 +282,9 @@ static func palette_group(t: String) -> String:
 		return "Movement"
 	if t in ["camera_zone", "trigger_zone", "pressure_plate"]:
 		return "Triggers"
-	if t.begins_with("ability") or t.begins_with("stamina") or t in ["strawberry", "goal", "energy_fragment"]:
+	if t.begins_with("ability") or t.begins_with("stamina") or t in ["strawberry", "goal", "energy_fragment", "quest_crystal", "stress_block", "item_pickup"]:
 		return "Pickups"
-	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc"] or t.begins_with("village"):
+	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc", "lighthouse_keeper", "dialogue_npc", "boat"] or t.begins_with("village"):
 		return "Doors & people"
 	return "Other"
 
@@ -378,6 +401,8 @@ func _sync_fields() -> void:
 	w_spin.value = level.w
 	h_spin.value = level.h
 	enemy_spin.set_value_no_signal(int(level.get("enemy_count", -1)))
+	if environment_pick!=null: environment_pick.select(Art.EnvironmentArt.THEMES.find(str(level.get("environment","")))+1)
+	if heat_spin!=null:heat_spin.set_value_no_signal(float(level.get("heat_drain",2 if level.get("environment","") in ["volcano","volcanic_cave"] else 0)))
 
 # Show a short temporary message in the editor status bar.
 func _status(t: String) -> void:
@@ -783,6 +808,8 @@ func _paste(c: Vector2i) -> void:
 	var copies: Array = clip.entities.duplicate(true)
 	var remap := {}
 	for copy in copies:
+		if copy.t in ["lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]:
+			copy.id = "story_%x_%x" % [Time.get_ticks_usec(), randi()]
 		if copy.has("object_id"):
 			var fresh := _new_object_id(remap.values())
 			remap[copy.object_id] = fresh
@@ -876,13 +903,17 @@ func _place_point(c: Vector2i, click := false) -> void:
 	for e in level.entities:
 		if int(e.x) == x and int(e.y) == y and not E.TYPES[e.t][1]:
 			if e.t == tool or (tool == "spawn" and e.t == "respawn"):
-				if tool == "note":
-					_ask_note(e)
+				if tool == "note": _ask_note(e)
+				elif tool in STORY_TYPES: _ask_story(e)
 				return  # already there
-	level.entities.append({"t": tool, "x": x, "y": y})
+	var placed := {"t":tool,"x":x,"y":y}
+	if tool in ["lighthouse_keeper","dialogue_npc","quest_crystal","stress_block","item_pickup"]: placed.id="story_%x_%x"%[Time.get_ticks_usec(),randi()]
+	level.entities.append(placed)
 	if tool == "note":
 		level.entities[-1].text = ""
 		_ask_note(level.entities[-1])
+	elif tool in STORY_TYPES:
+		_ask_story(level.entities[-1])
 	_refresh_one(level.entities.size() - 1)
 
 # Design note text (e.g. "Needs double jump"). Click a placed note with the Note tool to edit it.
@@ -909,6 +940,60 @@ func _ask_note(e: Dictionary) -> void:
 	add_child(dlg)
 	dlg.popup_centered()
 	edit.grab_focus()
+
+# Edit stable story IDs and basic dialogue/item settings without touching room geometry.
+func _ask_story(e: Dictionary) -> void:
+	var dlg := ConfirmationDialog.new()
+	dlg.title = E.TYPES[e.t][0]
+	dlg.dialog_hide_on_ok = false
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(520,minf(540,get_viewport_rect().size.y-180))
+	dlg.add_child(scroll)
+	var box := VBoxContainer.new()
+	box.size_flags_horizontal=Control.SIZE_EXPAND_FILL
+	scroll.add_child(box)
+	var fields := {}
+	var defaults := {"id":str(e.get("id",""))}
+	if e.t in ["lighthouse_keeper","dialogue_npc"]: defaults["name"] = "Lighthouse keeper" if e.t=="lighthouse_keeper" else "Traveller"
+	if e.t=="dialogue_npc":
+		defaults.merge({"text":"...","kind":"elf","requires_items":"{}","give_items":"{}","requires_events":"[]","set_events":"[]"})
+	if e.t=="item_pickup": defaults.merge({"item":"key","amount":"1"})
+	for key in defaults:
+		box.add_child(_lbl(str(key).replace("_"," ").capitalize()))
+		var edit := LineEdit.new()
+		var value = e.get(key,defaults[key])
+		edit.text = JSON.stringify(value) if value is Dictionary or value is Array else str(value)
+		edit.max_length = 2000 if key in ["requires_items","give_items","requires_events","set_events"] else 500
+		box.add_child(edit)
+		fields[key]=edit
+	var options := {}
+	if e.t=="dialogue_npc":
+		for key in ["consume_items","repeatable"]:
+			var option := CheckBox.new()
+			option.text=str(key).replace("_"," ").capitalize()
+			option.button_pressed=e.get(key,false)
+			box.add_child(option)
+			options[key]=option
+	var error := _lbl("")
+	box.add_child(error)
+	dlg.confirmed.connect(func():
+		var candidate := e.duplicate(true)
+		for key in fields:
+			var text: String = fields[key].text
+			candidate[key] = JSON.parse_string(text) if key in ["requires_items","give_items","requires_events","set_events"] else text
+			if key=="amount": candidate[key]=int(text) if text.is_valid_int() else -1
+		for key in options: candidate[key]=options[key].button_pressed
+		var problem: String = load("res://scripts/progression/story_settings.gd").validate(candidate)
+		if str(candidate.id).is_empty(): problem="Choose a persistent ID."
+		if not problem.is_empty(): error.text=problem;return
+		_push_undo()
+		e.merge(candidate,true)
+		_refresh()
+		dlg.hide())
+	dlg.visibility_changed.connect(func():
+		if not dlg.visible: dlg.queue_free())
+	add_child(dlg)
+	dlg.popup_centered()
 
 # Door link: its own id, and "room:id" of the door it leads to ("id" alone = a door in this level).
 # Edit the doorway ID and destination, using room:id for a link to another room.

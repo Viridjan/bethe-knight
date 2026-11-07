@@ -6,13 +6,14 @@ extends RefCounted
 # Reading help: docs/CODE_GUIDE.md.
 
 ## Room-local environment graphics; collision still reads the original tile grid.
-const THEMES := ["sand", "sea", "cavern", "cavern_deep", "sky", "temple", "building", "forest", "island_shore", "volcano", "volcanic_cave"]
+const THEMES := ["sand", "sea", "cavern", "cavern_deep", "sky", "temple", "building", "forest", "island_shore", "volcano", "volcanic_cave", "marsh", "rocky_plateau", "ruins"]
+const THEME_SOURCES := {"marsh":"forest","rocky_plateau":"island_shore","ruins":"temple"}
 static var _textures: Dictionary = {}
 # Load each named environment image once and keep it in a reusable cache.
 static func texture(environment: String, asset: String) -> Texture2D:
 	var key := environment + "/" + asset
 	if not _textures.has(key):
-		_textures[key] = load("res://assets/themes/%s/%s.png" % [environment, asset])
+		_textures[key] = load("res://assets/themes/%s/%s.png" % [THEME_SOURCES.get(environment,environment), asset])
 	return _textures[key]
 # Probe terrain adjacency for artwork, treating outside bounds as solid for edge selection.
 static func solid(tiles: Array, w: int, h: int, x: int, y: int) -> bool:

@@ -39,6 +39,16 @@ const TYPES := {
 	"trap_spikes": ["Timed retracting spikes", true, Color("e3a661"), TimedSpikes],
 	"trigger_zone": ["Enter/exit trigger", true, Color("65dec6"), LinkedTrigger],
 	"pressure_plate": ["Pressure plate", true, Color("b3c976"), LinkedTrigger],
+	"lighthouse_keeper": ["Lighthouse Keeper (Sword Quest)", false, Color("b6a1df"), LighthouseKeeper],
+	"quest_crystal": ["Quest Crystal", false, Color("8addff"), QuestCrystal],
+	"stress_block": ["Stress Capacity Upgrade", false, Color("c58ad0"), StressBlock],
+	"item_pickup": ["Inventory Item", false, Color("ddc984"), ItemPickup],
+	"dialogue_npc": ["Dialogue Character", false, Color("acbacf"), DialogueNPC],
+	"boat": ["Boat (First Crossing)", true, Color("9f7653"), Boat],
+	"thick_water": ["Thick Marsh Water", true, Color("596c49"), Liquid],
+	"rock_giant": ["Giant Rock Foot", false, Color("87828b"), RockWalker],
+	"ability_double_jump": ["Double Jump Ability", false, Color("bdeeff"), AbilityOrb],
+	"ability_heat_resist": ["Heat Resistance Ability", false, Color("f5ab72"), AbilityOrb],
 	"respawn": ["Respawn", false, Color("ffffff"), Respawn],
 	"spawn": ["Respawn", false, Color("ffffff"), Respawn],
 	"spikes_up": ["Spikes ^", false, Color("dddddd"), Spikes],
@@ -143,7 +153,7 @@ const TYPES := {
 	"island_prop": ["Island Landmark", false, Color("969098"), IslandProp],
 }
 
-const DOOR_TYPES := ["door", "house_door"]  # objects that link to another door by "id"/"to"
+const DOOR_TYPES := ["door", "house_door", "boat"]  # objects that link to another door by "id"/"to"
 
 # Construct the implementation class for a saved type ID; unknown types return no object.
 static func make(w, d: Dictionary):
@@ -1684,7 +1694,7 @@ class MurksporeEnemy extends CombatEnemy:
 # Water/acid region. Water drains adventure stamina; acid is a lethal contact surface.
 class Liquid extends Ent:  # water: drains adventure stamina (World.update_stamina); acid: kills on touch (like spikes)
 	func describe() -> String:
-		return "Acid: deadly to touch" if d.t == "acid" else "Water: you swim; drains stamina 40/s, no regeneration; 0 drowns"
+		return "Acid: deadly to touch" if d.t == "acid" else ("Thick marsh water: slower swimming and weaker strokes; drains stamina like water" if d.t=="thick_water" else "Water: you swim; drains stamina 40/s, no regeneration; 0 drowns")
 	# Report whether Liquid currently participates in lethal contact checks.
 	func hurts() -> bool: return d.t == "acid"
 	# Initialize Liquid dimensions, collision flags and starting data before World uses the object.
@@ -1879,6 +1889,190 @@ class Discovery extends Ent:
 		if near > 0 and w != null:
 			var icon := ButtonArt.prompt("interact")
 			ci.draw_texture_rect(icon,Rect2(Vector2(rect.get_center())-Vector2(5,rect.size.y/2.0+13),Vector2(10,10)),false)
+
+
+# Story interactions use shared transactional progress, not map-specific hardcoded positions.
+class LighthouseKeeper extends Discovery:
+	func setup() -> void:
+		super.setup()
+		d.kind = "mage"
+		rect.size = Vector2i(14,20)
+	func touch(p) -> void:
+		near = 0.12
+		if p.dead or not p.interact: return
+		p.interact = false
+		speaking = 3
+		w.talk_lighthouse(str(d.get("name","Lighthouse keeper")))
+
+class DialogueNPC extends LighthouseKeeper:
+	func setup() -> void:
+		var kind: String = str(d.get("kind","elf"))
+		super.setup()
+		d.kind=kind
+	func touch(p) -> void:
+		near = 0.12
+		if p.dead or not p.interact: return
+		p.interact = false
+		speaking = 3
+		if w.adventure():
+			var once: String = str(d.get("once_event",w.star_key("npc:"+str(d.get("id","%d_%d"%[d.x,d.y])))))
+			if not d.get("repeatable",false) and w.Adventure.Story.has_event(Game.adv,once):
+				w.open_dialogue(str(d.get("name","Traveller")),str(d.get("repeat_text",d.get("text","..."))))
+				return
+			if not d.get("requires_events",[]).all(func(id):return w.Adventure.Story.has_event(Game.adv,id)) or not w.Adventure.Story.transact(Game.adv,d.get("requires_items",{}),d.get("consume_items",false),d.get("give_items",{}),d.get("set_events",[])):
+				w.open_dialogue(str(d.get("name","Traveller")),str(d.get("locked_text","You do not have what I need yet.")))
+				return
+			if not d.get("repeatable",false): w.Adventure.Story.set_event(Game.adv,once)
+			w._save_run()
+		w.open_dialogue(str(d.get("name","Traveller")),str(d.get("text","...")))
+
+class QuestCrystal extends Discovery:
+	func setup() -> void:
+		super.setup()
+		rect.size = Vector2i(8,12)
+		if w != null:
+			key = w.star_key("crystal:"+str(d.get("id","%d_%d"%[d.x,d.y])))
+			collidable = w.adventure() and not Game.adv.get("taken",[]).has(key)
+	func touch(p) -> void:
+		near = 0.12
+		if p.dead or not p.interact or not w.adventure(): return
+		p.interact = false
+		if w.Adventure.Story.collect_crystal(Game.adv,key):
+			collidable = false
+			w.Adventure.Stress.change(Game.adv,-w.Adventure.Stress.COLLECTIBLE_RELIEF)
+			w._save_run()
+			w.show_interaction("Lighthouse crystals %d / 3"%w.Adventure.Story.count(Game.adv,"crystal"))
+			Game.play_sfx("pickup")
+		else: w.show_interaction("Speak to the lighthouse keeper first, or return the three crystals.")
+	func draw(ci: CanvasItem) -> void:
+		if not collidable: return
+		var c := center()+Vector2(0,roundf(sin(clock*3)))
+		ci.draw_colored_polygon(PackedVector2Array([c+Vector2(0,-6),c+Vector2(4,-2),c+Vector2(3,4),c+Vector2(-1,6),c+Vector2(-4,0)]),Color("78cdff"))
+		ci.draw_line(c+Vector2(0,-4),c+Vector2(0,3),Color("e1faff"),1)
+		if near>0 and w!=null: ci.draw_texture(ButtonArt.prompt("interact"),c+Vector2(-5,-18))
+
+class StressBlock extends QuestCrystal:
+	func setup() -> void:
+		super.setup()
+		if w!=null:
+			key = w.star_key("stress:"+str(d.get("id","%d_%d"%[d.x,d.y])))
+			collidable = w.adventure() and not Game.adv.get("taken",[]).has(key)
+	func touch(p) -> void:
+		near = 0.12
+		if not collidable or p.dead or not p.interact or not w.adventure(): return
+		p.interact = false
+		if w.Adventure.Stress.add_block(Game.adv):
+			Game.adv.taken.append(key)
+			collidable = false
+			w._save_run()
+			w.show_interaction("Stress capacity increased")
+			Game.play_sfx("pickup")
+	func draw(ci: CanvasItem) -> void:
+		if not collidable: return
+		ci.draw_rect(Rect2(rect),Color("29253f"))
+		ci.draw_rect(Rect2(rect).grow(-1),Color("ae7ec5"),false,1)
+		ci.draw_line(Vector2(rect.position)+Vector2(2,6),Vector2(rect.end)-Vector2(2,6),Color("e9cef5"),1)
+
+class ItemPickup extends StressBlock:
+	func setup() -> void:
+		super.setup()
+		if w!=null:
+			key = w.star_key("item:"+str(d.get("id","%d_%d"%[d.x,d.y])))
+			collidable = w.adventure() and not Game.adv.get("taken",[]).has(key)
+	func touch(p) -> void:
+		near = 0.12
+		if not collidable or p.dead or not p.interact or not w.adventure(): return
+		p.interact = false
+		var id: String = str(d.get("item","key"))
+		if w.Adventure.Story.give_item(Game.adv,id,int(d.get("amount",1))):
+			Game.adv.taken.append(key)
+			collidable = false
+			w._save_run()
+			w.show_interaction("Collected "+id.replace("_"," "))
+			Game.play_sfx("pickup")
+
+class Boat extends HouseDoor:
+	func touch(p) -> void:
+		near = 0.12
+		if p.dead or not p.interact or not p.on_ground: return
+		p.interact = false
+		w.start_sea_crossing(self)
+	func draw(ci: CanvasItem) -> void:
+		var r := Rect2(rect)
+		ci.draw_colored_polygon(PackedVector2Array([r.position+Vector2(-4,0),Vector2(r.end.x+4,r.position.y),r.end-Vector2(5,0),Vector2(r.position.x+5,r.end.y)]),Color("80583e"))
+		ci.draw_line(r.position+Vector2(2,3),Vector2(r.end.x-2,r.position.y+3),Color("c6a06a"),2)
+		ci.draw_line(Vector2(r.get_center().x,r.position.y),Vector2(r.get_center().x,r.position.y-22),Color("bda17a"),2)
+		ci.draw_colored_polygon(PackedVector2Array([Vector2(r.get_center().x,r.position.y-22),Vector2(r.get_center().x+17,r.position.y-5),Vector2(r.get_center().x,r.position.y-5)]),Color("d5d9cc"))
+	func vis_rect() -> Rect2i: return rect.grow(24)
+
+class RockWalker extends Ent:
+	var base := Vector2.ZERO
+	var phase := "walk"
+	var timer := 2.0
+	var direction := 1
+	var facing := 1
+	var travel := 0.0
+	var foot_lift := 24.0
+	var wave := 0.0
+	var wave_box := Rect2i()
+	func setup() -> void:
+		rect.size = Vector2i(56,24)
+		base = Vector2(rect.position)
+		direction = -1 if d.get("facing",1)<0 else 1
+		facing=direction
+		if w!=null:
+			var floor_y:=_floor(int(base.x)+28,int(base.y)+24,w.gh*8)
+			if floor_y>=0:base.y=floor_y-24
+		rect.position=Vector2i(base-Vector2(0,foot_lift))
+	func _floor(x: int, low: int, high: int) -> int:
+		for y in range(maxi(0,low),mini(w.gh*8,high)+1):
+			if w.collide_solid(Rect2i(x,y,1,1))!=null:return y
+		return -1
+	func hurts() -> bool: return true
+	func touch(p) -> void: p.die(Vector2.UP)
+	func damage_boxes() -> Array: return [wave_box] if wave>0 else []
+	func vis_rect() -> Rect2i: return Rect2i(rect.position-Vector2i(12,180),rect.size+Vector2i(24,192))
+	func update(dt: float) -> void:
+		if w==null: return
+		wave = maxf(0,wave-dt)
+		if wave>0 and wave_box.intersects(w.player.damage_rect()): w.player.die(Vector2.UP)
+		timer -= dt
+		match phase:
+			"walk":
+				var delta := direction*12.0*dt
+				var floor_y:=_floor(int(base.x+delta)+28,int(base.y)+16,int(base.y)+32)
+				var future:=Rect2i(Vector2i(base+Vector2(delta,-24)),rect.size)
+				if absf(travel+delta)>64 or floor_y<0 or w.collide_solid(future)!=null: direction=-direction
+				else:
+					base.x+=delta
+					base.y=floor_y-24
+					travel+=delta
+				facing=direction
+				foot_lift = 24
+				if timer<=0: phase="warn";timer=0.8
+			"warn":
+				foot_lift = 24+sin(timer*30)*2
+				if timer<=0: phase="stomp";timer=0.15
+			"stomp":
+				foot_lift = maxf(0,foot_lift-240*dt)
+				if timer<=0:
+					foot_lift=0;phase="recover";timer=0.9;wave=0.25
+					wave_box = Rect2i(int(base.x)-24,int(base.y)+19,104,5)
+					w.shake_dir(Vector2.DOWN,0.18)
+					w.burst(Vector2(base.x+28,base.y+24),Color("a29b8e"),10)
+			"recover":
+				if timer<=0: phase="walk";timer=2
+		rect.position = Vector2i(base-Vector2(0,foot_lift))
+	func draw(ci: CanvasItem) -> void:
+		var r := Rect2(rect)
+		ci.draw_colored_polygon(PackedVector2Array([r.position+Vector2(12,-180),r.position+Vector2(39,-180),r.position+Vector2(43,5),r.position+Vector2(10,8)]),Color("67636a"))
+		ci.draw_rect(r,Color("85818a"))
+		ci.draw_rect(Rect2(r.position+Vector2(0,18),Vector2(56,6)),Color("4e4d59"))
+		for x in [8,22,36,49]: ci.draw_line(r.position+Vector2(x,14),r.position+Vector2(x,22),Color("46434e"),1)
+		ci.draw_line(r.position+Vector2(25,-130),r.position+Vector2(16,-65),Color("aaa3ac"),2)
+		if phase=="warn": ci.draw_rect(Rect2(base+Vector2(-8,24),Vector2(72,2)),Color("f6c677"))
+		if wave>0: ci.draw_rect(Rect2(wave_box),Color("b9aaa0"))
+
 
 
 class Star extends Ent:  # legacy collectible; new discovery placements use explicit interaction
