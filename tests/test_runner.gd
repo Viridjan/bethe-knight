@@ -1658,6 +1658,20 @@ func check_camera_zone() -> void:
 	var free: Vector2 = w.cam_goal()
 	check(fixed == w._clamp_cam(Vector2(180, 120)) and centred == w._clamp_cam(Vector2(350, 170)) and free == w._clamp_cam(p().camera_target()),
 		"camera zones fix the view on their point (or centre) while the player is inside (%s, %s, %s)" % [fixed, centred, free])
+	# No shake while walking: the player's on-screen spot is its distance from the camera rounded once, and the
+	# camera stays on whole pixels (rounding both on their own made them disagree by a pixel every few frames).
+	var shaky := 0
+	for i in 200:
+		p().prev_pos = Vector2(100.0 + i * 0.37, 27 * 8)
+		p().pos = p().prev_pos + Vector2(0.37, 0)
+		w.cam_prev = Vector2(60.0 + i * 0.29, 100)
+		w.cam_now = w.cam_prev + Vector2(0.29, 0)
+		w._process(0.0)
+		var drawn: Vector2 = p().pos + p().draw_off
+		var on_screen: Vector2 = drawn.round() - w.cam.position
+		var f := Engine.get_physics_interpolation_fraction()
+		if on_screen != (drawn - w.cam_prev.lerp(w.cam_now, f)).round() or w.cam.position != w.cam.position.round(): shaky += 1
+	check(shaky == 0, "walking: the player sits on whole pixels at round(position - camera), the camera on whole pixels (%d off)" % shaky)
 
 # Pushing against a wall doesn't play the walk animation.
 func check_wall_push_idle() -> void:

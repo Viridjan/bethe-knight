@@ -608,8 +608,12 @@ func _process(_delta: float) -> void:
 	if player != null:
 		var f := Engine.get_physics_interpolation_fraction()
 		var c := cam_prev.lerp(cam_now, f) if cam_prev.distance_to(cam_now) < 64.0 else cam_now
-		cam.position = c.round()
 		player.draw_off = (player.prev_pos.lerp(player.pos, f) - player.pos) if player.prev_pos.distance_to(player.pos) < 16.0 else Vector2.ZERO
+		# The player is drawn at round(its position); rounding the camera on its own as well made the two disagree by
+		# a pixel every few frames, so the player shook against the scrolling background. Round their distance once
+		# instead: the camera stays on whole pixels and the player lands exactly round(position - camera) on screen.
+		var drawn: Vector2 = player.pos + player.draw_off
+		cam.position = drawn.round() - (drawn - c).round()
 		_redraw()
 	if is_instance_valid(Game.music_engine):
 		Game.music_engine.set_muffled(paused or map_view != null)
