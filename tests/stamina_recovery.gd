@@ -6,7 +6,7 @@ func check(ok: bool, message: String) -> void:
 		failures += 1
 		push_error(message)
 func _ready() -> void:
-	for energy in [0.0, 20.0, 32.0, 52.0]:
+	for energy in [0.0, 17.0, 27.0, 44.0]:
 		for stress in [0.0, 250.0]:
 			var run := Adventure.new_run({"start":"test"})
 			run.blocks = 4
@@ -15,12 +15,12 @@ func _ready() -> void:
 			for tick in 12000:
 				Adventure.regen_stamina(run,1.0/60.0)
 				if run.stamina == Adventure.stamina_max(run): break
-			check(run.stamina == 92.0,"Empty upper bars recover fully from %s energy at %s stress" % [energy,stress])
+			check(run.stamina == Adventure.stamina_max(run),"Empty upper bars recover fully from %s energy at %s stress" % [energy,stress])
 			Adventure.regen_stamina(run,1000.0)
-			check(run.stamina == 92.0,"Regeneration never exceeds owned capacity")
+			check(run.stamina == Adventure.stamina_max(run),"Regeneration never exceeds owned capacity")
 	var single := Adventure.new_run({"start":"test"})
 	single.stamina = 0.0
 	Adventure.regen_stamina(single,1000.0)
-	check(single.stamina == 32.0,"A single-bar run still caps at the base capacity")
+	check(single.stamina == Adventure.BASE_STAMINA,"A single-bar run still caps at the base capacity")
 	print("STAMINA RECOVERY: %d failure(s)" % failures)
 	Game.quit_game(failures)

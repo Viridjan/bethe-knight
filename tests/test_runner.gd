@@ -2455,35 +2455,38 @@ func check_stamina() -> void:
 	const Adventure := preload("res://scripts/adventure.gd")
 	var world := Adventure.load_world(FIXTURE_WORLD + "world.json")
 	var run := Adventure.new_run(world)
-	check(run.blocks == 1 and run.stamina == 32.0 and Adventure.stamina_max(run) == 32.0, "a run starts with the base: 32 stamina")
-	check(Adventure.spend_stamina(run, 16) and run.stamina == 16.0, "spending takes stamina")
+	var base: float = Adventure.BASE_STAMINA  # 27
+	var block: float = Adventure.STAMINA_PER_BLOCK  # 17
+	check(base == 27.0 and block == 17.0, "stamina: base 27, each block 17")
+	check(run.blocks == 1 and run.stamina == base and Adventure.stamina_max(run) == base, "a run starts with the base bar full")
+	check(Adventure.spend_stamina(run, base / 2) and run.stamina == base / 2, "spending takes stamina")
 	Adventure.regen_stamina(run, 0.01)
-	check(is_equal_approx(run.stamina, 16.0 + 0.06), "at half full stamina regenerates at the full 6 per second (%s)" % run.stamina)
+	check(is_equal_approx(run.stamina, base / 2 + 0.08), "at half full stamina regenerates at the full 8 per second (%s)" % run.stamina)
 	# Lambdas capture local variables, but cannot resolve this function's local script constant.
 	var regen_factor: Callable = Adventure.regen_factor
 	var regen_max: float = Adventure.STAMINA_REGEN_MAX
 	var rate := func(f): return regen_max * regen_factor.call(f)
-	check(is_equal_approx(rate.call(0.0), 2.0) and is_equal_approx(rate.call(0.25), 4.0) and is_equal_approx(rate.call(0.5), 6.0)
-		and is_equal_approx(rate.call(0.75), 4.5) and is_equal_approx(rate.call(1.0), 3.0), "regen 2/s empty, 6/s at half, 3/s full")
+	check(is_equal_approx(rate.call(0.0), 4.0) and is_equal_approx(rate.call(0.25), 6.0) and is_equal_approx(rate.call(0.5), 8.0)
+		and is_equal_approx(rate.call(0.75), 5.5) and is_equal_approx(rate.call(1.0), 3.0), "regen 4/s empty, 8/s at half, 3/s full")
 	Adventure.regen_stamina(run, 10.0)
-	check(run.stamina == 32.0, "regeneration stops at the top of the base")
+	check(run.stamina == base, "regeneration stops at the top of the base")
 	run.stamina = 0.0
 	Adventure.regen_stamina(run, 0.01)
-	check(run.stress == 5 and is_equal_approx(run.stamina, 0.0198), "the base regenerates from zero with the exhaustion stress penalty (%s)" % run.stamina)
+	check(run.stress == 5 and is_equal_approx(run.stamina, 0.0396), "the base regenerates from zero with the exhaustion stress penalty (%s)" % run.stamina)
 	Adventure.regen_stamina(run, 100.0)
-	check(not Adventure.spend_stamina(run, 160) and run.stamina == 32.0, "can't spend more than you have")
+	check(not Adventure.spend_stamina(run, 160) and run.stamina == base, "can't spend more than you have")
 	Adventure.add_stamina_block(run)
-	check(run.blocks == 2 and run.stamina == 52.0 and Adventure.stamina_max(run) == 52.0, "a new block adds a full 20")
-	Adventure.spend_stamina(run, 32)
+	check(run.blocks == 2 and run.stamina == base + block and Adventure.stamina_max(run) == base + block, "a new block adds a full block")
+	Adventure.spend_stamina(run, base)
 	Adventure.regen_stamina(run, 10.0)
-	check(run.stamina == 52.0, "a fully spent block refills naturally")
-	Adventure.spend_stamina(run, 32)
+	check(run.stamina == base + block, "a fully spent block refills naturally")
+	Adventure.spend_stamina(run, base)
 	Adventure.regen_stamina(run, 100.0)
-	check(run.stamina == 52.0, "regeneration crosses bar boundaries up to full capacity")
+	check(run.stamina == base + block, "regeneration crosses bar boundaries up to full capacity")
 	Adventure.refill_stamina(run)
 	Adventure.spend_stamina(run, 10)
 	Adventure.regen_stamina(run, 100.0)
-	check(run.stamina == 52.0, "a partly spent block refills to its top")
+	check(run.stamina == base + block, "a partly spent block refills to its top")
 
 	# in the world: a block pickup (once per run), hits, the attack gate
 	Game.adv_world = world
@@ -2491,7 +2494,7 @@ func check_stamina() -> void:
 	Game.adv_temp = true
 	make_world([{"t": "stamina_block", "x": 80, "y": 26 * 8}])
 	step(3)
-	check(Game.adv.blocks == 2 and Game.adv.stamina == 52.0 and Game.adv.taken.size() == 1, "stamina block pickup adds a full block (20)")
+	check(Game.adv.blocks == 2 and Game.adv.stamina == base + block and Game.adv.taken.size() == 1, "stamina block pickup adds a full block (17)")
 	# hard landing: a fall of 10+ tiles empties the stamina and stuns 1 s; regen waits for the second star
 	var floor_y: float = p().pos.y
 	p().pos.y = floor_y - 6 * 8
@@ -2578,13 +2581,13 @@ func check_stamina() -> void:
 	ep._process(0.0)
 	var vr := Rect2(Vector2.ZERO, ep.get_viewport_rect().size)
 	check(vr.encloses(ep.get_global_rect()) and ep.size.x > 100, "F3 panel is on screen (%s in %s)" % [ep.get_global_rect(), vr])
-	check(EP.regen_top({"blocks":1}) == 32.0 and EP.regen_top({"blocks":2}) == 52.0 and EP.regen_top({"blocks":3}) == 72.0 and ep.rate()[0] >= 0.0 and ep.history.size() == 1,
+	check(EP.regen_top({"blocks":1}) == base and EP.regen_top({"blocks":2}) == base + block and EP.regen_top({"blocks":3}) == base + 2 * block and ep.rate()[0] >= 0.0 and ep.history.size() == 1,
 		"F3 stamina panel: full-capacity regen target, live rate and history")
 	ep.free()
 	Game.adv.stamina = 100.0
 
 	# HUD stamina bars: one per block, filled by its share of the stamina
-	var fills: Array = load("res://scripts/world.gd").Hud.block_fills(42.0, 3)
+	var fills: Array = load("res://scripts/world.gd").Hud.block_fills(base + block / 2, 3)
 	check(fills == [1.0, 0.5, 0.0], "HUD stamina bars: the base, then block by block (%s)" % [fills])
 	Game.adv.stamina = 0.19 * Adventure.stamina_max(Game.adv)
 	var grey: bool = p().hair_color() == p().HAIR_USED
@@ -2925,7 +2928,8 @@ func _ready() -> void:
 	# in the adventure the climb drains the one stamina bar (a full base bar = a full climb meter), and the
 	# ground doesn't refill it; no regeneration while on the wall
 	var keep_adv: Dictionary = Game.adv
-	Game.adv = {"stamina": 32.0, "blocks": 1, "abilities": ["dash", "climb", "attack"]}
+	var base: float = Game.Adventure.BASE_STAMINA
+	Game.adv = {"stamina": base, "blocks": 1, "abilities": ["dash", "climb", "attack"]}
 	p().hold = {"grab": true, "up": true}
 	step(30)
 	var climbed_to: float = Game.adv.stamina
@@ -2934,7 +2938,7 @@ func _ready() -> void:
 	step(40)
 	var after_landing: float = Game.adv.stamina
 	Game.adv = keep_adv
-	check(climbed_to < 27.0 and is_equal_approx(as_climb, climbed_to * 110.0 / 32.0) and after_landing <= climbed_to + 32 * 0.2,
+	check(climbed_to < base - 3 and is_equal_approx(as_climb, climbed_to * 110.0 / base) and after_landing <= climbed_to + base * 0.2,
 		"adventure climbing drains the stamina bar, and landing doesn't refill it (%s, then %s)" % [climbed_to, after_landing])
 	# infinite stamina (assist option): hang on the same wall for 20 s
 	Game.settings.infinite_stamina = true

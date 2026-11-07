@@ -47,8 +47,9 @@ static func regen_top(run: Dictionary) -> float:
 	return Adventure.stamina_max(run)
 
 func _line(font: Font, y: float, s: String, col := Color.WHITE) -> float:
-	draw_string(font, Vector2(12, y), s, HORIZONTAL_ALIGNMENT_LEFT, W - 24, 15, col)
-	return y + 19
+	draw_multiline_string(font, Vector2(12, y), s, HORIZONTAL_ALIGNMENT_LEFT, W - 24, 15, -1, col)  # wraps, never cut off
+	var lines := maxi(1, roundi(font.get_multiline_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, W - 24, 15).y / font.get_height(15)))
+	return y + 19 * lines
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), Color(0.05, 0.06, 0.09, 0.86))
@@ -66,14 +67,14 @@ func _draw() -> void:
 	y = _line(font, y, "now: %+.1f/s  %s" % [r[0], r[1]], Color("ffd84a") if r[0] < 0 else Color("9fe0ff"))
 	y += 6
 	y = _line(font, y, "GAIN", Color("7cf0c0"))
-	y = _line(font, y, "  regen %.0f/s empty, %.0f/s at half, %.0f/s full (out of water, not climbing)" % [Adventure.STAMINA_REGEN_EMPTY, Adventure.STAMINA_REGEN_MAX, Adventure.STAMINA_REGEN_FULL])
-	y = _line(font, y, "  stamina block pickup: +%.0f capacity, +%.0f stamina (once each)" % [Adventure.STAMINA_PER_BLOCK, Adventure.STAMINA_PER_BLOCK])
-	y = _line(font, y, "  stamina orb: refill to max, back after 2.5 s")
+	y = _line(font, y, "• regen: %.0f/s empty, %.0f/s at half, %.0f/s full (out of water, not climbing)" % [Adventure.STAMINA_REGEN_EMPTY, Adventure.STAMINA_REGEN_MAX, Adventure.STAMINA_REGEN_FULL])
+	y = _line(font, y, "• stamina block: +%.0f capacity and stamina (once each)" % Adventure.STAMINA_PER_BLOCK)
+	y = _line(font, y, "• stamina orb: refill to max, back after 2.5 s")
 	y = _line(font, y, "LOSS", Color("ff8a6a"))
-	y = _line(font, y, "  jump or wall jump: -%.0f, needs %.0f (swim strokes free)  can jump: %s" % [Player.JUMP_STAMINA, Player.JUMP_STAMINA, "yes" if run.stamina >= Player.JUMP_STAMINA else "NO"])
-	y = _line(font, y, "  water: -%.1f/s, drown at 0" % Adventure.WATER_DRAIN)
-	y = _line(font, y, "  respawn: base bar refilled to %.0f (a hit is always a death)" % Adventure.BASE_STAMINA, Color(0.7, 0.7, 0.7))
-	y = _line(font, y, "  hair grey below 20%% (%.1f)" % (0.2 * mx), Color(0.7, 0.7, 0.7))
+	y = _line(font, y, "• jump / wall jump: -%.0f, needs %.0f (swimming free) · can jump now: %s" % [Player.JUMP_STAMINA, Player.JUMP_STAMINA, "yes" if run.stamina >= Player.JUMP_STAMINA else "NO"])
+	y = _line(font, y, "• water: -%.0f/s, drown at 0" % Adventure.WATER_DRAIN)
+	y = _line(font, y, "• respawn: base bar refilled to %.0f (a hit is always a death)" % Adventure.BASE_STAMINA, Color(0.7, 0.7, 0.7))
+	y = _line(font, y, "• hair turns grey below 20%% (%.1f)" % (0.2 * mx), Color(0.7, 0.7, 0.7))
 	# graph: last HISTORY s, max at the top, dashed lines at block boundaries
 	y += 4
 	var g := Rect2(12, y, W - 24, 110)
@@ -96,9 +97,10 @@ func _draw() -> void:
 		draw_polyline(pts, Color("ffd84a"), 2.0)
 	draw_string(font, g.position + Vector2(4, 14), "last %ds" % int(HISTORY), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(1, 1, 1, 0.6))
 	y = g.end.y + 20
-	y = _line(font, y, "RECENT CHANGES", Color("9fe0ff"))
-	for ev in world.stamina_log.slice(0, 4):
-		y = _line(font, y, "  %5.1fs ago  %+6.1f  %s" % [world.time - ev[0], ev[2], ev[1]], Color("7cf0c0") if ev[2] >= 0 else Color("ff8a6a"))
+	y = _line(font, y, "GRAPH", Color("9fe0ff"))
+	y = _line(font, y, "• yellow line: your stamina over the last %d s (right edge = now)" % int(HISTORY), Color("ffd84a"))
+	y = _line(font, y, "• green line: maximum (%.0f)" % mx, Color(0.49, 0.94, 0.75))
+	y = _line(font, y, "• dashed lines: where one block ends and the next begins", Color(0.75, 0.75, 0.75))
 	y += 6
 	y = _line(font, y, "RECAP (since the level started)", Color("9fe0ff"))
 	var spent := 0.0
