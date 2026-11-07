@@ -42,6 +42,14 @@ Positive X points right. Positive Y points down, so a negative vertical velocity
 
 `rem` keeps fractional movement. For example, four steps of 0.25 pixel must add up to one whole pixel rather than disappearing through rounding. Integer positions keep collision behavior and pixel artwork consistent.
 
+## Whole numbers only
+
+No floating-point numbers are allowed in the game. Every division, and every operation of the same kind
+(percentages, multipliers, ratios, averages, scaling), keeps only the integer part of its result (truncate:
+`7 / 2` gives `3`). This applies to the whole game: gameplay values, data files, editor values and anything shown
+to the player. When adding or changing code, use integer arithmetic (`int`, integer division, `floori` /
+`int()` on the result) instead of storing fractions.
+
 ## The boxes have different jobs
 
 - **Movement box (`hitbox`)**: stops the player from going through solid terrain.

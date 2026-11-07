@@ -36,6 +36,14 @@ Git history is unavailable in this checkout, so no existing commit convention ca
 
 Preserve sprite license files and Celeste movement-code attribution. Editor levels save under `user://levels/`; use disposable levels for manual testing and keep personal runtime data out of contributions.
 
+## Whole numbers only
+
+No floating-point numbers are allowed in the game. Every division, and every operation of the same kind
+(percentages, multipliers, ratios, averages, scaling), keeps only the integer part of its result (truncate:
+`7 / 2` gives `3`). This applies to the whole game: gameplay values, data files, editor values and anything shown
+to the player. When adding or changing code, use integer arithmetic (`int`, integer division, `floori` /
+`int()` on the result) instead of storing fractions.
+
 ## Story content direction
 
 New optional discoveries must be interactable entities (energy fragments,
