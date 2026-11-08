@@ -229,8 +229,7 @@ Arena and collision:
 
 Stamina is also health:
 - It replaces hearts. The icon is still undecided; it shows as **blocks**.
-- **1 block = 100 stamina** in code. Every value below is in code units.
-- In code now (`scripts/adventure.gd`): stamina starts with a **base of 32**; each stamina block adds **20**. All owned bars regenerate to full, including completely emptied ones. Regeneration is 2/s empty, rising to 6/s at half capacity and falling to 3/s full, scaled by stress; none in water, while climbing or during the blocking portion of a stun. A jump or wall jump costs and needs 5. Climbing drains the same bar; standing on ground does not instantly refill it. Water drains 40/s; 0 in water drowns. A hit causes respawn, which immediately restores at least the base bar. A stamina orb instantly refills to max. Hair turns grey below 20%.
+- In code now (`scripts/adventure.gd`): stamina starts with a **base of 27**; each stamina block adds **17** (32 and 20 until 2026-11-07). Three energy fragments make one stamina block (+17 capacity); there is no separate fragment bonus. All owned bars regenerate to full, including completely emptied ones. Regeneration is 4/s empty, rising to 8/s at half capacity and falling to 3/s full, scaled by stress; none in water, while climbing or during the blocking portion of a stun. A jump or wall jump costs and needs 5. Climbing drains the same bar; standing on ground does not instantly refill it. Water drains 40/s; 0 in water drowns. A hit causes respawn, which immediately restores at least the base bar. A stamina orb instantly refills to max. Hair turns grey below 20%.
 - With 1 block the player can use one ability, then has to rest before using another.
 - The 2nd block comes from the first city.
 
@@ -249,18 +248,17 @@ Costs:
 - Sword swing: 10 per swing.
 - Sword hit: 15 more per enemy hit (25 for a swing that lands). Swing only when you mean it.
 - Wall grab: 20-30 per second while holding on.
-- Jump: 5 per jump, and a jump needs those 5: with less there's no jump (wall jumps and swim strokes stay free).
+- Jump and wall jump: 5 each, and they need those 5: with less there's no jump (swim strokes stay free).
 - Some abilities cost a whole block and have to be recovered before reuse.
 
-Regeneration:
-- 6 stamina per second (doubled from 3 on 2026-10-24).
-- The base (the first 50) always refills, even from 0.
-- Above it, only inside the current block: an extra block that is fully spent doesn't refill.
+Regeneration (current values are in the code summary above; earlier rules, now replaced: a flat 6/s, a 50-point base, and fully spent extra blocks that didn't refill):
+- 4/s empty, 8/s at half, 3/s full, scaled by stress.
+- Every owned bar refills, the base and the extra blocks, even from 0.
 
 Water:
 - Underwater is its own state, **Normal (Underwater)**, which replaces Normal in water: slow sinking, no walking on the floor (along it the player moves as mid-water), and no normal jump. **Jumping (Underwater)** is a weaker stroke (about half a jump's height) that works from the floor or mid-water, every time jump is pressed; with the surface close above, it leaps out of the water like a normal jump. Dash still works.
 - Waterfalls are a layer on top of the current state: inside one the player is pulled down, so jumps rise much less.
-- Staying in water costs 2.08 stamina every 0.1 s (20.8 per second), and stamina doesn't regenerate there.
+- Staying in water costs 40 stamina per second (`WATER_DRAIN`), and stamina doesn't regenerate there.
 - Running out of stamina in water is a death (drowning).
 
 ## 4. Skill points
