@@ -52,6 +52,18 @@ func spawn(at: Vector2, velocity: Vector2, settings: Dictionary) -> Projectile:
 func clear() -> void:
 	projectiles.clear()
 
+# A splitting log lands: two ordinary logs hop outwards from its last free position; the parent leaves no spikes.
+func _split(p: Projectile, solid: Callable, bounds: Rect2i, events: Array) -> void:
+	events.append({"event": "split", "box": p.box()})
+	for side in [-1.0, 1.0]:
+		var child_position := p.position + Vector2(side * p.size.x, 0)
+		var child_box := Rect2i(Vector2i(child_position), p.size)
+		if not bounds.grow(64).intersects(child_box) or solid.call(child_box) != null:
+			events.append({"event": "split_blocked", "box": child_box, "effect": p.impact_effect})
+			continue
+		spawn(child_position, Vector2(side * p.child_velocity.x, p.child_velocity.y), {
+			"gravity": p.child_gravity, "size": p.size, "terminal_speed": p.child_terminal_speed, "impact_effect": p.impact_effect})
+
 # Return events after iteration. New children start moving on the following tick.
 # Sweeping each axis in <=1px steps prevents fast logs tunnelling through floors/player boxes.
 func update(dt: float, solid: Callable, player_box: Rect2i, bounds: Rect2i, trunk_box: Rect2i = Rect2i()) -> Array:
@@ -63,19 +75,7 @@ func update(dt: float, solid: Callable, player_box: Rect2i, bounds: Rect2i, trun
 			elapsed = maxf(0.0, dt - p.wait)
 			p.wait = maxf(0.0, p.wait - dt)
 			if elapsed <= 0: continue
-		var previous_y := p.velocity.y
 		p.velocity.y = minf(p.velocity.y + p.gravity * elapsed, p.terminal_speed)
-		if p.split and previous_y <= 0 and p.velocity.y >= 0:
-			for side in [-1.0, 1.0]:
-				var child_position := p.position + Vector2(side * p.size.x, 0)
-				var child_box := Rect2i(Vector2i(child_position), p.size)
-				if not bounds.grow(64).intersects(child_box) or solid.call(child_box) != null:
-					events.append({"event": "split_blocked", "box": child_box, "effect": p.impact_effect})
-					continue
-				spawn(child_position, Vector2(side * p.child_velocity.x, p.child_velocity.y), {
-					"gravity": p.child_gravity, "size": p.size, "terminal_speed": p.child_terminal_speed, "impact_effect": p.impact_effect})
-			projectiles.remove_at(i)
-			continue
 		var displacement := p.velocity * elapsed
 		var steps := maxi(1, ceili(maxf(absf(displacement.x), absf(displacement.y))))
 		var increment := displacement / steps
@@ -93,7 +93,8 @@ func update(dt: float, solid: Callable, player_box: Rect2i, bounds: Rect2i, trun
 					gone = true
 				elif solid.call(box) != null:
 					if axis == 1 and increment.y > 0:
-						events.append({"event": "floor_impact", "box": box, "effect": p.impact_effect})
+						if p.split: _split(p, solid, bounds, events)
+						else: events.append({"event": "floor_impact", "box": box, "effect": p.impact_effect})
 					gone = true
 				else:
 					p.position = next

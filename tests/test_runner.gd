@@ -2250,7 +2250,7 @@ func check_ape() -> void:
 	for k in 60:
 		step()
 		halves = maxi(halves, ape.logs.filter(func(log): return not log.split).size())
-	check(halves == 2, "an enraged log splits into two ordinary logs at its apex (%d halves)" % halves)
+	check(halves == 2, "an enraged log splits into two ordinary logs when it lands (%d halves)" % halves)
 	Game.settings.invincible = false
 	# near: the scream reaches around its body
 	Game.settings.invincible = keep_inv

@@ -68,7 +68,7 @@ func enemy_entries(enemy_id: String, phase: String) -> Array:
 # Human descriptions are a projection of the graph, never another writable definition.
 func effect_trigger_text(enemy_id: String, phase: String, effect_id: String = "") -> String:
 	var lines := PackedStringArray()
-	var events := {"landed": "lands", "released": "releases its projectile", "split": "splits at the apex", "floor_impact": "hits the floor"}
+	var events := {"landed": "lands", "released": "releases its projectile", "split": "splits on the floor", "floor_impact": "hits the floor"}
 	for link in effect_links(enemy_id, phase):
 		if effect_id != "" and link.effect != effect_id: continue
 		var source := str(attack(link.source).get("codex_online_name", link.source))

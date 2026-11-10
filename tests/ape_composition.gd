@@ -89,7 +89,7 @@ func _ready() -> void:
 	ape = w.ents.filter(func(e): return e is E.Ape)[0]
 	ape.hp = 2
 	p().pos = Vector2(20, 40)
-	ape._throw(Vector2(350, 220))
+	ape._throw(Vector2(260, 220))  # children hop about 135 px each way: keep both clear of the room walls
 	var children := 0
 	for tick in 180:
 		ape._update_logs(DT)
