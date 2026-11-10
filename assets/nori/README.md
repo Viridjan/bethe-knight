@@ -1,4 +1,4 @@
-# Nori — Summit character
+# Nori — Bethe Knight character
 
 Original mountain-courier pixel artwork, authored in `scripts/character_art.gd`.
 Swept dark brown hair, blue parka, copper backpack, dark boots, and flowing dash-colour locks.

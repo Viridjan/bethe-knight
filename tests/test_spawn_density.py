@@ -28,7 +28,10 @@ class SpawnDensity(unittest.TestCase):
         import json
         room=json.loads(Path('worlds/story/c1_lake_cave.json').read_text())
         spawns=[e for e in room['entities'] if e['t']=='spawn']
-        self.assertEqual(sorted((e['x'],e['y']) for e in spawns),[(8,328),(160,328),(224,328)])
+        self.assertEqual(len(spawns),3)
+        anchors=sorted(e['respawn_at'] for e in spawns)
+        self.assertTrue(all(at[1]==336 for at in anchors))
+        self.assertTrue(anchors[0][0]<80<anchors[1][0]<200<anchors[2][0])
         self.assertTrue(all(not e.get('entrance') for e in spawns))
         F.prune_spawns(room)
         self.assertEqual([e for e in room['entities'] if e['t']=='spawn'],spawns)

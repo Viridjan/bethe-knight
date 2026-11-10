@@ -172,6 +172,31 @@ var reveal_from := 0.0  # where it starts, along that axis
 var reveal_cut := true  # the camera has jumped to the new room (false while the old room is still in view)
 var reveal_old := Rect2()  # the room just left (sideways or vertical crossings): it darkens from its far side
 
+var layer_manager = null
+var layer_key := "main"
+var layer_definition: Dictionary = {}
+var layer_active := true
+var layer_shade: Node2D
+var layer_followers: Array = []
+
+func switch_layer(id: String, at: Vector2) -> bool:
+	return layer_manager != null and layer_active and layer_manager.activate(id,at)
+
+func _set_layer_activity(value: bool) -> void:
+	layer_active=value
+	set_process(value)
+	set_physics_process(value)
+	set_process_unhandled_input(value)
+	cam.enabled=value
+	ui.visible=value
+	if layer_shade!=null:layer_shade.visible=not value
+
+func _setup_layers(resume := "main") -> void:
+	if layer_manager!=null or not data.has("layers"):return
+	var manager=load("res://scripts/layers/room_layers.gd").new()
+	add_child(manager)
+	manager.setup(self,data,resume)
+
 var data: Dictionary
 var level_id := ""
 var gw := 0
@@ -223,6 +248,7 @@ var paused := false
 var done := false
 
 var ui: CanvasLayer
+var spawn_layer := "main"
 var spawn_room := ""  # adventure: the room the respawn point (spawn) is in; another room when this one has no safe point
 var kept_spikes := {}  # room -> [[type, x, y]...]: spikes as a boss fight left them, kept for respawns until the room is left
 var stamina_log: Array = []  # [time, cause, delta], newest first (F3 panel)
@@ -273,11 +299,12 @@ func _create_tile_layer() -> void:
 
 # Read the chosen level, build the playable room and interface, then prepare music and neighboring terrain.
 func _ready() -> void:
-	data = Game.level
+	data = Game.level if layer_definition.is_empty() else layer_definition
 	level_id = Game.file_safe(data.get("name", "untitled"))
 	if adventure():
 		room = Game.adv.room
 		spawn_room = room
+		spawn_layer=str(Game.adv.get("layer","main"))
 		room_origin = Vector2(Game.adv_world.rooms[room].pos * T)
 		for k in Game.adv.stars:
 			collected[k] = true
@@ -290,7 +317,7 @@ func _ready() -> void:
 	cam = Camera2D.new()
 	cam.zoom = Vector2(ZOOM, ZOOM)
 	add_child(cam)
-	cam.make_current()
+	if layer_active: cam.make_current()
 	# The screen may be wider or taller than 1280x720 (stretch aspect "expand", so phone controls reach the
 	# screen edges); the world view stays 1280x720 in the middle, with black bars around it.
 	var bars := CanvasLayer.new()
@@ -325,11 +352,13 @@ func _ready() -> void:
 	_build()
 	_create_tile_layer()
 	tile_layer.setup(tiles, gw, gh, data.get("environment", ""))
-	Game.get_music_engine().follow_environment(data.get("environment", ""))
+	if layer_active: Game.get_music_engine().follow_environment(data.get("environment", ""))
 	_load_near()
 	_scan_floor_gaps()
 	cam_pos = cam_goal()
 	snap_interp()
+	if layer_manager==null: _setup_layers(str(Game.adv.get("layer","main")) if adventure() else str(data.get("_preview_layer","main")))
+	if not layer_active: _set_layer_activity(false)
 	if adventure() and Game.stress_rest_notice > 0:
 		show_interaction("Rested: stress -%d" % int(Game.stress_rest_notice))
 		Game.stress_rest_notice = 0.0
@@ -369,9 +398,20 @@ func _build(keep_player := false) -> void:
 		_register(e)
 		if e is E.Star:
 			total_berries += 1
+	var checkpoints:=[]
+	for checkpoint in ents:
+		if checkpoint is E.Respawn:
+			checkpoint.resolve_point()
+			checkpoints.append(checkpoint)
+	if not keep_spawn:
+		var starts:Array=checkpoints.filter(func(e):return e.d.t=="spawn")
+		for checkpoint in (starts if not starts.is_empty() else checkpoints):
+			if checkpoint.point()==Vector2(-1,-1):continue
+			spawn=checkpoint.point()
+			if starts.is_empty():break
 	if adventure():
 		total_berries = Adventure.star_count(Game.adv_world)
-		if Game.adv.spawn is Array and Game.adv.room == room:
+		if Game.adv.spawn is Array and Game.adv.room == room and Game.adv.get("layer","main")==layer_key:
 			var saved_spawn := Vector2(Game.adv.spawn[0], Game.adv.spawn[1])
 			if safe_spawn(saved_spawn):
 				spawn = saved_spawn
@@ -392,17 +432,18 @@ func adventure() -> bool:
 # Star ids are per room in the adventure so equal coordinates in two rooms don't clash.
 # Prefix a persistent object ID with its room name so equal coordinates in different rooms do not collide.
 func star_key(id: String) -> String:
-	return room + ":" + id if adventure() else id
+	var plane := "" if layer_key=="main" else "@"+layer_key
+	return room+plane+":"+id if adventure() else plane+":"+id if not plane.is_empty() else id
 
 # True when local point p (just outside this room) lies inside another room: the player may walk there.
 # Check whether a point beyond this room belongs to another adventure room.
 func can_exit(p: Vector2) -> bool:
-	return adventure() and Adventure.room_at(Game.adv_world, room_origin + p, room) != ""
+	return layer_key=="main" and adventure() and Adventure.room_at(Game.adv_world, room_origin + p, room) != ""
 
 # Called after the player moves: once their centre leaves the room, switch to the room it is in.
 # After movement, enter the neighboring room containing the player centre outside these bounds.
 func _check_room_exit() -> void:
-	if not adventure() or player.dead or Rect2(bounds).has_point(player.center()):
+	if layer_key!="main" or not adventure() or player.dead or Rect2(bounds).has_point(player.center()):
 		return
 	var g: Vector2 = room_origin + player.center()
 	var next := Adventure.room_at(Game.adv_world, g, room)
@@ -480,6 +521,11 @@ func door_hit(door) -> void:
 # "room:id" or "id" (same level). The player keeps speed and their offset inside the doorway.
 # Resolve the linked doorway, transfer the player with a safe offset and prevent immediate teleporting back.
 func _go_door(door) -> void:
+	if door.d.t=="layer_passage":
+		pending_door=null
+		door_near=null
+		if layer_manager==null or not layer_manager.travel(self,door):show_note("Layer passage has no safe destination")
+		return
 	Game.play_sfx("door")
 	pending_door = null
 	var to: String = door.d.get("to", "")
@@ -512,6 +558,12 @@ func _go_door(door) -> void:
 # Swap room data while retaining player motion, update respawn/progress and reposition cached terrain.
 # One player object crosses rooms. Its velocity stays intact while local coordinates and object lists change.
 func enter_room(next: String, at = null, fresh_player := false) -> void:  # fresh_player: a respawn, not a walk-in
+	if layer_manager!=null:
+		var owner=layer_manager.root_world
+		layer_manager.release()
+		if owner!=self:
+			owner.enter_room(next,at,fresh_player)
+			return
 	var global: Vector2 = room_origin + player.pos
 	var old_origin := room_origin
 	var old_room := room
@@ -568,12 +620,13 @@ func enter_room(next: String, at = null, fresh_player := false) -> void:  # fres
 	player.prev_pos -= room_origin - old_origin
 	if map_view != null:
 		_toggle_map()
+	_setup_layers(spawn_layer if fresh_player and spawn_room==room else "main")
 
 # Terrain of the rooms around this one, so crossing into one shows no pop-in; entities load only on entry.
 # Built one room per frame so entering a room doesn't hitch.
 # Find neighboring room tiles needed for collision and queue their visual layers for gradual loading.
 func _load_near() -> void:
-	if not adventure():
+	if layer_key!="main" or not adventure():
 		return
 	var rooms: Dictionary = Game.adv_world.rooms
 	var area := Adventure.room_rect(rooms[room]).grow_individual(int(VIEW.x), int(VIEW.y), int(VIEW.x), int(VIEW.y))
@@ -709,11 +762,16 @@ func set_respawn(p: Vector2) -> void:
 	spawn = p
 	if adventure():
 		spawn_room = room
+		spawn_layer=layer_key
+		Game.adv.layer=layer_key
 		Game.adv.room = room
 		Game.adv.spawn = [p.x, p.y]
 		_save_run()
 
 # A respawn point is safe when the player standing there is out of water and acid, clear of spikes and on ground.
+func checkpoint_for_area(area: Rect2i) -> Vector2:
+	return preload("res://scripts/progression/checkpoint_area.gd").resolve({"w":gw,"h":gh,"tiles":tiles,"entities":data.entities},area,safe_spawn)
+
 func safe_spawn(p: Vector2) -> bool:
 	var body := Rect2i(int(p.x) - 4, int(p.y) - 11, 8, 11)
 	if touch_by_type.get("trap_spikes", []).any(func(trap): return trap.rect.intersects(body.grow(1))): return false
@@ -889,7 +947,7 @@ func grant_ability(a: String) -> void:
 
 # Copy room-owned counters and persistent object IDs into Game.adv before writing the save file.
 func _save_run() -> void:
-	if not adventure():
+	if not layer_active or not adventure():
 		return
 	Game.adv.deaths = deaths
 	Game.adv.time = time
@@ -982,11 +1040,26 @@ func player_touch(p) -> void:
 	var hr: Rect2i = p.hurt_rect()
 	var dr: Rect2i = p.damage_rect()
 	var near := hr.merge(dr).grow(16)  # cheap reject first: no touch_rect reaches more than 8 px past its entity
+	activate_checkpoint(p)
 	for e in touchables:
+		if e is E.Respawn:continue
 		if p.dead or done:
 			return
 		if e.collidable and e.rect.intersects(near) and e.touch_rect().intersects(dr if e.hurts() else hr):
 			e.touch(p)
+
+# At most one selected region activates per contact check, so overlaps cannot thrash saves.
+func activate_checkpoint(p) -> void:
+	if p.dead or done:return
+	var hr:Rect2i=p.hurt_rect()
+	var checkpoints:Array=touch_by_type.get("spawn",[]).duplicate()
+	checkpoints.append_array(touch_by_type.get("respawn",[]))
+	checkpoints=checkpoints.filter(func(e):return e.collidable and e.touch_rect().intersects(hr))
+	checkpoints.sort_custom(func(a,b):
+		var area_a:int=a.rect.get_area()
+		var area_b:int=b.rect.get_area()
+		return area_a<area_b if area_a!=area_b else a.point().distance_squared_to(p.pos)<b.point().distance_squared_to(p.pos))
+	if not checkpoints.is_empty():checkpoints[0].touch(p)
 
 # ---------------- events ----------------
 # Request brief hit-stop: physics waits while the scene can still display the impact.
@@ -1029,6 +1102,9 @@ func respawn() -> void:
 	Game.play_sfx("respawn")
 	if adventure() and spawn_room != room:  # this room has no safe point: back to the last one (built once)
 		enter_room(spawn_room, spawn, true)
+	elif layer_manager!=null and spawn_layer!=layer_key:
+		var manager=layer_manager
+		if manager.activate(spawn_layer,spawn): manager.worlds[manager.active]._build()
 	else:
 		_build()
 	if adventure() and Game.adv.stamina < Adventure.BASE_STAMINA:
@@ -1110,7 +1186,7 @@ func _tick_entity(entity, dt: float) -> void:
 func _physics_process(_delta: float) -> void:
 	cam_prev = cam_now  # no tick (paused, frozen) = no motion to interpolate
 	player.prev_pos = player.pos
-	if paused or done or map_view != null or dialogue != null or crossing != null:
+	if not layer_active or paused or done or map_view != null or dialogue != null or crossing != null:
 		return
 	if debug_panel != null and (debug_panel.typing() or debug_panel.sim_paused):
 		if debug_panel.typing() or debug_panel.step_frames == 0:
@@ -1129,6 +1205,7 @@ func _physics_process(_delta: float) -> void:
 		if reveal_t >= 1.0 or reveal_t * REVEAL_TIME < REVEAL_OUT + REVEAL_IN:  # the wait at the end: held still
 			player.update(dt)
 		after_player_move()
+		if not layer_active:return
 		update_stamina(dt)
 	for e in ents:
 		_tick_entity(e, dt)
@@ -1335,6 +1412,7 @@ func _rest_view(view: Rect2, area: Rect2) -> Rect2:
 
 # Paint room scenery, including visible portions of adjacent rooms during a transition.
 func _draw_background(ci: CanvasItem) -> void:
+	if layer_key!="main":return
 	var view := Rect2(cam.position - VIEW / 2.0, VIEW)
 	Art.draw_background(ci, view, time, data.get("environment", ""), Rect2(0, 0, data.w * T, data.h * T))
 	if adventure():  # each themed room's painting belongs to its room: it slides in and out with it in a transition
@@ -1379,7 +1457,7 @@ func _draw() -> void:
 	_draw_floor_gaps()
 	for t in trails:
 		draw_rect(t[0], Color(t[1], minf(t[2] * 1.5, 0.6)))
-	player.draw(self)
+	if layer_active:player.draw(self)
 	for e in over:
 		e.draw(self)
 	for pt in parts:
@@ -1588,6 +1666,7 @@ func _show_complete() -> void:
 
 # Release presentation state and stop this World music when it is actually leaving the screen.
 func _exit_tree() -> void:
+	if layer_key!="main":return
 	if is_instance_valid(Game.music_engine) and (not is_instance_valid(Game.main) or Game.main.get_child_count() == 0 or Game.main.get_child(Game.main.get_child_count() - 1) == self):
 		Game.music_engine.set_muffled(false)
 		Game.music_engine.stop()

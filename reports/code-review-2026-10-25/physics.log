@@ -532,7 +532,7 @@ PASS  story: water/acid rows run wall to wall (bad: [])
 PASS  adventure: 26 entrance spawns, all standing on ground (bad: [])
 PASS  adventure: water/acid rows run wall to wall (bad: [])
 PASS  door l2_net_trap:net leads into room l3_treetop_village (now in l3_treetop_village)
-PASS  menu lists the story world first, then Summit (2)
+PASS  menu lists the story world first, then Bethe Knight (2)
 PASS  story world loads, starts in the meadow with jump only (22 rooms)
 PASS  story has the town's energy block, and its only enemies are calm Mosstrots
 PASS  story bot reaches the end of the jungle with jump only (["m1_meadow", "m2_big_jump", "m3_the_hole", "c1_lake_cave", "c2_cave_teeth", "c3_cove_tunnel", "t1_cove_town", "j1_jungle_edge", "j2_jungle_falls", "j3_jungle_hills"], deaths 0, at tile (72.0, 12.0))

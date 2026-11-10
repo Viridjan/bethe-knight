@@ -1,7 +1,7 @@
-# Unified Ape loadout
+# Merged report
 
-Both phases share one Enemy loadout page. Attack mechanics appear once; redundant phase boxes on the right were removed. The editor opens on Enemy loadouts. Numeric inputs and card spacing are compact, with existing names preserved. Binding rows keep phase-specific priority, range and skip chance. New bindings can target either phase or both.
+The full record from `reports/ape-unified-editor/README.md` is preserved in [the consolidated combat and editor report](../consolidated/COMBAT_AND_EDITOR.md#reports-ape-unified-editor-readme).
 
-Visual checks: attacks.png, compact-details.png and effects.png, captured with capture.tscn.
+This path remains for existing links. Screenshots, logs and fixtures have not moved. For current status, see [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md).
 
-Verification: catalogue, phase listing/binding regressions, live effect tooltip regressions, smoke and GDScript lint. Full gameplay runner has one failure in the story bot's Jungle Falls traversal; the two jungle room files had existing local modifications and were left untouched. Catalogue test also reports renderer resource leaks on shutdown.
+<a id="unified-ape-loadout"></a>

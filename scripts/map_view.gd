@@ -72,7 +72,7 @@ func _ready() -> void:
 		for name in Game.adv.visited:
 			if Game.adv_world.rooms.has(name):
 				var r: Dictionary = Game.adv_world.rooms[name]
-				layers.append([Rect2(Adventure.room_rect(r)), terrain(r.level), name == world.room, Adventure.region_of(Game.adv_world, name)])
+				layers.append([Rect2(Adventure.room_rect(r)), terrain(world.data if name==world.room and world.layer_key!="main" else r.level), name == world.room, Adventure.region_of(Game.adv_world, name)])
 	else:
 		layers.append([Rect2(world.bounds), terrain(world.data), true, {}])
 	area = layers[0][0]

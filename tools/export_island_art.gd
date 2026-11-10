@@ -11,7 +11,7 @@ func save(img: Image, path: String) -> void:
 
 func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute(DIR)
-	var manifest := {"source": "scripts/island_art.gd", "provenance": "Original procedural pixel art authored for Summit; no third-party source images.", "filter": "nearest", "frames": 4, "assets": []}
+	var manifest := {"source": "scripts/island_art.gd", "provenance": "Original procedural pixel art authored for Bethe Knight; no third-party source images.", "filter": "nearest", "frames": 4, "assets": []}
 	for kind in ["serpent", "rock", "rock_warning", "rock_impact", "eruption", "vent", "elf", "mage", "landmark", "raft", "mirror", "beacon", "lava"]:
 		var poses: Array = Art.SERPENT_POSES if kind == "serpent" else Art.PEOPLE_POSES if kind in ["elf", "mage"] else ["idle", "broken"] if kind == "vent" else ["idle"]
 		var variants := 5 if kind in ["elf", "mage"] else 3 if kind == "landmark" else 1

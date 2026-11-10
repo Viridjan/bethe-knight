@@ -1,4 +1,4 @@
-# Summit Optimization Strategy
+# Bethe Knight Optimization Strategy
 
 ## Scope and evidence
 

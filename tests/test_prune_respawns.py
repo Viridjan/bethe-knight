@@ -29,6 +29,12 @@ class PruneRespawns(unittest.TestCase):
     def test_nearby_entrances_share_right_checkpoint_across_safe_bridge(self):
         import json
         room=json.loads(Path('worlds/story/c6_wall_cave.json').read_text())
+        # Exercise the legacy point-pruning rule on the unchanged real terrain.
+        for marker in room['entities']:
+            if marker['t'] not in ('spawn','respawn'):continue
+            marker['x']=8 if marker['respawn_at'][0]<80 else 160
+            marker['y']=48
+            for field in ('w','h','respawn_at'):marker.pop(field,None)
         room['entities'].append({'t':'respawn','x':120,'y':48})
         prune(room,[(0,40),(168,40),(136,80)])
         points=[(e['x'],e['y']) for e in room['entities'] if e['t'] in ('spawn','respawn')]
@@ -45,3 +51,10 @@ class PruneRespawns(unittest.TestCase):
             if blocked=='water':room['entities'].append({'t':'water','x':136,'y':40,'w':8,'h':16})
             else:room['entities']=[e for e in room['entities'] if not (e['t']=='jumpthru' and e['y']==56)]
             self.assertFalse(shared_landing(room,a,b),blocked)
+
+    def test_authored_activation_areas_are_preserved(self):
+        import json
+        room=json.loads(Path('worlds/story/c6_wall_cave.json').read_text())
+        areas=copy.deepcopy([e for e in room['entities'] if e['t'] in ('spawn','respawn')])
+        prune(room,[])
+        self.assertEqual([e for e in room['entities'] if e['t'] in ('spawn','respawn')],areas)

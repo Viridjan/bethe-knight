@@ -1,7 +1,9 @@
-# Metroid notes: what Zero Mission does, what Summit uses, what is left for later
+# Metroid notes: what Zero Mission does, what Bethe Knight uses, what is left for later
 
 Source: the Metroid Zero Mission decompilation, https://github.com/metroidret/mzm (`master`).
 Paths like `src/room.c` refer to that repo. Unverified points are marked as such.
+
+> Historical reference comparison. “Implemented” and “later” below describe the original comparison baseline, including removed adventure paths and old camera/transition behavior. For current status use [the implementation ledger](IMPLEMENTATION_STATUS.md); active tasks are consolidated in [TODO](../TODO.md).
 
 ## 1. World and rooms
 
@@ -17,7 +19,7 @@ Paths like `src/room.c` refer to that repo. Unverified points are marked as such
 - Event flags can redirect a door to another destination (`sEventBasedConnections`, `src/data/hatch_data.c`).
 - Camera: per-room "scroll" rectangles (`src/scroll.c`). The camera is clamped to the rectangle Samus is in, so one room can have several camera zones.
 
-**Summit (implemented)**
+**Bethe Knight (implemented)**
 - One world, no areas. Rooms are ordinary level files in `res://adventure/`. `res://adventure/world.json` stores each room's tile position on one big grid (our `mapX`/`mapY`) and the start room (`scripts/adventure.gd`).
 - Celeste-style **edge transitions**, plus **Door objects** (`entities.gd` Door, `World._go_door`): mzm's `struct Door` in small, a rectangle with an `id` and a `to` = `room:id`, keeping the player's height in the doorway like `RoomReset`. The reference worlds in `res://worlds/` use them for every door on the original maps.
   - Walking off a room's edge enters whichever room covers that spot (`World.can_exit`, `World._check_room_exit`, `World.enter_room`).
@@ -37,13 +39,13 @@ Paths like `src/room.c` refer to that repo. Unverified points are marked as such
 - Map stations (`src/sprites_ai/map_station.c`) set `downloadedMapStatus |= 1 << area`. Unvisited but downloaded tiles then show in another colour.
 - Collected items and boss icons are drawn on the map.
 
-**Summit (implemented)**
+**Bethe Knight (implemented)**
 - The map is generated from the rooms themselves (1 pixel per tile), not hand-drawn (`scripts/map_view.gd`).
 - Explored state is **per room**: `adv.visited`. Rooms not visited yet are hidden.
 
-## 3. State machine: Samus poses vs Summit player states
+## 3. State machine: Samus poses vs Bethe Knight player states
 
-| | mzm (`src/samus.c`) | Summit (`scripts/player.gd`) |
+| | mzm (`src/samus.c`) | Bethe Knight (`scripts/player.gd`) |
 |---|---|---|
 | States | 69 `SamusPose` values, many of them animation-only variants (turning, shooting while…) | 9 `ST_*` states (Celeste's StateMachine) |
 | Per-tick logic | `sSamusPoseFunctionPointers[pose]` returns the next pose (or `SPOSE_NONE`) | `_state_update` → `_<state>_update(dt)` returns the next state |
@@ -65,7 +67,7 @@ What carries over well:
 - Hatches (`HatchType`: normal, missile, super, power bomb, locked) need a given weapon to open, and opened ones are remembered per area (`gHatchesOpened`).
 - Collected tanks: `gItemsCollected`. Blocks that never re-form: `gNeverReformBlocks`.
 
-**Summit (implemented)**
+**Bethe Knight (implemented)**
 - `Adventure.ABILITIES = ["dash", "climb"]`: an adventure starts without them.
 - Pickups `ability_dash` / `ability_climb` (`AbilityOrb`, `scripts/entities.gd`) add the ability to `adv.abilities`; it is saved straight away.
 - Outside the adventure (custom levels, editor playtests) every ability is available.
@@ -77,7 +79,7 @@ What carries over well:
 - `SaveWorldData` inside it holds visited map tiles, broken blocks, collected items, opened hatches and events.
 - 3 slots, each with a backup copy.
 
-**Summit (implemented)**
+**Bethe Knight (implemented)**
 - One run in `user://save.cfg`, section `[adventure]` key `run`: `room`, `spawn`, `abilities`, `visited`, `stars` (`room:x_y` ids), `deaths`, `time`, `done`.
 - Saved on room entry, star bank, ability pickup and exit.
 

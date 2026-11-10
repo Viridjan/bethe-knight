@@ -98,6 +98,11 @@ func play(key: String, pitch: float = 1.0) -> void:
 	voice.pitch_scale = clampf(pitch, 0.5, 2.0)
 	voice.play()
 
+# Layer changes discard transient sounds instead of resuming stale attacks on return.
+func stop_all() -> void:
+	for voice in voices: voice.stop()
+	cooldowns.clear()
+
 # Turn duration/pitch/noise settings into signed 16-bit mono PCM with a click-free volume envelope.
 func _synthesize(spec: Array) -> AudioStreamWAV:
 	var rate := 22050

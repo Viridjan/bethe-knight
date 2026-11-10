@@ -79,7 +79,8 @@ class Audit:
             for entity in level.get("entities", []):
                 kind = entity["t"]
                 if kind == "spawn" and name == self.start and self.spawn is None:
-                    sx, sy = math.floor(entity["x"] / TILE), math.floor(entity["y"] / TILE)
+                    at=entity.get("respawn_at",[entity["x"]+4,entity["y"]+8])
+                    sx, sy = math.floor((at[0]-4) / TILE), math.floor((at[1]-8) / TILE)
                     if not (0 <= sx < level["w"] and 0 <= sy < level["h"]):
                         raise ValueError(f"{name}: spawn is outside the room")
                     self.spawn = (pos[0] + sx, pos[1] + sy)

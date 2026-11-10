@@ -16,7 +16,7 @@ records today's designer decisions.
 - Calibrated enemy placement per region by danger budget, replacing the random library monsters
   (`docs/reviews/monsters/CODEX_PROMPT.md` task 7): 43 random library monsters are still placed in the story world.
 - Stress HUD writes "/250" as a literal (review codex-2026-11-07); rest relief trusts the system clock;
-  stress farming on respawned monsters (by design per BE_THE_KNIGHT_DESIGN.md:94; the designer may want a limit).
+  stress farming on respawned monsters (by design per BETHE_KNIGHT_DESIGN.md:94; the designer may want a limit).
 - Ape: phase two hops only once on entry, thrown logs leave floor spikes, stones became logs
   (docs/reviews/ape-composition, three designer questions): no recorded answer.
 - Monster Editor suggestions: test-fight button, trajectory preview, "used by" line per attack, per-variant

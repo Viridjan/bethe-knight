@@ -207,7 +207,7 @@ def main():
     jump[0].save(HERE / "jump.gif",save_all=True,append_images=jump[1:],duration=[300,150,80,140,150,140,200,300],loop=0)
     manifest = {"cell": [32,32], "columns":4, "poses":POSES,
                 "looping":{"run":{"frames":4,"fps":10}}, "palette": PALETTE,
-                "anchor":"bottom center", "license":"Original Summit artwork; project license."}
+                "anchor":"bottom center", "license":"Original Bethe Knight artwork; project license."}
     (HERE / "manifest.json").write_text(json.dumps(manifest,indent=2)+"\n")
     master=Sprite.from_png(str(HERE/"ape-phase2.png"),scale=1)
     master.stats()

@@ -88,4 +88,4 @@ if __name__ == "__main__":
     try:
         main()
     except OSError as error:
-        sys.exit(f"LightRAG not reachable at {SERVER} ({error}). Start it: systemctl --user start lightrag")
+        sys.exit(f"LightRAG not reachable at {SERVER} ({error}). Start it: systemctl --user start lightrag@summit")

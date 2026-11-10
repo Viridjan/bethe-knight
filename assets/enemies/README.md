@@ -1,4 +1,4 @@
-# Summit enemy sprites
+# Bethe Knight enemy sprites
 
 Original pixel artwork authored in `scripts/enemy_art.gd`, exported as one sheet per family (`thornmite.png`, `skree.png`, ... `mosstrot.png`): the original type in row 0, then its variants, four 32×32 frames per row; `manifest.json` lists the rows.
 No extracted artwork from any other game is included. Behaviour adaptations,

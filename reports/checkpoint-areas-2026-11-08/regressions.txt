@@ -1,0 +1,14 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  The selected rectangle remains the full activation area
+PASS  Anchor chooses lowest safe terrain and then the nearest central column
+PASS  Entering the selected area in midair activates its grounded anchor
+PASS  An area with no permanent ground has no valid anchor
+PASS  Lowest anchors skip unsafe liquid-covered floor
+PASS  Overlapping regions select the more specific area once
+PASS  Respawn tool drags a rectangle and previews the grounded lowest anchor
+PASS  Room resizing moves the checkpoint region and refreshes its anchor
+PASS  Undo restores the authored area and grounded anchor
+PASS  An unsupported selection is rejected without adding a checkpoint
+PASS  A layer entrance outside authored regions keeps the previous checkpoint
+CHECKPOINT AREAS: 0 failure(s)

@@ -200,7 +200,7 @@ static func _open_overlap(a: Dictionary, b: Dictionary, r: Rect2i) -> bool:
 static func new_run(world: Dictionary) -> Dictionary:
 	return {"room": world.start, "spawn": null, "abilities": world.get("abilities", []).duplicate(), "visited": [world.start],
 		"revealed_walls": [], "stars": [], "deaths": 0, "time": 0.0, "done": false,
-		"story_version": 1, "items": {}, "quests": {}, "events": [], "stress_blocks": 1,
+		"layer":"main", "story_version": 1, "items": {}, "quests": {}, "events": [], "stress_blocks": 1,
 		"stress": 0.0, "stress_exhausted": false, "last_saved_at": 0,
 		"blocks": 1, "stamina": BASE_STAMINA, "taken": [],  # taken: one-time pickups, "room:x:y"
 		"seen": [], "kills": {}, "fragments": 0}  # fragments: total pieces; each three grant one capacity block
@@ -275,8 +275,25 @@ static func collect_energy_fragment(run: Dictionary, key: String) -> bool:
 # Normalize saved data against current world/rule limits before gameplay reads its fields.
 static func restore_run(world: Dictionary, run) -> Dictionary:
 	var fresh := new_run(world)
-	if not run is Dictionary or not world.rooms.has(run.get("room")):
-		return fresh
+	if not run is Dictionary:return fresh
+	if not world.rooms.has(run.get("room")):
+		var old_room:String=str(run.get("room",""))
+		for parent in world.rooms:
+			var level:Dictionary=world.rooms[parent].level
+			var legacy:Dictionary=level.get("legacy_exterior_rooms",{}).get(old_room,{})
+			if not legacy.is_empty():
+				run.room=parent;run.layer=legacy.layer;run.spawn=legacy.spawn.duplicate()
+				break
+			for id in level.get("layers",{}):
+				var plane:Dictionary=level.layers[id]
+				if plane.get("legacy_room","")!=old_room:continue
+				run.room=parent;run.layer=id
+				if run.get("spawn") is Array and run.spawn.size()==2 and _finite(run.spawn[0]) and _finite(run.spawn[1]):
+					var offset:Array=plane.get("legacy_offset",[0,0])
+					run.spawn=[run.spawn[0]+offset[0],run.spawn[1]+offset[1]]
+				break
+			if run.get("room")==parent:break
+		if not world.rooms.has(run.get("room")):return fresh
 	if run.has("energy") and not run.has("stamina"):  # saves from before energy was renamed stamina
 		run.stamina = run.energy
 		run.erase("energy")
@@ -292,6 +309,8 @@ static func restore_run(world: Dictionary, run) -> Dictionary:
 	run.deaths = maxi(0, int(run.deaths)) if _finite(run.deaths) else 0
 	run.time = maxf(0.0, run.time) if _finite(run.time) else 0.0
 	run.stamina = clampf(run.stamina, 0.0, stamina_max(run)) if _finite(run.stamina) else stamina_max(run)
+	var room_layers: Dictionary = world.rooms.get(run.room,{}).get("level",{}).get("layers",{})
+	if run.get("layer","main")!="main" and not room_layers.has(run.layer):run.layer="main"
 	Stress.normalize(run, stamina_max(run))
 	Story.normalize(run)
 	for k in ["abilities", "visited", "stars", "taken", "seen", "revealed_walls"]:

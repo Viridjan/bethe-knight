@@ -49,7 +49,7 @@ final enemy score, never once per attack.
 
 ## 2. Units and timing
 
-- Use seconds and tile units throughout scoring. One Be the Knight tile is 8 pixels.
+- Use seconds and tile units throughout scoring. One Bethe Knight tile is 8 pixels.
   The proposed reference room width is 20 units = 160 pixels.
 - Measure damage geometry, not sprite dimensions, including scale modifiers.
 - Keep wind-up, execution, damage-active interval, recovery, projectile lifetime,

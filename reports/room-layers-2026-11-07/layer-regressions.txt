@@ -1,0 +1,39 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  All layer worlds are instantiated on room load
+PASS  Unvisited preloaded layers remain concealed
+PASS  Switch to a valid cavern layer
+PASS  One controllable player transfers to the active layer
+PASS  Inactive layer simulation and UI stop
+PASS  A thick black overlay covers only inactive layers
+PASS  Inactive entity objects and their state stay loaded
+PASS  Invalid layer target changes nothing
+PASS  Equal pickup IDs in different layers do not collide
+PASS  Blocked layer arrivals are rejected atomically
+PASS  Returning resumes the same retained objects
+PASS  Interact passage reaches the configured layer doorway
+PASS  Switching stops all old-layer SFX voices
+PASS  Valid layered rooms pass level validation
+PASS  Mismatched layer dimensions are rejected
+PASS  Dangling cross-layer passage links are rejected
+PASS  Adventure enters a safe layered checkpoint
+PASS  Safe arrival persists room, checkpoint and layer together
+PASS  Continue restores the saved plane and safe checkpoint
+PASS  A doorway to another room releases all old planes and restores root ownership
+PASS  Respawn from another room returns to the saved interior plane
+PASS  Editor selects a nested room layer for normal terrain tools
+PASS  Layer authoring keeps terrain and entities independent
+PASS  Editor packs every plane into one valid room file
+PASS  Room edge resizing applies to all planes
+PASS  Other planes resize and translate passage objects together
+PASS  Undo restores all room layers atomically
+PASS  Editor adds a new empty plane
+PASS  Undo removes the newly added plane
+PASS  Editor saves the full layered room through the normal save workflow
+PASS  Saved room reload retains the inactive plane edits
+PASS  Legacy detached-house saves migrate to the parent plane and translated checkpoint
+PASS  Legacy lighthouse-top saves migrate onto the real Shore roof (s2_shore / main / [372.0, 40.0])
+PASS  Shore entrance reaches the actual narrow lighthouse interior
+PASS  Every lighthouse stair is reachable with real jump-only physics and starting stamina (step -1, at (368.0, 48.0), energy 8.11164216068188)
+PASS  Actual top passage exits onto the lamp roof in the same Shore room
+ROOM LAYERS: 0 failure(s)

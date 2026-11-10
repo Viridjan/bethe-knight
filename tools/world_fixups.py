@@ -302,7 +302,8 @@ def drop_unreachable(world_dir):
             elif e["t"] in ("door", "house_door"):
                 doors[n + ":" + e["id"]] = ((ex, ey), e["to"] if ":" in e["to"] else n + ":" + e["to"])
             elif e["t"] == "spawn" and n == W_["start"] and not e.get("entrance"):
-                start = (ex, ey)
+                at=e.get("respawn_at",[e["x"]+4,e["y"]+8])
+                start=(ox+int(at[0]-4)//T,oy+int(at[1]-8)//T)
         for y, row in enumerate(L["tiles"]):
             for x, c in enumerate(row):
                 cell[(ox + x, oy + y)] = (n, c == "0" and (ox + x, oy + y) not in acid)
@@ -339,8 +340,8 @@ def drop_unreachable(world_dir):
 
 def prune_spawns(level):
     """Preserve authored checkpoints; cap generated points and keep them apart."""
-    authored = [e for e in level["entities"] if e["t"] == "spawn" and not e.get("entrance")]
-    candidates = [e for e in level["entities"] if e["t"] == "spawn" and e.get("entrance")]
+    authored = [e for e in level["entities"] if e["t"] == "spawn" and (not e.get("entrance") or ("w" in e and "h" in e))]
+    candidates = [e for e in level["entities"] if e["t"] == "spawn" and e.get("entrance") and not ("w" in e and "h" in e)]
     budget = 2 if level["w"] >= 80 or level["h"] >= 40 else 1
     kept = list(authored)
     distance = lambda a,b: abs(a["x"]-b["x"]) + abs(a["y"]-b["y"])
@@ -348,7 +349,7 @@ def prune_spawns(level):
         pick = max(candidates, key=lambda e: min(distance(e,k) for k in kept)) if kept else candidates[0]
         candidates.remove(pick)
         if all(distance(pick,k) >= 64 for k in kept): kept.append(pick)
-    level["entities"] = [e for e in level["entities"] if e["t"] != "spawn" or not e.get("entrance") or any(e is k for k in kept)]
+    level["entities"] = [e for e in level["entities"] if e["t"] != "spawn" or not e.get("entrance") or ("w" in e and "h" in e) or any(e is k for k in kept)]
 
 
 # Respawn slabs (entity "respawn"): one per room-to-room entry (doors don't count), on the floor nearest the entry.
@@ -372,7 +373,8 @@ def add_respawns(world_dir):
     total, errors = 0, []
     for n, (rx, ry, L, pretty) in rooms.items():
         w, h, tiles = L["w"], L["h"], L["tiles"]
-        L["entities"] = [e for e in L["entities"] if e["t"] != "respawn" and not (e["t"] == "spawn" and e.get("entrance"))]
+        areas=[e for e in L["entities"] if e["t"] in ("spawn","respawn") and 'w' in e and 'h' in e]
+        L["entities"] = [e for e in L["entities"] if e in areas or (e["t"] != "respawn" and not (e["t"] == "spawn" and e.get("entrance")))]
         is_open = lambda tx, ty: 0 <= tx < w and 0 <= ty < h and tiles[ty][tx] == "0"
         plat = set()
         bad = set()
@@ -414,11 +416,13 @@ def add_respawns(world_dir):
             if spot is None:
                 errors.append("%s: %s: no floor for its respawn (%s)" % (n, where,
                               "1 tile in from the edge, under its lowest row" if side in "lr" else "on its middle column"))
-            elif spot not in made:
+            elif spot not in made and not any(e["x"]<=spot[0]*T+4<e["x"]+e["w"] and e["y"]<=spot[1]*T+4<e["y"]+e["h"] for e in areas):
                 made.append(spot)
         L["entities"] = [{"t": "respawn", "x": sx * T, "y": sy * T} for sx, sy in made] + L["entities"]
         from prune_respawns import prune, entrance_points
         prune(L, entrance_points(W, {name: data[2] for name, data in rooms.items()}, n), n == W["start"])
+        from checkpoint_areas import convert_level
+        convert_level(L)
         total += len(made)
         with open(os.path.join(world_dir, n + ".json"), "w") as f:
             json.dump(L, f, indent="\t" if pretty else None, separators=None if pretty else (",", ":"))

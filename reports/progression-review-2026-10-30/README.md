@@ -1,20 +1,7 @@
-# Progression review — 2026-10-30
+# Merged report
 
-Fixed unavailable-filter removal of reachable Ape/Guardian steps, inconsistent
-filtered-map summaries, ignored starting abilities, malformed URL hash failures,
-and HTML injection through room titles. Added route-preserving navigation and
-two-click selection of previous steps, independent tabs, compact help, and a
-larger map pane.
+The full record from `reports/progression-review-2026-10-30/README.md` is preserved in [the consolidated world and art report](../consolidated/WORLD_AND_ART.md#reports-progression-review-2026-10-30-readme).
 
-The World Editor now launches snapshot analysis without blocking gameplay UI,
-reports failures, and opens/reopens the browser viewer. Source desktop builds
-require Python 3; HTML is viewed externally rather than embedded.
+This path remains for existing links. Screenshots, logs and fixtures have not moved. For current status, see [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md).
 
-Validation: 15 layout/model tests, 2 worker tests, a Godot editor test including a
-real child process, editor scroll and smoke scenes, and Chromium desktop/mobile
-interaction assertions. Visual checks cover the viewer and editor launcher.
-
-![World Editor launcher](world-editor.png)
-
-The reachability model remains an approximation of player movement. The unused
-legacy metro renderer is cleanup debt; it was left outside these behavior fixes.
+<a id="progression-review--2026-10-30"></a>

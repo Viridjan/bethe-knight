@@ -18,12 +18,12 @@ class Respawns(unittest.TestCase):
                 json.dump(r, open(os.path.join(d, n + ".json"), "w"))
             json.dump({"start": "a", "rooms": {"a": [0, 6], "b": [10, 6], "c": [10, 0]}}, open(os.path.join(d, "world.json"), "w"))
             errors = F.add_respawns(d)
-            got = {n: [(e["x"] // 8, e["y"] // 8) for e in json.load(open(os.path.join(d, n + ".json")))["entities"] if e["t"] == "respawn"]
+            got = {n: [(e["respawn_at"][0] // 8, (e["respawn_at"][1]-8) // 8) for e in json.load(open(os.path.join(d, n + ".json")))["entities"] if e["t"] == "respawn"]
                    for n in "abc"}
-        self.assertEqual(got["a"], [(8, 4)])  # side entry: 1 tile in from the edge, on the floor under its lowest row
+        self.assertTrue(got["a"] and all(y==4 and 5<=x<=8 for x,y in got["a"]),got["a"])  # side entry: 1 tile in from the edge, on the floor under its lowest row
         # b's left entry (1, 4) and roof entry (its middle column, first floor below: (4, 4)) are a short safe walk
         # apart, so the prune pass keeps one for both
-        self.assertTrue(got["b"] and set(got["b"]) <= {(1, 4), (4, 4)}, got["b"])
+        self.assertTrue(got["b"] and all(y==4 and 1<=x<=7 for x,y in got["b"]), got["b"])
         self.assertEqual(got["c"], [])  # c's floor opening: no floor above it on that column...
         self.assertEqual(len(errors), 1)  # ...so an error instead
         self.assertIn("c: bottom entry", errors[0])

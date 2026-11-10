@@ -20,13 +20,12 @@ This first batch replaces five stars:
 
 Press the existing **Interact** action (S / controller B by default) near an
 entity. A prompt appears in range. Merely touching a fragment does not collect
-it. Three fragments grant one capacity upgrade: the existing +20 stamina
+it. Three fragments grant one capacity upgrade: the current +17 stamina
 block, filled when granted. Partial progress and collected piece IDs persist;
-pieces cannot grant upgrades again after death or reload. The HUD shows the
-number of fragments toward the next upgrade.
+pieces cannot grant upgrades again after death or reload. The Items page shows fragments toward the next upgrade; the top-left HUD uses text-free resource bars.
 
 Characters use the player-scale elf/mage sprites and simple timed dialogue.
-This batch does not introduce quest chains or new miniboss combat. The remaining
+This historical batch did not introduce quest chains or new miniboss combat; later quest/inventory systems are described in [NONMAP_SYSTEMS.md](NONMAP_SYSTEMS.md). The remaining
 stars are still legacy collectibles pending individual replacement designs.
 
 ## Height contrast

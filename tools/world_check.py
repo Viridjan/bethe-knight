@@ -39,6 +39,8 @@ class World:
             for e in lvl["entities"]:
                 ex, ey = ox + int(e["x"]) // T, oy + int(e["y"]) // T
                 t = e["t"]
+                if t in ("spawn","respawn") and e.get("respawn_at"):
+                    ex,ey=ox+(int(e["respawn_at"][0])-4)//T,oy+(int(e["respawn_at"][1])-8)//T
                 if t == "jumpthru":
                     for i in range(int(e["w"]) // T):
                         self.plat.add((ex + i, ey))
@@ -64,7 +66,8 @@ class World:
             ox, oy, level = self.rooms[self.start]
             for entity in level["entities"]:
                 if entity["t"] == "respawn":
-                    self.spawn = (ox + int(entity["x"]) // T, oy + int(entity["y"]) // T)
+                    at=entity.get("respawn_at",[entity["x"]+4,entity["y"]+8])
+                    self.spawn = (ox + int(at[0]-4) // T, oy + int(at[1]-8) // T)
                     break
         if not hasattr(self, "spawn") and hasattr(self, "_first_respawn"):
             self.spawn = self._first_respawn

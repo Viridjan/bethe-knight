@@ -2,8 +2,14 @@
 	"entities": [
 		{
 			"t": "respawn",
-			"x": 624,
-			"y": 112
+			"x": 600,
+			"y": 24,
+			"w": 40,
+			"h": 96,
+			"respawn_at": [
+				620,
+				120
+			]
 		},
 		{
 			"t": "strawberry",

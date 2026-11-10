@@ -2,7 +2,7 @@ extends SceneTree
 # Offline procedural authoring of environment terrain, paintings and decorative sprites. Running it rewrites generated theme assets, so normal gameplay only loads its outputs.
 # Reading help: docs/CODE_GUIDE.md.
 
-## Original 8px environment art, matching Summit's native terrain scale.
+## Original 8px environment art, matching Bethe Knight's native terrain scale.
 const THEMES := {
 	"sand": ["d7af6c", "a67749", "f6d990", "6b7791", "343952", "efbe78"],
 	"sea": ["477e8a", "285269", "8acabb", "24475e", "122d46", "e1b992"],

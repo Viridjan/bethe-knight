@@ -1,12 +1,12 @@
-# Be the Knight: identity, Kraken, and character progression
+# Bethe Knight: identity, Kraken, and character progression
 
-Updated 2026-11-05. **Kraken/stat design for review; stress implemented.** The Kraken fight and three-stat allocation are not playable.
+Historical character/stat/Kraken design from 2026-11-05. The identity framing remains applicable; the old Kraken entry gates, combat proposal and interpolated stress curve below are **not the current first-crossing specification**. Current implementation: [NONMAP_SYSTEMS.md](NONMAP_SYSTEMS.md). Current map/progression: [STORY_DESIGN.md](STORY_DESIGN.md). The whole-number scope and newer stress rule are confirmed in [DOCUMENT_CONFLICTS.md](DOCUMENT_CONFLICTS.md). Old proposals are retained here for review, not automatically promoted to active tasks.
 The application/menu title and protagonist references have been renamed. Existing
 save directories, source asset paths, content IDs and hosted URL remain stable.
 
 ## Identity
 
-The game is **Be the Knight**. The protagonist is **Be** (she/her). Most opponents
+The game is **Bethe Knight**. The protagonist is **Be** (she/her). Most opponents
 are entities within her. Regions reference real-world experiences; the jungle may
 suggest a city jungle. Keep references grounded in encounters, scenery and dialogue
 rather than assigning unapproved psychological explanations to every enemy.

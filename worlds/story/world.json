@@ -51,9 +51,7 @@
 			"name": "Cove Town",
 			"peaceful": true,
 			"rooms": [
-				"t1_cove_town",
-				"h1_villager_house",
-				"h2_quest_house"
+				"t1_cove_town"
 			],
 			"sign": "Libra"
 		},
@@ -91,9 +89,7 @@
 			"color": "#4fc3c0",
 			"name": "Lighthouse Coast",
 			"rooms": [
-				"s2_shore",
-				"lh1_lighthouse_stairs",
-				"s3_lighthouse_top"
+				"s2_shore"
 			],
 			"sign": "Aquarius"
 		},
@@ -169,14 +165,6 @@
 		"c6_wall_cave": [
 			138.0,
 			58.0
-		],
-		"h1_villager_house": [
-			240.0,
-			123.0
-		],
-		"h2_quest_house": [
-			280.0,
-			123.0
 		],
 		"hub_landing": [
 			-40.0,
@@ -274,10 +262,6 @@
 			360.0,
 			26.0
 		],
-		"lh1_lighthouse_stairs": [
-			593.0,
-			-14.0
-		],
 		"m1_meadow": [
 			0.0,
 			7.0
@@ -292,11 +276,7 @@
 		],
 		"s2_shore": [
 			591.0,
-			46.0
-		],
-		"s3_lighthouse_top": [
-			610.0,
-			-36.0
+			14.0
 		],
 		"t1_cove_town": [
 			240.0,

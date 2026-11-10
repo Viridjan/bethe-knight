@@ -61,7 +61,7 @@ install_one_skill jwynia/agent-skills skills/tech/game-development/godot/godot-b
 # Godot player/enemy state lifecycles with bundled GDScript reference implementations.
 install_one_skill gaoyuan-taka/godot-action-adventure-skills godot-state-machine
 
-# Additional skills reviewed for Summit. Pin upstream revisions so a fresh setup gets the same instructions.
+# Additional skills reviewed for Bethe Knight. Pin upstream revisions so a fresh setup gets the same instructions.
 skills_gamedev_ref=184b72be02884f782a0058f2eeae2ce4277453e4
 skills_review_ref=e02ec7e226a6e4f8419fd3b88a1d8e472d421b32
 install_one_skill gamedev-skills/awesome-gamedev-agent-skills skills/disciplines/performance-optimization "$skills_gamedev_ref"

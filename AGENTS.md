@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-Summit is a Godot 4 platformer with a built-in level editor. `project.godot` configures the application; `main.tscn` is its entry scene. Gameplay and UI live in `scripts/`: `player.gd` handles movement, `world.gd` manages the level, `entities.gd` implements interactive objects, and `editor.gd` provides level editing. `game.gd` is the `Game` autoload. Rendering helpers live in `art.gd`; menu and options screens have separate scripts.
+Bethe Knight is a Godot 4 platformer with a built-in level editor. `project.godot` configures the application; `main.tscn` is its entry scene. Gameplay and UI live in `scripts/`: `player.gd` handles movement, `world.gd` manages the level, `entities.gd` implements interactive objects, and `editor.gd` provides level editing. `game.gd` is the `Game` autoload. Rendering helpers live in `art.gd`; menu and options screens have separate scripts.
 
 `assets/paper-pixels/` contains sprites and their license. `tests/` contains runnable test scenes and GDScript runners. Consult `README.md` for controls and `TODO.md` for planned work.
 
@@ -38,11 +38,17 @@ Preserve sprite license files and Celeste movement-code attribution. Editor leve
 
 ## Whole numbers only
 
-No floating-point numbers are allowed in the game. Every division, and every operation of the same kind
-(percentages, multipliers, ratios, averages, scaling), keeps only the integer part of its result (truncate:
-`7 / 2` gives `3`). This applies to the whole game: gameplay values, data files, editor values and anything shown
-to the player. When adding or changing code, use integer arithmetic (`int`, integer division, `floori` /
-`int()` on the result) instead of storing fractions.
+Gameplay resources and scores use whole numbers: stamina, stress, HP, costs, resource rates, attack scores,
+and their saved/editor/displayed values. Calculations for those values truncate the fractional part
+(`7 / 2` gives `3`). Use integer arithmetic or explicit truncation at the resource/score boundary.
+
+Physics and input handling retain their normal precision and update cadence. Movement, gravity, positions,
+collision/movement remainders, input sampling/buffering, and attack timings/speeds may use decimals. Do not
+quantize them or move them onto a slow resource tick. Preserve the 60 Hz physics step and responsive controls.
+
+The planned 0.2-second tick applies only to continuous resource accounting; it is not a physics or input tick.
+See `docs/plans/WHOLE_NUMBERS_TICK.md`. Stress uses completed blocks with a maximum 30% regeneration penalty;
+the old interpolated 35% rule is superseded. This scope was clarified by the designer on 2026-11-07.
 
 ## Story content direction
 

@@ -1,10 +1,11 @@
-# Be the Knight
+# Bethe Knight
 
 A Celeste-style platformer in Godot 4 (tested on 4.4.1 and 4.7.2) with a built-in world editor.
 Be is the protagonist: she faces entities that mostly exist within her. Regions echo
 real-world experiences; the jungle can, for example, evoke a city jungle.
-See [the Kraken and character progression design](docs/BE_THE_KNIGHT_DESIGN.md)
-for the proposed encounter, three-stat model, and implementation boundaries.
+Start with the [documentation index](docs/README.md), [current tasks](TODO.md),
+[implementation ledger](docs/IMPLEMENTATION_STATUS.md) and [merged reports](reports/README.md).
+The current story/map plan is in [Story design](docs/STORY_DESIGN.md).
 
 Player physics are a GDScript port of Celeste's `Player.cs`
 (MIT, Maddy Makes Games — https://github.com/NoelFB/Celeste).
@@ -27,22 +28,31 @@ Arrows move · C/Space jump · X/Shift dash · Z/V grab · S interact (house doo
 
 ## Stress
 
-Adventure runs have five stress bars (50 each, 250 maximum), initially empty.
-Death adds 20; entering low-stamina white-hair exhaustion adds 5 once per episode.
-Monster kills remove 50; boss kills and permanent collectibles remove 100.
-Stress survives death and saving. Continuing a save after at least 12 hours grants
-one reduction of 100, recorded immediately to prevent repeated claims.
-Recovery speed at 0/50/100/150/200/250 stress is 100/90/80/75/70/65%, with smooth
-interpolation. The HUD displays stress and the recovery multiplier. Existing water,
-climbing and stun recovery restrictions still apply. Reusable refills do not count
-as permanent collectibles. Stress tests: `res://tests/stress.tscn`.
+Current runtime uses owned stress-capacity blocks, completed-block penalties up to 30%,
+and attached stamina/stress bars. New runs default to one stress block; legacy saves retain five.
+Death/exhaustion gains, kill/collectible relief and durable twelve-hour rest recovery persist.
+See [the resource rules and authoring details](docs/NONMAP_SYSTEMS.md#stamina-and-stress).
+
+## Numeric values and responsiveness
+
+Physics, collision, input sampling/buffering and attack timings/speeds retain normal precision
+and the existing responsive update cadence. The physics step remains 60 Hz.
+
+Whole-number arithmetic applies to gameplay resources and scores, including their saved,
+editor and displayed values. The approved migration uses a 0.2-second tick **only for continuous
+resource accounting**; one-off jump/attack costs remain immediate. This migration is planned,
+not implemented. See the [tick plan](docs/plans/WHOLE_NUMBERS_TICK.md).
+
+The newer stress rule remains: only completed blocks contribute, with a maximum 30% penalty.
+In the planned integer calculation, truncate the cumulative percentage: four owned blocks give
+0/7/15/22/30% penalty as blocks fill. See the [confirmed decisions](docs/DOCUMENT_CONFLICTS.md).
 
 ## Moves
 Run, variable jump, coyote time, input buffering, wall jump, wall slide, climb + stamina,
 climb hop, 8-way dash, super/hyper jump, wavedash, super wall jump, corner correction, duck, fast fall.
 
-**Stamina (adventure):** a base of 32 that always regenerates, plus 20 per stamina block; a jump or wall jump costs 5,
-climbing drains it, water drains 40/s. All owned bars regenerate to full, even after being completely emptied. Regeneration: 2/s empty, 6/s at half, 3/s full (`scripts/adventure.gd`).
+**Stamina (adventure):** a base of 27 that always regenerates, plus 17 per stamina block; a jump or wall jump costs 5,
+climbing drains it, water drains 40/s. All owned bars regenerate to full, even after being completely emptied. Regeneration: 4/s empty, 8/s at half, 3/s full (`scripts/adventure.gd`).
 A fall of 10+ tiles is a hard landing: stamina to 0 and a 1 s stun (stars over the head; regeneration restarts with the
 second star). F3 shows a stamina recap.
 
@@ -51,7 +61,7 @@ Spikes and springs (one editor entry each: they face away from the wall they're 
 crumble block, falling block, zip mover, dream block, green/red bubble, bumper, feather, crystal heart (goal),
 dash / climb ability orbs (adventure only), note (design reminder: "Needs double jump", "Boss arena"…;
 its text shows in the editor, and in game while standing on it), door (drag a rectangle; links to another door by
-"room:id" or "id": rooms that don't touch, elevators, shortcuts), water (looks only), acid (kills on touch),
+"room:id" or "id": rooms that don't touch, elevators, shortcuts), water (drains adventure stamina), acid (kills on touch),
 enemy and breakable placeholders (named boxes, harmless, stand-ins until real ones are coded).
 Punch: always available, with a tiny 3×3 pixel reach beyond the body and a brief active window. Punch and sword share a cooldown and adventure costs: 2 stamina per attempt, plus 4 on the first successful enemy hit. Punches cannot damage walls.
 
@@ -61,10 +71,10 @@ Breakable Wall: solid until hit 3 times with the attack (`hp` in the level file)
 
 ## Adventure
 Title screen → Adventure → New Game / Continue. The adventure is one big world of connected rooms (Metroid style):
-walk off a room's edge into the next one. You start without dash, climb and attack (ability orbs unlock them; none are
-placed in the story yet). Bosses (the Ape, the Guardian) open their gates when beaten. Rooms are grouped in regions,
+walk off a room's edge into the next one. The story starts without dash, climb and sword. Ability pickups unlock them; the current
+map plan places the first sword at the lighthouse quest NPC (placement pending). Bosses (the Ape, the Guardian) open their gates when beaten. Rooms are grouped in regions,
 each with a zodiac sign that sets its monsters; moving into a new region plays a fade.
-M shows every room explored so far. Progress saves automatically (`user://save.cfg`, section `[adventure]`).
+M offers Map, Monsters, Items and Abilities tabs; the map shows explored rooms. Progress saves automatically (`user://save.cfg`, section `[adventure]`).
 The game ships one world, the story (`res://worlds/story/`, chapter 1 in progress, see `docs/STORY_DESIGN.md`); the world editor edits it (cyan lines = door links).
 
 **World editor** (main menu → World Editor, only when run from source because it writes `res://worlds/story/`):
@@ -77,7 +87,7 @@ See [selection and snapping controls](docs/WORLD_EDITOR_SELECTION.md).
 room; Esc goes back and asks to save), Playtest from here, Set as start. **Build drafts** turns draft rooms into
 connected, playable rooms (`tools/story/build_drafts.py`: a maze with one way into each, two shortcuts behind an ability
 gate, generated terrain checked to be crossable; `"attach": [room]` lets a draft open a doorway into a finished room).
-**Place respawns** places the respawn checkpoints and lists the entries where one can't go (see below). Files: `res://worlds/story/world.json` (room positions) + one level file per room.
+**Place respawns** adds checkpoint activation areas at uncovered safe entrances and preserves authored regions. See [checkpoint areas](docs/RESPAWN_POINTS.md). Files: `res://worlds/story/world.json` (room positions) + one level file per room.
 Background and ideas for later (doors, gates, map stations, hurt states): `docs/METROID_NOTES.md`.
 
 ## Map and tuning (in-game, also in editor playtests)
@@ -91,6 +101,22 @@ Save them as a named preset in `user://tuning/` (the last saved/loaded preset is
 ## Adding objects
 See `docs/ADDING_ENTITIES.md`.
 
+## Checkpoint areas
+
+Use **Respawn** in the room editor to drag an activation rectangle, optionally up to the ceiling.
+Its marker sits on the lowest safe permanent ground inside; entering the region in midair also activates it.
+The story map and interior layers use these wider areas. See [respawn areas and map tools](docs/RESPAWN_POINTS.md).
+
+## Room layers
+
+Rooms can retain interiors behind their exterior. Layer passages switch the active plane while the previous
+view stays loaded under a thick black overlay. Inactive planes freeze and their sounds stop; only the active
+plane handles physics, input, interaction and music. The room editor has **Room layer**, **+ Layer** and
+**Layer Passage** controls. See [retained room layers](docs/ROOM_LAYERS.md).
+
+Cove Town's Villager and Quest houses are interior layers. Shore contains the lighthouse rooftop/lamp and
+its narrow interior layer, with five mages distributed across the stairs.
+
 ## Level editor
 
 Select **Room size (drag edges)** in the left palette, then drag any edge or corner. The preview snaps to tiles; release to apply, Escape to cancel, Ctrl+Z to undo. Left/top resizing shifts tiles, objects and movement paths together, and saving updates the world room position so the opposite edges stay fixed. New space is empty; shrinking crops terrain and objects, and refuses changes that cut a retained patrol path or mover destination. The W/H fields and Resize button still resize the right/bottom sides.
@@ -99,7 +125,7 @@ MMB or Space+drag pan · wheel zoom · Ctrl+Z undo · Ctrl+S save · F5 playtest
 Shift+drag select an area, Ctrl+X / Ctrl+C cut or copy it, Ctrl+V paste at the mouse (also into another room).
 Editing a world room: yellow arrows outside the edges lead to the touching rooms (click, or Ctrl + arrow key), cyan
 arrows over doors to the rooms they lead to; both ask to save first.
-The game keeps its legacy Summit data directory so existing saves, settings and custom levels remain available after the rename. Levels save as JSON in `user://levels/` (Linux: `~/.local/share/godot/app_userdata/Summit/levels/`).
+Settings, saves and custom levels live in the `Bethe Knight` data directory. Levels save as JSON in `user://levels/` (Linux: `~/.local/share/godot/app_userdata/Bethe Knight/levels/`).
 
 ## Combat enemies
 

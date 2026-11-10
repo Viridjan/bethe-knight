@@ -197,6 +197,6 @@
 	],
 	"filter": "nearest",
 	"frames": 4,
-	"provenance": "Original procedural pixel art authored for Summit; no third-party source images.",
+	"provenance": "Original procedural pixel art authored for Bethe Knight; no third-party source images.",
 	"source": "scripts/island_art.gd"
 }

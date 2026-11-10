@@ -5,3 +5,7 @@ build/
 .claude/skills/
 *.bak
 *.tmp
+
+# Generated Godot sidecars for review-only captures (assets retain their metadata).
+reports/**/*.import
+reports/**/*.uid

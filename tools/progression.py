@@ -20,6 +20,7 @@ import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from world_check import World, MODELS, explore, T
+from checkpoint_areas import marker_origin
 
 EXPLOIT = dict(MODELS["generous"], jump=5, hover=3, dash=6, dash_carry=4)
 ABILITIES = ["dash", "climb", "attack"]  # Adventure.ABILITIES
@@ -103,7 +104,7 @@ def _survey_one(job):
             name=flag.split(":")[0]
             ox,oy,level=_W.rooms[name]
             markers=[e for e in level['entities'] if e['t'] in ('spawn','respawn')]
-            if markers: starts=[(ox+int(e['x'])//T,oy+int(e['y'])//T) for e in markers]
+            if markers: starts=[(ox+marker_origin(e)[0]//T,oy+marker_origin(e)[1]//T) for e in markers]
     ground, touched = explore(_W, dict(TIERS)[tier], set(abilities), starts)
     return ground, [k for k in touched if k.startswith("ability_") or k.startswith("boss_")]
 
@@ -186,7 +187,8 @@ def zones(W, base_solid, walls, abilities):
     for name, (ox, oy, lvl) in W.rooms.items():
         for e in lvl["entities"]:
             if e["t"] in ("spawn", "respawn"):  # room entrances (respawn slabs) and the start
-                ents.append((name, (ox + int(e["x"]) // T, oy + int(e["y"]) // T)))
+                mx,my=marker_origin(e)
+                ents.append((name, (ox + mx // T, oy + my // T)))
             elif e["t"] in ("door", "house_door"):  # where you stand arriving through a door
                 ents.append((name, (ox + (int(e["x"]) + int(e.get("w", T)) // 2) // T, oy + (int(e["y"]) + int(e.get("h", T))) // T - 1)))
     if W.spawn not in [c for _, c in ents]:

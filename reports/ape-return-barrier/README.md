@@ -1,15 +1,7 @@
-# Post-Ape return barrier
+# Merged report
 
-Jungle Hills has a thorn barrier at (368,8), 8×112 pixels. It is open before
-`a1_ape_arena:ape_144_120` is set and solid afterwards. The full-height barrier
-separates the early Jungle approach from the Depths shaft, preserving both
-onward routes: Jungle Depths/Treetop Village and Sand Cave.
+The full record from `reports/ape-return-barrier/README.md` is preserved in [the consolidated combat and editor report](../consolidated/COMBAT_AND_EDITOR.md#reports-ape-return-barrier-readme).
 
-- `before.png` / `after.png`: production-game captures.
-- `tests/ape_return_barrier.tscn`: real collision, exit and room-reload checks.
-- `tests/test_ape_return.py`: return blocked even with dash, climb and attack;
-  forward routes remain reachable with the intended movement model.
-- Progression report regenerated with post-boss barriers and arena continuation;
-  browser checks confirm the Ape no longer offers early Jungle as a destination.
+This path remains for existing links. Screenshots, logs and fixtures have not moved. For current status, see [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md).
 
-Gameplay runner: 0 failures. Smoke runner: SMOKE OK.
+<a id="post-ape-return-barrier"></a>

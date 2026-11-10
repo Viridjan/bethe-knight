@@ -1,6 +1,6 @@
-# Reading the Be the Knight code
+# Reading the Bethe Knight code
 
-You do not need to understand every file at once. Be the Knight has three main jobs: run a room, edit a room, and arrange rooms into a world. Most files serve one of those jobs. The comments in the first-party source explain their responsibilities and individual functions; this guide connects them.
+You do not need to understand every file at once. Bethe Knight has three main jobs: run a room, edit a room, and arrange rooms into a world. Most files serve one of those jobs. The comments in the first-party source explain their responsibilities and individual functions; this guide connects them.
 
 ## Start here
 
@@ -44,11 +44,17 @@ Positive X points right. Positive Y points down, so a negative vertical velocity
 
 ## Whole numbers only
 
-No floating-point numbers are allowed in the game. Every division, and every operation of the same kind
-(percentages, multipliers, ratios, averages, scaling), keeps only the integer part of its result (truncate:
-`7 / 2` gives `3`). This applies to the whole game: gameplay values, data files, editor values and anything shown
-to the player. When adding or changing code, use integer arithmetic (`int`, integer division, `floori` /
-`int()` on the result) instead of storing fractions.
+Gameplay resources and scores use whole numbers: stamina, stress, HP, costs, resource rates, attack scores,
+and their saved/editor/displayed values. Calculations for those values truncate the fractional part
+(`7 / 2` gives `3`). Use integer arithmetic or explicit truncation at the resource/score boundary.
+
+Physics and input handling retain their normal precision and update cadence. Movement, gravity, positions,
+collision/movement remainders, input sampling/buffering, and attack timings/speeds may use decimals. Do not
+quantize them or move them onto a slow resource tick. Preserve the 60 Hz physics step and responsive controls.
+
+The planned 0.2-second tick applies only to continuous resource accounting; it is not a physics or input tick.
+See the [resource-tick migration plan](plans/WHOLE_NUMBERS_TICK.md), which is not implemented yet. Stress uses completed blocks with a maximum 30% regeneration penalty;
+the old interpolated 35% rule is superseded. This scope was clarified by the designer on 2026-11-07.
 
 ## The boxes have different jobs
 

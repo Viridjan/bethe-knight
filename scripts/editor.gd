@@ -17,6 +17,7 @@ const E := preload("res://scripts/entities.gd")
 const Art := preload("res://scripts/art.gd")
 const TileLayer := preload("res://scripts/tile_layer.gd")
 const STORY_TYPES := ["lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]
+const CheckpointAreas := preload("res://scripts/progression/checkpoint_area.gd")
 const T := 8
 const MAX_UNDO := 60
 
@@ -30,6 +31,11 @@ class Background extends Node2D:
 
 var tile_layer: TileLayer
 var background: Background
+
+var room_layers = null
+
+func select_room_layer(id: String) -> bool:
+	return room_layers!=null and room_layers.select(id)
 
 var level: Dictionary
 var tool := "tile"
@@ -106,6 +112,7 @@ func _ready() -> void:
 	add_child(cam)
 	cam.make_current()
 	cam.position = Vector2(level.w * T, level.h * T) / 2.0
+	room_layers=load("res://scripts/layers/editor_layers.gd").new(self)
 	_build_ui()
 	_create_tile_layer()
 	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
@@ -178,6 +185,7 @@ func _build_ui() -> void:
 	var tools := VBoxContainer.new()
 	tools.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(tools)
+	tools.add_child(room_layers.controls())
 	tools.add_child(_lbl("Enemies (-1 = automatic)"))
 	enemy_spin = _spin(-1, 1000, int(level.get("enemy_count", -1)))
 	enemy_spin.tooltip_text = "Generated enemy budget when building; 0 disables population. Safe placement and peaceful regions still apply."
@@ -284,7 +292,7 @@ static func palette_group(t: String) -> String:
 		return "Triggers"
 	if t.begins_with("ability") or t.begins_with("stamina") or t in ["strawberry", "goal", "energy_fragment", "quest_crystal", "stress_block", "item_pickup"]:
 		return "Pickups"
-	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc", "lighthouse_keeper", "dialogue_npc", "boat"] or t.begins_with("village"):
+	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc", "lighthouse_keeper", "dialogue_npc", "boat", "layer_passage"] or t.begins_with("village"):
 		return "Doors & people"
 	return "Other"
 
@@ -412,7 +420,7 @@ func _status(t: String) -> void:
 # ---------------- actions ----------------
 # Save a deep snapshot before an edit and keep the undo history within its maximum size.
 func _push_undo() -> void:
-	undo_stack.append(level.duplicate(true))
+	undo_stack.append(room_layers.snapshot() if room_layers!=null else level.duplicate(true))
 	resize_origin_history.append(origin_shift)
 	if undo_stack.size() > MAX_UNDO:
 		undo_stack.pop_front()
@@ -442,7 +450,8 @@ func _new() -> void:
 func _set_level(d: Dictionary) -> void:
 	if is_instance_valid(motion_panel): motion_panel.clear_selection()
 	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
-	level = d
+	if room_layers!=null:room_layers.load_document(d)
+	else:level = d
 	origin_shift = Vector2i.ZERO
 	_cancel_resize()
 	zip_pending = null
@@ -470,6 +479,25 @@ func _validate_motion() -> bool:
 
 # Write the room to its correct custom-level or world-room filename, then remember the saved snapshot.
 func _save() -> bool:
+	if not _validate_motion():return false
+	if room_layers==null:return _save_room_data()
+	var edited:=level
+	var full:Dictionary=room_layers.pack()
+	if not CheckpointAreas.prepare(full):
+		_status("Checkpoint area needs safe permanent ground and clear headroom. Adjust its rectangle.")
+		return false
+	if Game.validate_level(full.duplicate(true)).is_empty():
+		_status("Cannot save: invalid room layer or passage. Check both ends and safe entry geometry.")
+		return false
+	level=full
+	var ok:=_save_room_data()
+	level=edited
+	if ok:
+		room_layers.saved=full.duplicate(true)
+		saved_level=level.duplicate(true)
+	return ok
+
+func _save_room_data() -> bool:
 	if not _validate_motion(): return false
 	var shift := origin_shift - saved_origin_shift
 	var manifest := {}
@@ -528,7 +556,7 @@ func _restore_resize_files(backups: Dictionary) -> void:
 
 # Go back to the menu or the World Editor; with unsaved edits, ask first: Save, Don't save, or Cancel (stay).
 func _leave() -> void:
-	if level == saved_level and origin_shift == saved_origin_shift:
+	if level == saved_level and origin_shift == saved_origin_shift and (room_layers==null or not room_layers.dirty()):
 		Game.goto(Game.editor_return)
 		return
 	if get_children().any(func(c): return c is ConfirmationDialog):
@@ -574,8 +602,17 @@ func _resize_bounds(bounds: Rect2i) -> bool:
 		_status(fitted.error)
 		return false
 	resized.entities = fitted.entities
+	var layered := {}
+	if room_layers!=null and room_layers.documents.size()>1:
+		layered=room_layers.resized(resized,bounds)
+		if layered.has("error"):
+			_status(layered.error)
+			return false
 	_push_undo()
-	level = resized
+	if not layered.is_empty():
+		layered._editor_layer=room_layers.active
+		room_layers.load_document(layered)
+	else: level = resized
 	origin_shift += bounds.position
 	cam.position -= Vector2(bounds.position*T)
 	zip_pending = null
@@ -596,7 +633,7 @@ func _fit_resize_entities(entities: Array, bounds: Rect2i) -> Dictionary:
 	var kept := []
 	for entity in entities:
 		_shift(entity,-bounds.position*T)
-		if E.TYPES[entity.t][1]:
+		if E.TYPES[entity.t][1] and not (entity.t in CheckpointAreas.TYPES and not CheckpointAreas.is_area(entity)):
 			var clipped := Rect2i(int(entity.x),int(entity.y),int(entity.get("w",T)),int(entity.get("h",T))).intersection(extent)
 			if not clipped.has_area(): continue
 			entity.x = clipped.position.x
@@ -670,7 +707,14 @@ func _playtest() -> void:
 			_status("No safe floor found. Place a Respawn on safe ground first.")
 			return
 		trial.entities.append({"t":"spawn", "x":point.x, "y":point.y})
-	Game.editor_level = level.duplicate(true)
+	if room_layers!=null and room_layers.documents.size()>1:
+		var packed:Dictionary=room_layers.pack()
+		if room_layers.active=="main":
+			packed.tiles=trial.tiles;packed.entities=trial.entities
+		else:packed.layers[room_layers.active]=trial
+		trial=packed
+		trial._preview_layer=room_layers.active
+	Game.editor_level = room_layers.snapshot() if room_layers!=null else level.duplicate(true)
 	Game.editor_resize_resume = {"file":Game.editor_file,"dir":Game.editor_dir,"origin":origin_shift,"saved_origin":saved_origin_shift,"saved_level":saved_level.duplicate(true),"undo_stack":undo_stack.duplicate(true),"origin_history":resize_origin_history.duplicate()}
 	Game.play(trial, true)
 
@@ -701,6 +745,7 @@ func _refresh() -> void:
 	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	_refresh_navigation()
 	preview.clear()
+	CheckpointAreas.prepare(level)
 	for d in level.entities:
 		preview.append(E.make(null, d))
 	_redraw()
@@ -708,6 +753,7 @@ func _refresh() -> void:
 # Rebuild one preview after level.entities[i] was appended or edited in place.
 # Rebuild only one object preview when the rest of the room has not changed.
 func _refresh_one(i: int) -> void:
+	CheckpointAreas.prepare(level)
 	var e = E.make(null, level.entities[i])
 	if i == preview.size():
 		preview.append(e)
@@ -840,6 +886,7 @@ func _paste(c: Vector2i) -> void:
 
 # Move an object dictionary by off pixels (zip movers' targets too).
 func _shift(d: Dictionary, off: Vector2i) -> void:
+	if d.get("respawn_at") is Array:d.respawn_at=[d.respawn_at[0]+off.x,d.respawn_at[1]+off.y]
 	d.x = int(d.x) + off.x
 	d.y = int(d.y) + off.y
 	if d.get("motion", {}).get("mode", "") == "path":
@@ -1014,11 +1061,20 @@ func _ask_door(e: Dictionary) -> void:
 	box.add_child(id_edit)
 	box.add_child(Game.label("Leads to", 16))
 	box.add_child(to_edit)
+	var layer_pick:OptionButton
+	if e.t=="layer_passage":
+		layer_pick=OptionButton.new()
+		for id in room_layers.documents:layer_pick.add_item(id)
+		layer_pick.select(maxi(0,room_layers.documents.keys().find(e.get("to_layer","main"))))
+		box.add_child(Game.label("Destination layer",16))
+		box.add_child(layer_pick)
+		to_edit.placeholder_text="Destination passage ID in that layer"
 	dlg.add_child(box)
 	dlg.register_text_enter(to_edit)
 	dlg.confirmed.connect(func():
 		e.id = id_edit.text
 		e.to = to_edit.text
+		if layer_pick!=null:e.to_layer=layer_pick.get_item_text(layer_pick.selected)
 		for i in level.entities.size():
 			if is_same(level.entities[i], e):
 				_refresh_one(i)
@@ -1038,12 +1094,18 @@ func _place_rect(a: Vector2i, b: Vector2i) -> void:
 	if tool == "jumpthru":
 		d.h = T
 	if tool in TriggerInspector.Settings.TRAPS or tool in TriggerInspector.Settings.SOURCES: d.object_id = _new_object_id()
+	if tool in CheckpointAreas.TYPES:
+		var point:=CheckpointAreas.resolve(level,Rect2i(d.x,d.y,d.w,d.h))
+		if point==CheckpointAreas.INVALID:
+			_status("Select an area with safe permanent ground; drag at least two tiles high.")
+			return
+		d.respawn_at=[int(point.x),int(point.y)]
 	level.entities.append(d)
 	if tool == "zip":
 		zip_pending = d
-	if tool in E.DOOR_TYPES:
+	if tool in E.DOOR_TYPES or tool=="layer_passage":
 		var n := 1
-		while level.entities.any(func(e): return e.t in E.DOOR_TYPES and e.get("id", "") == "d%d" % n):
+		while level.entities.any(func(e): return (e.t in E.DOOR_TYPES or e.t=="layer_passage") and e.get("id", "") == "d%d" % n):
 			n += 1
 		d.id = "d%d" % n
 		d.to = ""
@@ -1116,6 +1178,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # Begin or finish a left-button placement gesture, including sized objects and moving-platform targets.
 func _left(pressed: bool) -> void:
+	if not pressed and tool=="tile":_refresh()
 	if tool == "room_size":
 		if pressed:
 			var side := _resize_handle(get_global_mouse_position())
@@ -1156,7 +1219,7 @@ func _left(pressed: bool) -> void:
 			return
 		_push_undo()
 		var hit := _entity_at(c)
-		if tool == "door" and hit >= 0 and level.entities[hit].t in E.DOOR_TYPES:
+		if tool in ["door","layer_passage"] and hit >= 0 and (level.entities[hit].t in E.DOOR_TYPES or level.entities[hit].t=="layer_passage"):
 			_ask_door(level.entities[hit])  # click a door with the Door tool to edit its link
 			return
 		if tool == "tile":
@@ -1177,6 +1240,7 @@ func _left(pressed: bool) -> void:
 
 # Begin or finish an erase gesture, saving the appropriate undo snapshot.
 func _right(pressed: bool) -> void:
+	if not pressed and tool=="tile":_refresh()
 	if tool == "room_size": return
 	if tool == "triggers":
 		trigger_panel.link_edge = ""
@@ -1333,6 +1397,7 @@ func _draw() -> void:
 # Use live source geometry, saved neighboring rooms and valid explicit door targets.
 func _connected_rooms() -> Array:
 	var result: Array = []
+	if room_layers!=null and room_layers.active!="main":return result
 	if Game.editor_return != "world_editor": return result
 	var world: Dictionary = Game.Adventure.load_world(Game.world_path)
 	if not world.get("rooms", {}).has(Game.editor_file): return result
@@ -1407,7 +1472,7 @@ func _request_room(name: String) -> void:
 	if name not in _connected_rooms():
 		_status("Room is no longer connected")
 		return
-	if level == saved_level and origin_shift == saved_origin_shift:
+	if level == saved_level and origin_shift == saved_origin_shift and (room_layers==null or not room_layers.dirty()):
 		_open_connected_room(name)
 		return
 	if is_instance_valid(navigation_dialog): return
@@ -1443,6 +1508,7 @@ func _open_connected_room(name: String) -> void:
 	sel_start = null
 	dragging_paint = 0
 	_set_level(data)
+	if room_layers!=null:room_layers.saved=room_layers.pack().duplicate(true)
 	_frame_room()
 	_refresh_navigation()
 	_status("Opened " + str(level.name))
@@ -1468,8 +1534,8 @@ func _tool_help(id: String) -> String:
 		"trigger_zone":"Invisible entry/exit zone. Drag its area, then link targets with Traps and triggers.",
 		"pressure_plate":"Floor pressure plate. Link entry to start movement and exit to stop it.",
 		"tile":"Paint solid ground with the left mouse button; erase with the right mouse button.",
-		"spawn":"Starting point and checkpoint: walking onto it updates the respawn location silently. Invisible during play. Multiple points are allowed; place on a safe floor with clear headroom.",
-		"respawn":"Walk onto this checkpoint to update the player's respawn point. Place on a safe floor.",
+		"spawn":"Drag a checkpoint area, optionally up to the ceiling. Entering it activates the lowest safe permanent-ground point inside. The outlined player previews that point; red means no safe floor.",
+		"respawn":"Drag an activation area; its marker sits at the lowest safe permanent ground inside.",
 		"jumpthru":"One-way platform: jump through from below, stand on top, or drop through with Down + Jump.",
 		"crumble":"Temporary block that crumbles after the player stands on it.",
 		"falling":"Block that falls after activation.",

@@ -91,19 +91,26 @@ func make_world(ents: Array, extra_tiles := []) -> void:
 # Advance a specified number of fixed physics steps with scripted input, making the test reproducible.
 func step(n := 1) -> void:
 	for i in n:
-		if w.freeze > 0:
-			w.freeze -= DT
+		var active=w.layer_manager.worlds[w.layer_manager.active] if w.layer_manager!=null else w
+		active.set_physics_process(false)
+		if active.freeze > 0:
+			active.freeze -= DT
 			continue
-		if not w.player.dead:
-			w.player.update(DT)
-			w.after_player_move()
-			w.update_stamina(DT)
-		for e in w.ents:
-			w._tick_entity(e, DT)
+		if not active.player.dead:
+			active.player.update(DT)
+			active.after_player_move()
+			if active.layer_active:active.update_stamina(DT)
+		if not active.layer_active:continue
+		for e in active.ents:active._tick_entity(e, DT)
 
 # Return the active scripted player in the current disposable test World.
 func p():
 	return w.player
+
+# Marker coordinates are area bounds now; respawn_at stores the grounded feet anchor.
+func checkpoint_feet(entity: Dictionary) -> Vector2:
+	var at=entity.get("respawn_at",[float(entity.x)+4,float(entity.y)+8])
+	return Vector2(at[0],at[1])
 
 # Make a deep fixture copy with one field replaced or removed, leaving the original test data intact.
 
@@ -342,8 +349,9 @@ func check_shipped_world() -> void:
 			for e in lv.entities:
 				if e.t == "respawn":
 					n_spawns += 1
-					var tx := int(e.x) / 8
-					var ty := int(e.y) / 8
+					var feet:=checkpoint_feet(e)
+					var tx:=int(feet.x-4)/8
+					var ty:=int(feet.y-8)/8
 					var on_rail: bool = lv.entities.any(func(j): return j.t == "jumpthru" and int(j.y) / 8 == ty + 1 and int(j.x) / 8 <= tx and tx < (int(j.x) + int(j.w)) / 8)
 					var ok: bool = ty >= 1 and ty + 1 < lv.h and lv.tiles[ty][tx] == "0" and lv.tiles[ty - 1][tx] == "0" and (lv.tiles[ty + 1][tx] == "1" or on_rail)
 					if not ok:
@@ -450,7 +458,7 @@ func check_shipped_world() -> void:
 			var t1: Dictionary = story.rooms.t1_cove_town.level
 			var t1_spawns: Array = t1.entities.filter(func(e): return e.t == "spawn")
 			t1_spawns.sort_custom(func(a, b): return a.x < b.x)
-			sw.enter_room("t1_cove_town", Vector2(float(t1_spawns[0].x) + 4, float(t1_spawns[0].y) + 8))
+			sw.enter_room("t1_cove_town", checkpoint_feet(t1_spawns[0]))
 		if sw.room != story_seen[-1]:
 			story_seen.append(sw.room)
 			if sw.room == "j2_jungle_falls":  # dropped in from Jungle Edge, one screen above
@@ -471,8 +479,8 @@ func check_shipped_world() -> void:
 		var lv: Dictionary = story.rooms[rn].level
 		var starts: Array = lv.entities.filter(func(e): return e.t == "spawn" or e.t == "respawn")
 		starts.sort_custom(func(a, b): return a.x < b.x)
-		var sx: int = int(starts[0].x)
-		var sy: int = int(starts[0].y) + 8
+		var sx:int=int(checkpoint_feet(starts[0]).x)-4
+		var sy:int=int(checkpoint_feet(starts[0]).y)
 		var to_x: float = {"j1_jungle_edge": 30 * 8.0, "j3_jungle_hills": 31 * 8.0, "s2_shore": 54 * 8.0}.get(rn, lv.w * 8 - 24.0)  # up to the drop / the trunk / the lighthouse
 		var run: PackedVector2Array = E.ApeChase.plan(pw, Rect2i(sx - 16, sy - 32, 32, 32), to_x, false, 0)
 		check(not run.is_empty(), "%s: a spike-free path across with plain jumps" % rn)
@@ -489,7 +497,7 @@ func check_shipped_world() -> void:
 		add_child(sw3)
 		sw3.set_physics_process(false)
 		for d in story.rooms[rn].level.entities:
-			if d.t == "spawn" and not sw3.safe_spawn(Vector2(float(d.x) + 4, float(d.y) + 8)):
+			if d.t == "spawn" and not sw3.safe_spawn(checkpoint_feet(d)):
 				unsafe.append("%s %d,%d" % [rn, d.x / 8, d.y / 8])
 		sw3.free()
 	check(unsafe.is_empty(), "every spawn marker is a safe respawn point (%s)" % [unsafe])
@@ -565,7 +573,10 @@ func check_shipped_world() -> void:
 	ww.spawn = Vector2(12, 19 * 8)
 	check(ww.room == "c3_cove_tunnel" and absf(p().pos.x - 12) <= 3 and absf(ww.spawn.x - 12) <= 1, "entering a room sideways walks 1 unit in and respawns there (at %s, spawn %s)" % [p().pos.x, ww.spawn.x])
 	# a room smaller than the view sits centred, with black around it; entering the next room drops the mask
-	ww.enter_room("h1_villager_house", Vector2(40, 100))
+	var mask_level:Dictionary=Game.new_level("Mask probe",30,14)
+	story.rooms["__mask_probe"]={"pos":Vector2i(240,123),"level":mask_level}
+	story.regions.append({"name":"Cove Town","rooms":["__mask_probe"],"color":Color.WHITE})
+	ww.enter_room("__mask_probe", Vector2(40, 100))
 	var revealing: bool = ww.reveal_t == 0.0 and absf(ww.reveal_dir.x) + absf(ww.reveal_dir.y) == 1.0 and not ww.reveal_old.has_area()  # a door: no old room to darken
 	var cam0: Vector2 = ww.cam_pos
 	for k in 20:  # 0.33 s: still darkening, the view holds still
@@ -588,6 +599,8 @@ func check_shipped_world() -> void:
 		ww._physics_process(DT)
 		took += 1
 	check(ww.reveal_t == 1.0 and absi(took - roundi(ww.REVEAL_TIME * 60)) <= 1, "the region transition takes %.2f s: darken, clear, wait (%d ticks)" % [ww.REVEAL_TIME, took])
+	story.rooms.erase("__mask_probe")
+	story.regions.pop_back()
 	ww.queue_free()
 	# house doors: standing at one (or pressing up) does nothing; interact goes inside, and again comes back out
 	Game.adv = Adventure.new_run(story)
@@ -606,9 +619,9 @@ func check_shipped_world() -> void:
 	var stayed: bool = hw.room == "t1_cove_town" and hw.door_near != null
 	p().tap = {"interact": true}
 	step(3)
-	var inside: String = hw.room
+	var inside: String = hw.layer_manager.active
 	step(20)  # one press: no bounce straight back
-	var held_inside: String = hw.room
+	var held_inside: String = hw.layer_manager.active
 	p().tap = {"interact": true}
 	step(3)
 	check(stayed and inside == "h1_villager_house" and held_inside == inside and hw.room == "t1_cove_town", "house door: up does nothing, interact goes inside, a new press comes back out (%s, %s, %s)" % [inside, held_inside, hw.room])
@@ -632,16 +645,16 @@ func check_shipped_world() -> void:
 		"door prompt shows the interact key, or the pad button after pad input (%s, %s)" % [kt.get_size(), pt.get_size()])
 	# the lighthouse: the shore door leads into the stairs, the stairs' top door out onto the lamp's gallery
 	hw.player.pos = Vector2(0, 0)
-	hw.enter_room("s2_shore", Vector2(45 * 8, 19 * 8))
+	hw.enter_room("s2_shore", Vector2(45 * 8, 51 * 8))
 	step(5)
 	p().tap = {"interact": true}
 	step(3)
-	var in_stairs: String = hw.room
-	p().pos = Vector2(16 * 8, 5 * 8)  # at the top door (as if climbed)
+	var in_stairs: String = hw.layer_manager.active
+	p().pos = Vector2(372,48)  # at the retained interior top passage, after climbing
 	step(5)
 	p().tap = {"interact": true}
 	step(3)
-	check(in_stairs == "lh1_lighthouse_stairs" and hw.room == "s3_lighthouse_top", "lighthouse: shore door into the stairs, top door out to the lamp (%s, %s)" % [in_stairs, hw.room])
+	check(in_stairs == "lh1_lighthouse_stairs" and hw.room == "s2_shore" and hw.layer_manager.active=="main", "lighthouse: retained interior stairs return to the Shore rooftop lamp (%s, %s)" % [in_stairs, hw.room])
 	# Jungle Hills: the hole to Jungle Depths stays covered until the Ape is beaten; then, leaving the arena on the
 	# left, the Ape follows the player leftward and gives up at the big trunk, short of the hole
 	var ape_id := "a1_ape_arena:ape_144_120"
@@ -1738,8 +1751,8 @@ func check_editor_flow() -> void:
 		ed._unhandled_input(ev)
 	var right_arrow: bool = ed.arrows.any(func(a): return a.name == "m2_big_jump" and a.dir == Vector2i.RIGHT)
 	var ed_lv: Dictionary = ed.level
-	ed.level = {"w": 10, "h": 5, "entities": [{"t": "house_door", "x": 16, "y": 16, "w": 16, "h": 24, "to": "h1_villager_house:x"}]}
-	var door_arrow: bool = ed._edge_arrows(["h1_villager_house"]).any(func(a): return a.get("door", false) and a.at == Vector2(24, 8))
+	ed.level = {"w": 10, "h": 5, "entities": [{"t": "house_door", "x": 16, "y": 16, "w": 16, "h": 24, "to": "t1_cove_town:x"}]}
+	var door_arrow: bool = ed._edge_arrows(["t1_cove_town"]).any(func(a): return a.get("door", false) and a.at == Vector2(24, 8))
 	ed.level = ed_lv
 	key.call(KEY_RIGHT)
 	var went: String = Game.editor_file
@@ -1894,7 +1907,7 @@ func check_arena_respawn_gate() -> void:
 	w = load("res://scripts/world.gd").new()
 	add_child(w)
 	w.set_physics_process(false)
-	w.player = Bot.new(w, Vector2(float(sp.x) + 4, float(sp.y) + 8))
+	w.player = Bot.new(w, checkpoint_feet(sp))
 	step(3)
 	var gate = w.ents.filter(func(e): return e is E.BossGate and e.d.get("closes_behind", false))[0]
 	p().hold = {"left": true}
@@ -2789,6 +2802,8 @@ func _ready() -> void:
 	var all_level := Game.new_level("registry", 30, 20)
 	for t in E.TYPES:
 		var d := {"t": t, "x": 64, "y": 64, "w": 16, "h": 16, "tx": 96, "ty": 64}
+		if t in ["spawn","respawn"]:d.merge({"x":64,"y":128,"w":16,"h":16},true)
+		if t=="layer_passage":d.merge({"id":"plane","to_layer":"main","to":"plane"})
 		all_level.entities.append(d.duplicate())
 		var in_world = E.make(w, d)
 		var in_editor = E.make(null, d)

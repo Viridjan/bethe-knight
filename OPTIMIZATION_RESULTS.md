@@ -1,4 +1,4 @@
-# Summit Optimization Results
+# Bethe Knight Optimization Results
 
 Follow-up to `OPTIMIZATION_STRATEGY.md`. All numbers below were measured in this session with `tests/bench.tscn`; nothing is estimated unless stated.
 

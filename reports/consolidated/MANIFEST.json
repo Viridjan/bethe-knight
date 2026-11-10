@@ -1,0 +1,305 @@
+{
+  "merged_on": "2026-11-07",
+  "sources": [
+    {
+      "source": "reports/ape-attack-triggers-2026-11-06/README.md",
+      "source_sha256": "8090595fc6adb0124d3fc0770ea37b318baa696c21ca0f0929896b41f97c0e25",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-attack-triggers-2026-11-06-readme"
+    },
+    {
+      "source": "reports/ape-composition-2026-11-03/README.md",
+      "source_sha256": "c826975a8be85a47c77ef96cab67d0bc756e907e031943de47b3d17b837c9214",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-composition-2026-11-03-readme"
+    },
+    {
+      "source": "reports/ape-followups-2026-11-04/README.md",
+      "source_sha256": "88f04a896ca19aff18088fe7386e642eedcf4853ffc528cec2fc5da0732a6fe5",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-followups-2026-11-04-readme"
+    },
+    {
+      "source": "reports/ape-recursive-review-2026-11-03/README.md",
+      "source_sha256": "4d22045d3c5ddbeda9cfc71775acb8f4c04cdf0c8dd72a0e705a54cdbe4c0827",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-recursive-review-2026-11-03-readme"
+    },
+    {
+      "source": "reports/ape-return-barrier/README.md",
+      "source_sha256": "31985db4e2a8ee77986c0f9457fee2de688aed197b0caa29cb14fd976eff1e03",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-return-barrier-readme"
+    },
+    {
+      "source": "reports/ape-unified-editor/README.md",
+      "source_sha256": "961a8d5b51cd7be11ff846d1f16d3f50581cb86724cb8fd564b28a529db00593",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-ape-unified-editor-readme"
+    },
+    {
+      "source": "reports/attack-catalog/README.md",
+      "source_sha256": "3a7492b2bf1a2fa2b51355f1c8e8ceb19a0b13df8a3361cd84bf1b4dcf176ed9",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-attack-catalog-readme"
+    },
+    {
+      "source": "reports/compact-attack-fields-2026-11-06/README.md",
+      "source_sha256": "e60b3e3e317e9c866495a0eedb5679084ebc9e7c8cb3055dc741238a8cd187a2",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-compact-attack-fields-2026-11-06-readme"
+    },
+    {
+      "source": "reports/cornered-coverage-2026-11-06/README.md",
+      "source_sha256": "b42daf4050818dc86bcf2e7b73c782a6aff22e1f2b0134afdd5fed744478e9c2",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-cornered-coverage-2026-11-06-readme"
+    },
+    {
+      "source": "reports/monster-editor-review-2026-11-01/README.md",
+      "source_sha256": "4eaaa09d83867e39fe97e2199af7ed04a33d8aaa793b8e2858409632c325e3cb",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-monster-editor-review-2026-11-01-readme"
+    },
+    {
+      "source": "reports/nonmap-systems-2026-11-07/README.md",
+      "source_sha256": "97873d22ffcd2d0dc5d84e8e47514a2ac8961a12a3c68a9c71efd160c3053dd5",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-nonmap-systems-2026-11-07-readme"
+    },
+    {
+      "source": "reports/partial-foundations-2026-11-05/README.md",
+      "source_sha256": "61438cb8a06c5cc9ba3bf94e5b0c77052358972e1ee596c32c34d293b847892a",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-partial-foundations-2026-11-05-readme"
+    },
+    {
+      "source": "reports/patrol-authoring-2026-11-05/README.md",
+      "source_sha256": "e4986733eddc50a23bcb7178e1f7860e25b10e96207adc234b1f0d9ce81f5d53",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-patrol-authoring-2026-11-05-readme"
+    },
+    {
+      "source": "reports/punch-2026-11-05/README.md",
+      "source_sha256": "70c692cdf0b4970ca139ada2e8e28b08bc1ef084956125b6a1fec6aa2acdb523",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-punch-2026-11-05-readme"
+    },
+    {
+      "source": "reports/stress-2026-11-05/README.md",
+      "source_sha256": "1b294e033dc1ed108c9506e4140e84c68a001fdb531c086612f467c13d9bb83a",
+      "merged": "reports/consolidated/COMBAT_AND_EDITOR.md",
+      "anchor": "reports-stress-2026-11-05-readme"
+    },
+    {
+      "source": "reports/checkpoint-landings/README.md",
+      "source_sha256": "bceffdaa8494fd814f1fb2463527ed1a0efdf89bd3fc0cebe85aa8cb0c18c0cb",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-checkpoint-landings-readme"
+    },
+    {
+      "source": "reports/island-connections/README.md",
+      "source_sha256": "a2b661bc3ed72c3cb25fa28bde2403144b212140a53f242cda0fb9c55c96d9a5",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-island-connections-readme"
+    },
+    {
+      "source": "reports/lake-caves-style/README.md",
+      "source_sha256": "4bee7edf7acbef584df89495846dee2f246ea9f247b1fa4836ac8f55e663c920",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-lake-caves-style-readme"
+    },
+    {
+      "source": "reports/progression-review-2026-10-30/README.md",
+      "source_sha256": "3f9ab3358e141c9b3c3414f69b14eeaa9a47e156264f1db4aa879f5c8d07cced",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-progression-review-2026-10-30-readme"
+    },
+    {
+      "source": "reports/respawn-cleanup/README.md",
+      "source_sha256": "52d687070a6a7c327c793f342491a6084afdc4a445807f49aecdbe8a716b0606",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-respawn-cleanup-readme"
+    },
+    {
+      "source": "reports/respawn-review/README.md",
+      "source_sha256": "111e405dc37695457a90e5aadeaf74a897854491c5c1bde63e70f66027f0d811",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-respawn-review-readme"
+    },
+    {
+      "source": "reports/room-resize-2026-11-05/README.md",
+      "source_sha256": "2c33f43a6c57af6c826e7e6d8ed1b341cffd183f803cd8e6726046317a0825ea",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-room-resize-2026-11-05-readme"
+    },
+    {
+      "source": "reports/traversal-and-backlog-2026-11-05/README.md",
+      "source_sha256": "042a069fe02ae96293b1a24e244e1bef2e4d0c1803b186e424fc691f5beba908",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-traversal-and-backlog-2026-11-05-readme"
+    },
+    {
+      "source": "docs/reviews/MAP_VARIETY_REVIEW.md",
+      "source_sha256": "624318df82c5d6b892c5e3f11df302da04ae766bd96a725bc90aa7dc2032ad79",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-map-variety-review"
+    },
+    {
+      "source": "docs/reviews/eastern-island/BRIEF.md",
+      "source_sha256": "a76965e4b7261be58ed344007a6828ecc1d4e584015116ee15021c27870abf22",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-eastern-island-brief"
+    },
+    {
+      "source": "docs/reviews/eastern-island/CLAUDE_REVIEW.md",
+      "source_sha256": "3e82c7ce09a4182353f3b61509407d4fbc7385cbe733ecb535be3bf191048770",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-eastern-island-claude-review"
+    },
+    {
+      "source": "docs/reviews/eastern-island/GRAPHICS_AUDIT.md",
+      "source_sha256": "128f26ada8048731331fcda37bd0045b25ec8cd1ad3c618a749370ab21800fb9",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-eastern-island-graphics-audit"
+    },
+    {
+      "source": "docs/reviews/eastern-island/MAP_PROPOSAL.md",
+      "source_sha256": "30fdffe9b7129af425a1a049771bbb6656f4514df15515042f12ce79ef763599",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-eastern-island-map-proposal"
+    },
+    {
+      "source": "docs/reviews/eastern-island/REVIEW.md",
+      "source_sha256": "9a44f17f03584143e458149e4433a4b65ca553597a80e0f054efcf79eb4d0c62",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-eastern-island-review"
+    },
+    {
+      "source": "docs/reviews/platform-art/CODEX_PROMPT.md",
+      "source_sha256": "17fdf2f20fb28c59f81ed75d68225acad20fcb4995bee4315fa811841d9a3cf2",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "docs-reviews-platform-art-codex-prompt"
+    },
+    {
+      "source": "reports/art-review-2026-10-26/REVIEW.md",
+      "source_sha256": "bf0992f6f8f09b3a4323795bcf20e288f4cd607f30314732a3f71f3eb520bacc",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-art-review-2026-10-26-review"
+    },
+    {
+      "source": "reports/quality-review-2026-10-27/accessibility.md",
+      "source_sha256": "a596aa94bbc7b00e586e607353b22934a0d07969119eccbf8db484794f95d7da",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-quality-review-2026-10-27-accessibility"
+    },
+    {
+      "source": "reports/quality-review-2026-10-29/accessibility.md",
+      "source_sha256": "6d5b13afd854eb6ae09695eba450440eae218ee0b7d79d3df8698f94c5189f86",
+      "merged": "reports/consolidated/WORLD_AND_ART.md",
+      "anchor": "reports-quality-review-2026-10-29-accessibility"
+    },
+    {
+      "source": "docs/reviews/ape-composition/CODEX_PROMPT.md",
+      "source_sha256": "7019495bdb19654212590adec88a69a30b8f2eb30c8dc11a42f07f015ccddfc7",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-ape-composition-codex-prompt"
+    },
+    {
+      "source": "docs/reviews/ape-composition/REVIEW.md",
+      "source_sha256": "503ded623a460ae0eb05e752d003537a25a2b883f4a9a152ce9752d8823c73db",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-ape-composition-review"
+    },
+    {
+      "source": "docs/reviews/ape-recursive/CODEX_PROMPT.md",
+      "source_sha256": "5bd3b9c6d42330d50cbc116d2ba1247994d5305fac4c4b013847ba7849cf0da2",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-ape-recursive-codex-prompt"
+    },
+    {
+      "source": "docs/reviews/ape-recursive/REVIEW.md",
+      "source_sha256": "78cee38905dcba3356cc23cd3dbb7a74cce1e2f528a039bcdb7ac4c1cb783e5a",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-ape-recursive-review"
+    },
+    {
+      "source": "docs/reviews/codebase-2026-11-03/REVIEW.md",
+      "source_sha256": "e0dad3f596b28b6caee57861d9c1a795bbdece31aa2af953f2a90ebb73be3392",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-codebase-2026-11-03-review"
+    },
+    {
+      "source": "docs/reviews/codex-2026-11-07/REVIEW.md",
+      "source_sha256": "0aa9f19c0c6e9f9110d1ff91e3ccc58d923493641ee29d0d7fe51ac3164e50c2",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-codex-2026-11-07-review"
+    },
+    {
+      "source": "docs/reviews/knowledge-output-2026-11-07.md",
+      "source_sha256": "94680d14559b5657baf2f638946d307b099dc6bb41c3b557e59b38950a827d5d",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-knowledge-output-2026-11-07"
+    },
+    {
+      "source": "docs/reviews/monster-editor/REVIEW.md",
+      "source_sha256": "97ce35ca482c3c81d712bd25266422997d5d741657591df67de50327a8ca6564",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-monster-editor-review"
+    },
+    {
+      "source": "docs/reviews/monster-editor-followup/CLAUDE_PROMPT.md",
+      "source_sha256": "2688ac4ae63935567c3200ff67a2dd2ed1505ba1a721a55f2093f295dc886252",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-monster-editor-followup-claude-prompt"
+    },
+    {
+      "source": "docs/reviews/monster-editor-followup/REVIEW.md",
+      "source_sha256": "c911b2fa6d64364a00fe924976f78e603d987c55b7b8a84d8966b19e64029226",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-monster-editor-followup-review"
+    },
+    {
+      "source": "docs/reviews/monsters/CODEX_PROMPT.md",
+      "source_sha256": "70f91edc090d562c156995f6cdf4d0d4b1739852741a60e1706b96f9b02305c3",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "docs-reviews-monsters-codex-prompt"
+    },
+    {
+      "source": "reports/CLAUDE_FIX_PROMPT.md",
+      "source_sha256": "242f5605d83b85ec2cb1a2ef1419b8d07376203ddb7be3fc8c90567737052213",
+      "merged": "reports/consolidated/CODE_REVIEWS.md",
+      "anchor": "reports-claude-fix-prompt"
+    },
+    {
+      "source": "TODO.md",
+      "source_sha256": "926a033f6ecbb285a3a22048b8f3557c5d6cb97acf8548a7b6a36971ee6dc3f4",
+      "merged": "reports/consolidated/PROJECT_HISTORY.md",
+      "anchor": "todo"
+    },
+    {
+      "source": "gdd.txt",
+      "source_sha256": "86bba0a8c3914e59e3936a45e27454f4452cef5ad6b2e46ee4a1f745e3c942e2",
+      "merged": "reports/consolidated/PROJECT_HISTORY.md",
+      "anchor": "gdd"
+    },
+    {
+      "source": "docs/IMPLEMENTATION_STATUS.md",
+      "source_sha256": "91840c3558ed1535c36bc78b93141f9f6ccd1d61b3a8d0b8d7bc859471b82653",
+      "merged": "reports/consolidated/PROJECT_HISTORY.md",
+      "anchor": "docs-implementation-status"
+    },
+    {
+      "source": "docs/DEFERRED_WORK.md",
+      "source_sha256": "f1d7c42b47c11249447106871b60f99bb69ef63248ca61cd8ee39219d7a7448e",
+      "merged": "reports/consolidated/PROJECT_HISTORY.md",
+      "anchor": "docs-deferred-work"
+    },
+    {
+      "source": "docs/CODE_HEALTH.md",
+      "source_sha256": "9269484e1a17055b5f31c4bd1aefeedb1e7828db1e111a6d6b17657aa8921500",
+      "merged": "reports/consolidated/PROJECT_HISTORY.md",
+      "anchor": "docs-code-health"
+    }
+  ]
+}

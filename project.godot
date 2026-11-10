@@ -2,14 +2,14 @@
 config_version=5
 
 [application]
-config/name="Be the Knight"
+config/name="Bethe Knight"
 ; Keep existing saves, settings and authored user levels after the title change.
 config/use_custom_user_dir=true
-config/custom_user_dir_name="Godot/app_userdata/Summit"
-config/custom_user_dir_name.linux="godot/app_userdata/Summit"
-config/custom_user_dir_name.freebsd="godot/app_userdata/Summit"
-config/custom_user_dir_name.netbsd="godot/app_userdata/Summit"
-config/custom_user_dir_name.openbsd="godot/app_userdata/Summit"
+config/custom_user_dir_name="Godot/app_userdata/Bethe Knight"
+config/custom_user_dir_name.linux="godot/app_userdata/Bethe Knight"
+config/custom_user_dir_name.freebsd="godot/app_userdata/Bethe Knight"
+config/custom_user_dir_name.netbsd="godot/app_userdata/Bethe Knight"
+config/custom_user_dir_name.openbsd="godot/app_userdata/Bethe Knight"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.4")
 

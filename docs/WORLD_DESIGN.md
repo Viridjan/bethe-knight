@@ -1,5 +1,9 @@
 # World design
 
+Retained interiors are now available: Cove Town embeds both houses; Shore embeds the narrow lighthouse interior and includes its exterior rooftop. See [Room layers](ROOM_LAYERS.md) for current authoring and migration details.
+
+Current desired topology and progression: [cluster/shortcut map plan](STORY_DESIGN.md#0-current-map-plan-room-clusters-and-branching-connections). Dated island/shore descriptions below record an older authored baseline, including legacy raft links; they are not approval to connect the two landmasses by walking. Current content-placement work is tracked in [TODO](../TODO.md).
+
 **Regions** (2026-10-28): rooms are grouped into named, coloured regions, set in `world.json` (`"regions": [{"name",
 "color", "rooms"}]`) and shown on the map screen and in the World Editor. Story regions: Meadow, Lake Caves, Cove Town,
 Jungle, Treetop Village, Sand Cave, Lighthouse Coast, Island Shores, Volcano, Volcanic Maze (grouped by background,
@@ -31,7 +35,7 @@ For seeded terrain shaping of authored areas, use
 report, with explicit apply and restore.
 See [Terrain morphing](TERRAIN_MORPHING.md) for commands and research references.
 
-The former Summit world (`res://adventure/`, removed 2026-10-25; still in git history): 14 rooms in 4 areas, each borrowing from one game.
+The former Bethe Knight world (`res://adventure/`, removed 2026-10-25; still in git history): 14 rooms in 4 areas, each borrowing from one game.
 This is a study from knowledge of the games, not from their data files; Metroid Zero Mission
 details come from the decompilation notes in `METROID_NOTES.md`.
 

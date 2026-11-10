@@ -22,4 +22,4 @@ class CheckpointGround(unittest.TestCase):
             add_respawns(folder)
             result=json.loads(Path(folder,'room.json').read_text())
             points=[e for e in result['entities'] if e['t']=='respawn']
-            self.assertEqual([(e['x'],e['y']) for e in points],[(24,40)])
+            self.assertEqual([(e['respawn_at'][0]-4,e['respawn_at'][1]-8) for e in points],[(24,40)])

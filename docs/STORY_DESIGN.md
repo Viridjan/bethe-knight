@@ -1,4 +1,4 @@
-# Be the Knight: story world, chapter 1
+# Bethe Knight: story world, chapter 1
 
 Original design notes from 2026-10-24, with the map plan updated 2026-11-07.
 Some systems and rooms already exist; `TODO.md` and `docs/NONMAP_SYSTEMS.md` track delivery.
@@ -12,7 +12,7 @@ city jungle, for example. These are references to develop, not fixed diagnoses o
 an instruction to turn every enemy into a literal real-world person.
 
 The new Kraken encounter and stat progression are recorded in
-[Be the Knight design](BE_THE_KNIGHT_DESIGN.md). Existing room IDs and routes stay
+[Bethe Knight design](BETHE_KNIGHT_DESIGN.md). Existing room IDs and routes stay
 stable until their narrative names and connections are deliberately authored.
 
 Be faces right from the start, and the route mostly moves right.
@@ -20,6 +20,8 @@ Be faces right from the start, and the route mostly moves right.
 ## 0. Current map plan: room clusters and branching connections
 
 Updated 2026-11-07 from the user's direction. Plan the world as **large, dense chunks of rooms**, separated by variable distances and joined by long playable routes. Leave occasional holes inside the chunks for secret rooms. Connections should branch, offer optional discoveries and reconnect through extra paths and shortcuts. The world should feel geographically huge while becoming quick to cross once explored.
+
+Current interior implementation: [retained room layers](ROOM_LAYERS.md). Cove Town houses and the lighthouse stairs are embedded planes; the lighthouse rooftop is part of Shore. The broader cluster/shortcut plan below remains the target for later map work.
 
 ### 0.1 Spatial rules
 
@@ -51,7 +53,7 @@ Use two layers of connections: **local loops inside chunks** and **regional loop
 | Treetop Village | Expand the village into at least two rooms, with a safe village floor and a traversal annex | First approach from the jungle branch; later canopy descent reconnects to an earlier jungle junction. Wall-climb reward placement remains a progression decision, not a prerequisite for entering the village. |
 | Lighthouse Coast | Beach, lighthouse stairs/top, NPC sword quest and a small 2–3-room ruins area below | A beach/ruins/lighthouse-base loop makes the quest return short. Add a post-Ape landward return path toward the jungle/town that avoids the sealed chase cave. Keep the tower's initial ascent meaningful; open a faster descent/return once visited. |
 
-The three required quest crystals belong behind clearly readable sword-breakable barriers on the ruins' normal exploration branches. They must not require finding an unmarked secret pocket or a later movement ability. Give the final crystal branch a short return connection near the lighthouse approach. Remove the earlier sand-cave sword reward during this map pass.
+The three required quest crystals belong behind clearly readable sword-breakable barriers on the ruins' normal exploration branches. They must not require finding an unmarked secret pocket or a later movement ability. Give the final crystal branch a short return connection near the lighthouse approach. The keeper is now placed in the upper lighthouse interior; the sand cave currently has no sword orb. Author the ruins/crystal branches next.
 
 Western Wilds and Landing already form an additional branch: preserve them as a separate optional cluster, with their internal loop and a clear return to the mainland network. Do not accidentally promote them into a new prerequisite for the lighthouse quest.
 
@@ -121,7 +123,11 @@ Each bidirectional line is a target for the eventual explored network, not permi
 
 This section authorizes planning only. Room files, placements, exact coordinates, later reward assignments and new mechanics are not changed by this document update.
 
-## 1. Route
+<a id="1-route"></a>
+
+## 1. Historical route detail
+
+The following original route notes retain earlier proposals and implementation history. Section 0 and [current non-map systems](NONMAP_SYSTEMS.md) supersede conflicts, including sword placement, first crossing and stress/HUD rules. Do not implement a historical reward or connection without checking the current plan.
 
 ### 1.1 Start: flat meadow
 - Mostly flat, a few jumps and a few spikes, nothing excessive.

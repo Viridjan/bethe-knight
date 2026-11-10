@@ -119,7 +119,7 @@ Researched on 2026-10-29:
   describes an analysis of staged layout, terrain and finishing passes. Our
   forest and masonry brushes retain the authored layout while refining its edges.
 
-For Be the Knight, full random filling and cellular-automata regeneration would replace
+For Bethe Knight, full random filling and cellular-automata regeneration would replace
 authored level structure. The implemented choice is a constrained contour pass:
 noise proposes clustered edits, protected cells preserve gameplay structure,
 and connectivity checks reject destructive joins. This is our adaptation to

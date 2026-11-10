@@ -49,8 +49,8 @@ const TYPES := {
 	"rock_giant": ["Giant Rock Foot", false, Color("87828b"), RockWalker],
 	"ability_double_jump": ["Double Jump Ability", false, Color("bdeeff"), AbilityOrb],
 	"ability_heat_resist": ["Heat Resistance Ability", false, Color("f5ab72"), AbilityOrb],
-	"respawn": ["Respawn", false, Color("ffffff"), Respawn],
-	"spawn": ["Respawn", false, Color("ffffff"), Respawn],
+	"respawn": ["Respawn", true, Color("ffffff"), Respawn],
+	"spawn": ["Respawn", true, Color("ffffff"), Respawn],
 	"spikes_up": ["Spikes ^", false, Color("dddddd"), Spikes],
 	"spikes_down": ["Spikes v", false, Color("dddddd"), Spikes],
 	"spikes_left": ["Spikes <", false, Color("dddddd"), Spikes],
@@ -85,6 +85,7 @@ const TYPES := {
 	"door": ["Door", true, Color("40e0ff"), Door],
 	# house door: a visible wooden door; stand at it and press interact (S / pad B) to go through ("id"/"to" like the Door)
 	"house_door": ["House Door", true, Color("8a5a34"), HouseDoor],
+	"layer_passage": ["Layer Passage", true, Color("9884c8"), HouseDoor],
 	# building: scenery behind the player (walk through it), "style" = "house" (roof on top) or "tower" (stone)
 	"building": ["Building", true, Color("c8a878"), Building],
 	# placeholders from reference maps: "text" names the thing (e.g. "Crawlid", "grub jar")
@@ -655,23 +656,40 @@ class StaminaBlock extends Ent:  # adventure: +1 stamina block, once per run
 
 # ponytail: refills all stamina; collectibles that restore part of it come with the stamina design
 # Reusable adventure stamina refill with a delay before it becomes available again.
-class Respawn extends Ent:  # invisible walk-on checkpoint; original marker drawn only in the editor
+class Respawn extends Ent:  # silent checkpoints, with legacy point-marker compatibility
+	const Areas := preload("res://scripts/progression/checkpoint_area.gd")
+	var anchor := Areas.INVALID
 	func setup() -> void:
-		rect = Rect2i(int(d.x), int(d.y), T, T)
+		if not Areas.is_area(d):rect=Rect2i(int(d.x),int(d.y),T,T)
+		elif w==null and d.get("respawn_at") is Array:anchor=Vector2(d.respawn_at[0],d.respawn_at[1])
+	func resolve_point() -> void:
+		if Areas.is_area(d):
+			anchor=w.checkpoint_for_area(rect)
+			collidable=anchor!=Areas.INVALID
 	func point() -> Vector2:
-		return Vector2(float(d.x) + 4, float(d.y) + 8)
+		return anchor if Areas.is_area(d) else Vector2(float(d.x)+4,float(d.y)+8)
 	func active() -> bool:
-		return w != null and w.spawn == point() and (not w.adventure() or w.spawn_room == w.room)
+		return w!=null and w.spawn==point() and (not w.adventure() or (w.spawn_room==w.room and w.spawn_layer==w.layer_key))
 	func describe() -> String:
-		return "Respawn: walk onto it to come back here" if w == null else ""
+		return "Checkpoint area: entering this rectangle sets the lowest safe grounded respawn inside it." if w==null else ""
 	func touch(p) -> void:
-		if w != null and p.on_ground and not active():
-			w.set_respawn(point())
+		if w==null or p.dead or active():return
+		if Areas.is_area(d):
+			if anchor==Areas.INVALID or not w.safe_spawn(anchor):resolve_point()
+			if anchor!=Areas.INVALID:w.set_respawn(anchor)
+		elif p.on_ground:w.set_respawn(point())
+	func vis_rect() -> Rect2i:
+		return rect.grow(12)
 	func draw(ci: CanvasItem) -> void:
-		if w != null: return
-		# Original editor marker: player-sized outline with a red head.
-		ci.draw_rect(Rect2(rect.position.x, rect.position.y - 3, 8, 11), Color(1, 1, 1, 0.6), false, 1.0)
-		ci.draw_rect(Rect2(rect.position.x + 2, rect.position.y - 1, 4, 3), Color("ac3232"))
+		if w!=null:return
+		var at:=point()
+		if Areas.is_area(d):
+			var color:=Color("85d8b4") if at!=Areas.INVALID else Color("e26c70")
+			ci.draw_rect(Rect2(rect),Color(color,0.10))
+			ci.draw_rect(Rect2(rect),Color(color,0.65),false,1)
+		if at==Areas.INVALID:return
+		ci.draw_rect(Rect2(at-Vector2(4,11),Vector2(8,11)),Color(1,1,1,0.7),false,1)
+		ci.draw_rect(Rect2(at-Vector2(2,9),Vector2(4,3)),Color("ac3232"))
 
 
 class StaminaOrb extends Ent:  # adventure: refills stamina, back after 2.5 s
@@ -1857,7 +1875,8 @@ class Discovery extends Ent:
 		rect.size = Vector2i(8,12) if d.t == "energy_fragment" else Vector2i(16,16)
 		if d.t == "energy_fragment": rect.position.y -= 4
 		if w != null:
-			key = "fragment:%s:%s" % [w.room, str(d.get("id", "%d_%d" % [int(d.x),int(d.y)]))]
+			var plane: String = w.room + ("@"+w.layer_key if w.layer_key!="main" else "")
+			key = "fragment:%s:%s" % [plane, str(d.get("id", "%d_%d" % [int(d.x),int(d.y)]))]
 			if d.t == "energy_fragment": collidable = w.adventure() and not w.stamina_block_taken(key)
 	func touch_rect() -> Rect2i:
 		return rect.grow(8)

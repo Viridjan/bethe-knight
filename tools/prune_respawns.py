@@ -59,7 +59,8 @@ def shared_landing(level, a, b, distance=48):
 
 
 def prune(level, entrances, keep_start=False, merge_distance=48):
-    markers = [e for e in level['entities'] if e['t'] in TYPES]
+    authored=[e for e in level['entities'] if e['t'] in TYPES and 'w' in e and 'h' in e]
+    markers = [e for e in level['entities'] if e['t'] in TYPES and e not in authored]
     # Prefer the original start-marker type when old and new aliases overlap.
     unique=[]
     for entity in sorted(markers,key=lambda e:e['t']!='spawn'):
@@ -82,8 +83,8 @@ def prune(level, entrances, keep_start=False, merge_distance=48):
     for marker in sorted(kept,key=rank):
         if marker is locked or not any(shared_landing(level,marker,other,merge_distance) for other in accepted): accepted.append(marker)
     kept=accepted
-    level['entities']=[e for e in level['entities'] if e['t'] not in TYPES or any(e is point for point in kept)]
-    return len(markers),len(kept)
+    level['entities']=[e for e in level['entities'] if e['t'] not in TYPES or e in authored or any(e is point for point in kept)]
+    return len(markers)+len(authored),len(kept)+len(authored)
 
 
 def main():

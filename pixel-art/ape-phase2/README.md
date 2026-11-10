@@ -1,6 +1,6 @@
 # ape-trueform — deferred concept
 
-Original Summit pixel artwork, created with pixel-art-studio/Pillow. No external
+Original Bethe Knight pixel artwork, created with pixel-art-studio/Pillow. No external
 sprite artwork is used. Native cells are 32×32 RGBA with binary transparency,
 a shared bottom-center anchor, top-left light, dark outlines, and a twelve-color
 palette recorded in `manifest.json`.

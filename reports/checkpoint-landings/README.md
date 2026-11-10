@@ -1,10 +1,7 @@
-# Shared checkpoint landings · 2026-10-30
+# Merged report
 
-Applied `tools/prune_respawns.py --output reports/checkpoint-landings --apply`.
-Removed the intermediate C6 checkpoint `(120,48)`, retaining the right-hand
-point `(160,48)`. Removed one nearby redundant point each in Foothills and Vent
-Shaft. Main-world total: **73 → 70**. C1's three floor points are unchanged.
+The full record from `reports/checkpoint-landings/README.md` is preserved in [the consolidated world and art report](../consolidated/WORLD_AND_ART.md#reports-checkpoint-landings-readme).
 
-`summary.json` records the application; `backup.json` contains exact original
-changed-room contents. Terrain and non-checkpoint entities are unchanged.
-See [the guide](../../docs/RESPAWN_POINTS.md) for the reusable process.
+This path remains for existing links. Screenshots, logs and fixtures have not moved. For current status, see [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md).
+
+<a id="shared-checkpoint-landings--2026-10-30"></a>

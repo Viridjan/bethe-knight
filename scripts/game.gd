@@ -375,7 +375,7 @@ const MAX_COORD := 1 << 20  # pixels; far beyond any level, keeps int() conversi
 
 # Normalizes a parsed level in place and returns it, or {} if anything is malformed.
 # Validate room dimensions, tile rows and object fields; return an empty dictionary on invalid input.
-static func validate_level(d, fallback_name := "untitled") -> Dictionary:
+static func validate_level(d, fallback_name := "untitled", layer_child := false) -> Dictionary:
 	if not d is Dictionary:
 		return {}
 	var environment = d.get("environment", "")
@@ -404,6 +404,12 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 		if not (_is_num(e.get("x"), -MAX_COORD, MAX_COORD) and _is_num(e.get("y"), -MAX_COORD, MAX_COORD)):
 			return {}
 		if not preload("res://scripts/progression/story_settings.gd").validate(e).is_empty(): return {}
+		if e.t in ["spawn","respawn"] and (e.has("w") or e.has("h")):
+			if not e.has("w") or not e.has("h"):return {}
+			var at:=preload("res://scripts/progression/checkpoint_area.gd").resolve(d,Rect2i(int(e.x),int(e.y),int(e.w),int(e.h)))
+			if at==Vector2(-1,-1):return {}
+			var previous=e.get("respawn_at")
+			if not previous is Array or previous.size()!=2 or previous[0]!=at.x or previous[1]!=at.y:e.respawn_at=[int(at.x),int(at.y)]
 		if e.has("motion"):
 			var settings = preload("res://scripts/motion/patrol_settings.gd")
 			if not settings.supports(e) or not settings.validate(e.motion, Vector2i(w * 8, h * 8)).is_empty(): return {}
@@ -427,6 +433,13 @@ static func validate_level(d, fallback_name := "untitled") -> Dictionary:
 		if e.has("top") and not e.top is bool:  # optional (liquids)
 			return {}
 	if not preload("res://scripts/interaction/trigger_settings.gd").validate_level(ents).is_empty(): return {}
+	if not layer_child:
+		var settings=preload("res://scripts/layers/layer_settings.gd")
+		# Basic layer shape is checked before recursive level validation.
+		if not d.get("layers",{}) is Dictionary:return {}
+		for layer in d.get("layers",{}).values():
+			if not layer is Dictionary or layer.has("layers") or validate_level(layer,fallback_name,true).is_empty():return {}
+		if not settings.validate(d).is_empty():return {}
 	d.name = name
 	d.w = int(w)
 	d.h = int(h)

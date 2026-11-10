@@ -1,7 +1,7 @@
-# Respawn density review
+# Merged report
 
-Reduced 110 markers to 64 across base rooms and variants.
-Authored checkpoints are retained. Ordinary rooms allow one point; rooms at least
-80 tiles wide or 40 tiles tall allow two separated points.
-Only spawn entities were removed; terrain and other entities remain unchanged.
-Exact pre-edit file contents are stored in backup.json.
+The full record from `reports/respawn-review/README.md` is preserved in [the consolidated world and art report](../consolidated/WORLD_AND_ART.md#reports-respawn-review-readme).
+
+This path remains for existing links. Screenshots, logs and fixtures have not moved. For current status, see [../../docs/IMPLEMENTATION_STATUS.md](../../docs/IMPLEMENTATION_STATUS.md).
+
+<a id="respawn-density-review"></a>

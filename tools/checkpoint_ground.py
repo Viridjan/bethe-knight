@@ -10,7 +10,7 @@ def solid_ground(level, x, y):
     left,top,right,bottom=x,y-3,x+8,y+8
     for entity in level['entities']:
         kind=entity['t']
-        if kind not in ('water','acid','breakwall','crumble','falling','zip','dream','boss_gate') and not kind.startswith('spikes'): continue
+        if kind not in ('water','thick_water','acid','trap_spikes','hidden_wall','ape_trunk','breakwall','crumble','falling','zip','dream','boss_gate') and not kind.startswith('spikes'): continue
         ex,ey=entity['x'],entity['y'];ew,eh=entity.get('w',8),entity.get('h',8)
         if max(left,ex)<min(right,ex+ew) and max(top,ey)<min(bottom,ey+eh): return False
     return True

@@ -1,6 +1,6 @@
-# Summit environment themes
+# Bethe Knight environment themes
 
-Original procedural pixel art authored for Summit, following its existing 8×8
+Original procedural pixel art authored for Bethe Knight, following its existing 8×8
 terrain scale, bright top edges, shaded side/bottom edges and quiet scenery.
 No third-party images were added or modified. Existing Paper Pixels attribution
 and licenses remain in `assets/paper-pixels/`.

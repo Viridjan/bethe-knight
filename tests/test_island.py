@@ -37,7 +37,7 @@ class Island(unittest.TestCase):
         # Also from Cove Town: Cove Tunnel's bump under ceiling spikes needs a short, low hop that fits in the game
         # (the player is 11 px tall) but not in the checker's 2-tile body.
         ox, oy, town = self.W.rooms["t1_cove_town"]
-        starts = [self.W.spawn] + [(ox + int(e["x"]) // 8, oy + int(e["y"]) // 8) for e in town["entities"] if e["t"] in ("respawn", "spawn")]
+        starts = [self.W.spawn] + [(ox + int(e.get("respawn_at",[e["x"]+4,e["y"]+8])[0]-4) // 8, oy + int(e.get("respawn_at",[e["x"]+4,e["y"]+8])[1]-8) // 8) for e in town["entities"] if e["t"] in ("respawn", "spawn")]
         _, discoveries = explore(self.W,MODELS["cautious"],set(),starts)
         wanted = {(e["t"],n,ox+int(e["x"])//8,oy+int(e["y"])//8)
                   for n,(ox,oy,level) in self.W.rooms.items() for e in level["entities"]
