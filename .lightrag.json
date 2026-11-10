@@ -1,0 +1,5 @@
+{
+	"set": "summit",
+	"sources": ["README.md", "AGENTS.md", "TODO.md", "gdd.txt", "data/README.md", "assets/*/README.md",
+		"docs/*.md", "docs/reviews/*.md", "docs/reviews/*/*.md", "docs/plans/*.md", "reports/consolidated/*.md"]
+}
