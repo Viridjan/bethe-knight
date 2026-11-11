@@ -1,0 +1,163 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Started Project initialization (5 steps)[39m[0m
+[   0% ] [90m[1mfirst_scan_filesystem[22m | Scanning file structure...[39m[0m
+[  16% ] [90m[1mfirst_scan_filesystem[22m | Loading global class names...[39m[0m
+[  33% ] [90m[1mfirst_scan_filesystem[22m | Verifying GDExtensions...[39m[0m
+[  50% ] [90m[1mfirst_scan_filesystem[22m | Creating autoload scripts...[39m[0m
+SCRIPT ERROR: Parse Error: Preload file "res://assets/props/dead_skeleton.png" has no resource loaders (unrecognized file extension).
+          at: GDScript::reload (res://scripts/entities.gd:1884)
+SCRIPT ERROR: Parse Error: Cannot infer the type of "SHEET" constant because the value doesn't have a set type.
+          at: GDScript::reload (res://scripts/entities.gd:1884)
+SCRIPT ERROR: Compile Error: Failed to compile depended scripts.
+          at: GDScript::reload (res://scripts/game.gd:0)
+ERROR: Failed to load script "res://scripts/game.gd" with error "Parse error".
+   at: load (modules/gdscript/gdscript_resource_format.cpp:46)
+[  66% ] [90m[1mfirst_scan_filesystem[22m | Initializing plugins...[39m[0m
+[  83% ] [90m[1mfirst_scan_filesystem[22m | Starting file scan...[39m[0m
+[92m[ DONE ][39m [1mfirst_scan_filesystem[22m
+[0m
+WARNING: Missing .uid file for path "res://scripts/actors/death_actions.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/actors/enemy_health.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/combat/cornered_coverage.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/combat/player_melee.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/interaction/trap_cycle.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/interaction/trigger_router.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/interaction/trigger_settings.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/layers/editor_layers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/layers/layer_settings.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/layers/room_layers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/motion/path_patrol.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/motion/patrol_runtime.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/motion/surface_patrol.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/progression/checkpoint_area.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/progression/environment_rules.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/progression/sea_crossing.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/progression/stress.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/ui/boat_crossing.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/ui/dialogue.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/ui/resource_bars.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/editor_motion.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/editor_triggers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://scripts/world_layout.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/ape_attack_triggers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/ape_effect_tooltips.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/ape_fixture_variants.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/ape_followups.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/ape_split_spawns.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/attack_catalog_rollback.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/checkpoint_areas.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/cornered_coverage.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/identity.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/partial_foundations.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/punch.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/punch_preview.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/room_layers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/sea_crossing.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/story_traversal.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/traps_triggers.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+WARNING: Missing .uid file for path "res://tests/world_selection.gd". The file was re-created from cache.
+     at: _process_file_system (editor/file_system/editor_file_system.cpp:1391)
+[   0% ] [90m[1mupdate_scripts_classes[22m | Started Registering global classes... (24 steps)[39m[0m
+[   0% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   4% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[   8% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  12% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  16% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  20% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  24% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  28% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  32% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  36% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  40% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  44% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  48% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  52% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  56% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  60% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  64% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  68% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  72% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  76% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  80% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  84% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  88% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[  92% ] [90m[1mupdate_scripts_classes[22m | [39m[0m
+[92m[ DONE ][39m [1mupdate_scripts_classes[22m
+[0m
+[   0% ] [90m[1m_update_scan_actions[22m | Started Scanning actions... (8 steps)[39m[0m
+[   0% ] [90m[1m_update_scan_actions[22m | dead_skeleton.png[39m[0m
+[  11% ] [90m[1m_update_scan_actions[22m | attacks.csv[39m[0m
+[  22% ] [90m[1m_update_scan_actions[22m | enemy_attacks.csv[39m[0m
+[  33% ] [90m[1m_update_scan_actions[22m | preview.png[39m[0m
+[  44% ] [90m[1m_update_scan_actions[22m | silhouette.png[39m[0m
+[  55% ] [90m[1m_update_scan_actions[22m | taken.png[39m[0m
+[  66% ] [90m[1m_update_scan_actions[22m | with_sword.png[39m[0m
+[  77% ] [90m[1m_update_scan_actions[22m | hud-f3.png[39m[0m
+[92m[ DONE ][39m [1m_update_scan_actions[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (6 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  14% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  28% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  42% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  57% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[  71% ] [90m[1mreimport[22m | Preparing files to reimport...[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing pre-reimport operations...[39m[0m
+[   0% ] [90m[1mreimport[22m | dead_skeleton.png[39m[0m
+[  14% ] [90m[1mreimport[22m | preview.png[39m[0m
+[  28% ] [90m[1mreimport[22m | silhouette.png[39m[0m
+[  42% ] [90m[1mreimport[22m | taken.png[39m[0m
+[  57% ] [90m[1mreimport[22m | with_sword.png[39m[0m
+[  71% ] [90m[1mreimport[22m | hud-f3.png[39m[0m
+[  85% ] [90m[1mreimport[22m | Finalizing Asset Import...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mreimport[22m | Started (Re)Importing Assets (6 steps)[39m[0m
+[   0% ] [90m[1mreimport[22m | Executing post-reimport operations...[39m[0m
+[92m[ DONE ][39m [1mreimport[22m
+[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Started Loading editor (5 steps)[39m[0m
+[   0% ] [90m[1mloading_editor_layout[22m | Loading editor layout...[39m[0m
+[  16% ] [90m[1mloading_editor_layout[22m | Loading docks...[39m[0m
+[92m[ DONE ][39m [1mloading_editor_layout[22m
+[0m

@@ -1,0 +1,26 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Ape loadout includes its triggered log effect
+PASS  Triggered effects never enter attack selection
+PASS  Persistent spikes do not receive a made-up finite-duration score
+PASS  Trigger-only effects do not perform AI range/chance eligibility work
+PASS  Saved phase settings round to two decimals and reload with the CSV content set
+PASS  Phase threshold equal to maximum HP is rejected
+PASS  Arena Ape reads editable maximum health
+PASS  Phase threshold uses authored HP
+PASS  Crossing authored threshold enters phase two
+PASS  Phase two starts the in-place leap sequence
+PASS  Phase-entry hops do not repeat after each scream
+PASS  A player directly above the Ape cannot trap its wall-search loop
+PASS  Shared log area changes both thrown and falling log dimensions
+PASS  Spawned ground shockwave stays at the landing point when its owner moves
+PASS  Throw spawns a log rather than a stone
+PASS  Falling and thrown logs use the same floor-spike consequence ([[[304, 216]], [[304, 216]]])
+PASS  Phase-two log splits once into exactly two ordinary logs
+PASS  Both split children create their own floor spikes ([[432, 216], [80, 216]])
+PASS  The lethal boss hit immediately cancels transient encounter hazards
+PASS  Boss defeat cancels encounter-owned transient effects
+PASS  Ape Enemy tab exposes a health input
+PASS  Health edits change the private enemy draft
+PASS  Enemy-tab Save persists health with the attack catalogue
+APE COMPOSITION: 0 failure(s)

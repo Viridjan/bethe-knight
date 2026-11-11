@@ -57,7 +57,7 @@ Tile strings above are schematic; real grids contain only `0`/`1` and must match
 | Parent room | Layer / exterior content |
 | --- | --- |
 | `t1_cove_town` | `h1_villager_house` and `h2_quest_house` are retained interior layers. The two exterior house entrances switch planes. Each interior contains an interactable resident. |
-| `s2_shore` | `lh1_lighthouse_stairs` is a narrow, nine-tile-wide tower interior with alternating landings. Five mages occupy different heights; the keeper near the top supplies the existing sword/crystal quest. |
+| `s2_shore` | `lh1_lighthouse_stairs` is a narrow, nine-tile-wide tower interior with alternating landings. Five mages occupy different heights; the keeper near the top supplies the existing crystal quest. |
 | `s2_shore`, main | The rooftop, magic flame and mirror are in the Shore exterior. Bottom and top passages enter/leave the interior; there is no separate `s3_lighthouse_top` world room. |
 
 Shore grew upward by 32 tiles; its world origin moved upward by the same amount. Its original ground, water and neighbouring entrances retain their global positions. Detached house/stairs/top files and their world/region entries were removed after embedding their content. Old detached-room saves migrate to the parent/layer; invalid old interior positions fall back to safe starts. The old top-room checkpoint maps to the Shore roof.

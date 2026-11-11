@@ -16,7 +16,7 @@ static func layout(run: Dictionary, at := Vector2(16,16), limit := 360.0) -> Dic
 	for i in Adventure.Stress.blocks(run):
 		var left := roundf(float(i)/Adventure.Stress.blocks(run)*width)
 		var right := roundf(float(i+1)/Adventure.Stress.blocks(run)*width)
-		stress.append({"rect":Rect2(at+Vector2(left,14),Vector2(right-left,10)),"fill":clampf(Adventure.Stress.value(run)/Adventure.Stress.BAR_CAPACITY-i,0,1)})
+		stress.append({"rect":Rect2(at+Vector2(left,14),Vector2(right-left,10)),"fill":clampf(float(Adventure.Stress.value(run))/Adventure.Stress.BAR_CAPACITY-i,0,1)})
 	return {"rect":Rect2(at,Vector2(width,24)),"stamina":energy,"stress":stress}
 
 static func draw(ci: CanvasItem, run: Dictionary, energy_color: Color, limit := 360.0) -> void:

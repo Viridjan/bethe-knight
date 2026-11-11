@@ -150,7 +150,8 @@ const WATER_SURFACE_REACH := 12  # px: with the surface this close above the cen
 # Layer: applied on top of whatever state runs (_layers), not a state of its own.
 const WATERFALL_PUSH := 70.0  # inside a waterfall: pulled down towards this speed...
 const WATERFALL_FORCE := 600.0  # ...this hard (px/s²): jumps still rise, but much less
-const JUMP_STAMINA := 5.0  # adventure: each jump costs this much, and needs it
+const JUMP_STAMINA := 5  # adventure: ordinary jump cost and minimum
+const CLIMB_JUMP_STAMINA := 6  # additional airborne climb-jump cost
 const DAMAGE_SCALE := 0.8  # hazards and enemies hit a box 20% smaller than the hurtbox
 const HURT_DUCK := Rect2i(-4, -6, 8, 4)
 const HURT_FLY := Rect2i(-3, -9, 6, 6)
@@ -203,19 +204,20 @@ var dashes := 1
 var _grip := CLIMB_MAX_STAMINA  # the climb meter outside the adventure
 # Climbing stamina (CLIMB_* units, 0..CLIMB_MAX_STAMINA). In the adventure it is the one stamina bar, read in climb
 # units (a full base bar = a full climb meter): climbing drains the bar, and the climb code's refills (ground,
-# crystals, Celeste's climb-jump refund) don't fill it, only its own regeneration and orbs do.
+# Celeste's climb-jump refund) don't fill it, only its own regeneration and orbs do.
 var stamina: float:
 	get:
 		return minf(Game.adv.stamina * _climb_units(), CLIMB_MAX_STAMINA) if _shared_stamina() else _grip
 	set(v):
 		if not _shared_stamina():
 			_grip = v
-		elif v < stamina and not Game.settings.infinite_stamina:
-			var cost := minf(Game.adv.stamina, (stamina - v) / _climb_units())
-			Game.Adventure.drain_stamina(Game.adv, cost)
-			w._tally("climbing", -cost, 1.0 / 60.0)  # F3 recap (one drain per tick: counts seconds)
+
 func _shared_stamina() -> bool:
 	return w != null and w.adventure() and not Game.adv.is_empty()
+func climb_drain_per_s() -> int:
+	if state != ST_CLIMB or climb_no_move_timer > 0 or Game.settings.infinite_stamina:return 0
+	return 11 if last_climb_move == -1 else (2 if last_climb_move == 0 else 0)
+
 func _climb_units() -> float:
 	return CLIMB_MAX_STAMINA / Game.Adventure.BASE_STAMINA
 var max_fall := MAX_FALL
@@ -260,7 +262,6 @@ var star_fly_last_dir := Vector2.ZERO
 # Active sword swing and recovery are separate: a released button cannot bypass the cooldown.
 var attack_timer := 0.0
 var attack_kind := "sword"
-var punch_buf := 0.0
 var attack_surcharge_paid := false
 var attack_cooldown_timer := 0.0
 var attack_dir := Vector2.RIGHT
@@ -631,10 +632,7 @@ func _read_input(dt: float) -> void:
 		dash_buf = INPUT_BUFFER
 	attack_buf -= dt
 	if Input.is_action_just_pressed("attack"):
-		attack_buf = INPUT_BUFFER
-	punch_buf -= dt
-	if Input.is_action_just_pressed("punch"):
-		punch_buf = INPUT_BUFFER
+		attack_buf = _attack_press_buffer()
 	jump_check = Input.is_action_pressed("jump")
 	grab_check = Input.is_action_pressed("grab")
 	interact = Input.is_action_just_pressed("interact")
@@ -683,7 +681,6 @@ func update(dt: float) -> void:
 		jump_buf = 0
 		dash_buf = 0
 		attack_buf = 0
-		punch_buf = 0
 		jump_check = false
 		grab_check = false
 		interact = false
@@ -692,8 +689,6 @@ func update(dt: float) -> void:
 		dash_buf = 0
 	if not Game.has_ability("climb"):
 		grab_check = false
-	if not Game.has_ability("attack"):
-		attack_buf = 0
 	if Game.settings.infinite_stamina:
 		stamina = CLIMB_MAX_STAMINA
 
@@ -1101,7 +1096,9 @@ func super_wall_jump(dir: int) -> void:
 func climb_jump() -> void:
 	sfx("wall_jump")
 	if not on_ground:
-		stamina -= CLIMB_JUMP_COST
+		if _shared_stamina():
+			if not Game.settings.infinite_stamina:w.drain_stamina(CLIMB_JUMP_STAMINA,"climb jump")
+		else:stamina -= CLIMB_JUMP_COST
 	dream_jump = false
 	jump(false)
 	if move_x == 0:
@@ -1225,16 +1222,6 @@ func explode_launch(from: Vector2, snap_up := true) -> void:
 func refill_dash() -> bool:
 	if dashes < max_dashes():
 		dashes = max_dashes()
-		return true
-	return false
-
-# Consume the effect of a refill crystal only if dash or stamina recovery is useful.
-func use_refill(two: bool) -> bool:
-	var target := 2 if two else max_dashes()
-	if dashes < target or stamina < CLIMB_TIRED_THRESHOLD:
-		sfx("refill")
-		dashes = target
-		refill_stamina()
 		return true
 	return false
 
@@ -1619,7 +1606,7 @@ func _climb_update(dt: float) -> int:
 	if in_y != 1 and speed.y > 0 and not solid_at(Vector2(facing, 1)):
 		speed.y = 0
 
-	if climb_no_move_timer <= 0:
+	if not _shared_stamina() and climb_no_move_timer <= 0:
 		if last_climb_move == -1:
 			stamina -= CLIMB_UP_COST * dt
 		elif last_climb_move == 0:
@@ -1986,20 +1973,22 @@ func attack_reaches_rect(area: Rect2i, object = null) -> bool:
 	var v := Vector2(clampf(c.x,r.position.x,r.end.x),clampf(c.y,r.position.y,r.end.y))-c
 	return v.length()<=ATTACK_RANGE and (v.length()<1.0 or absf(attack_dir.angle_to(v))<=deg_to_rad(ATTACK_ARC)/2.0)
 
+# A press during the cooldown waits for it, so mashing gives one steady attack per cooldown instead of dropped presses.
+func _attack_press_buffer() -> float:
+	return INPUT_BUFFER + maxf(attack_cooldown_timer, 0.0)
+
 # Start buffered sword swings, track their active/cooldown timers and test for hits.
 func _attack_update(dt: float) -> void:
 	if dead or stun_t>0:
 		attack_timer = 0
-		punch_buf = 0
 		return
 	if attack_timer > 0:
 		attack_timer -= dt
 		if state in NO_ATTACK_STATES:
 			attack_timer = 0
-	elif (punch_buf>0 or (attack_buf>0 and Game.has_ability("attack") and ATTACK_DIRS!=0)) and attack_cooldown_timer<=0 and state not in NO_ATTACK_STATES:
+	elif attack_buf>0 and (ATTACK_DIRS!=0 or not Game.has_ability("attack")) and attack_cooldown_timer<=0 and state not in NO_ATTACK_STATES:
 		if w != null and not w.spend_melee_stamina(Melee.ATTEMPT_COST): return
-		attack_kind = "punch" if punch_buf>0 else "sword"
-		punch_buf = 0
+		attack_kind = "sword" if Game.has_ability("attack") else "punch"  # the sword replaces the fist
 		attack_buf = 0
 		sfx("attack")
 		attack_timer = Melee.PUNCH_TIME if attack_kind=="punch" else ATTACK_TIME
@@ -2059,7 +2048,7 @@ func _draw_attack(ci: CanvasItem) -> void:
 func hair_color() -> Color:
 	if state == ST_STAR_FLY:
 		return HAIR_FLY if (star_fly_timer > STAR_FLY_END_FLASH or flash) else HAIR_NORMAL
-	if w != null and w.adventure() and Game.adv.stamina < 0.2 * Game.Adventure.stamina_max(Game.adv):
+	if w != null and w.adventure() and Game.Adventure.Stress.exhausted(Game.adv,Game.Adventure.stamina_max(Game.adv)):
 		return HAIR_USED  # grey below 20% stamina
 	if dashes == 2:
 		return HAIR_TWO
@@ -2078,8 +2067,7 @@ func camera_target() -> Vector2:
 
 # Landing from a tall fall: stamina to zero, a 1 s stun (no control, no regeneration until the second star).
 func _hard_landing() -> void:
-	w.stamina_event("hard landing", -Game.adv.stamina)
-	Game.adv.stamina = 0.0
+	w.drain_stamina(Game.adv.stamina, "hard landing")
 	stun_t = STUN_TIME
 	speed.x = 0.0
 	scale = Vector2(1.3, 0.7)

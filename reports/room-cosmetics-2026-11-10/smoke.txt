@@ -1,0 +1,13 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+WARNING: ApeChase: no path found to x 496
+     at: push_warning (core/variant/variant_utility.cpp:1033)
+     GDScript backtrace (most recent call first):
+         [0] _next (res://scripts/entities.gd:3664)
+         [1] _tick (res://scripts/entities.gd:3703)
+         [2] run (res://scripts/entities.gd:3683)
+         [3] update (res://scripts/entities.gd:3509)
+         [4] tick (res://scripts/entities.gd:248)
+         [5] _tick_entity (res://scripts/world.gd:1182)
+         [6] _physics_process (res://scripts/world.gd:1216)
+SMOKE OK

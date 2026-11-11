@@ -1,0 +1,9 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+FAIL  Dash crystals are absent from the entity catalogue
+FAIL  Keeper starts crystal quest without granting a sword
+FAIL  Legacy crystal entities are removed without invalidating saved rooms or layers
+FAIL  Dead skeleton is an authorable story entity
+FAIL  Sword skeleton is placed after the sand-cave exit
+FAIL  Opposite village branch contains climb reward
+SWORD SKELETON: 6 failure(s)

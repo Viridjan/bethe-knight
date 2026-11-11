@@ -103,12 +103,6 @@
 		},
 		{
 			"t": "note",
-			"x": 544,
-			"y": 16,
-			"text": "Reward: wall grab (not built yet)"
-		},
-		{
-			"t": "note",
 			"x": 608,
 			"y": 112,
 			"text": "Where the village leads: still open"
@@ -147,6 +141,12 @@
 			"y": 104,
 			"variant": 4,
 			"art_tag": "regions-v1"
+		},
+		{
+			"t": "ability_climb",
+			"id": "treetop_climb",
+			"x": 544,
+			"y": 104
 		}
 	],
 	"vertical_trim": 5

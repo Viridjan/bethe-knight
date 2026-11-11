@@ -127,5 +127,6 @@
 			"h": 64
 		}
 	],
-	"vertical_trim": 7
+	"vertical_trim": 7,
+	"backdrop": "flooded_ruins"
 }

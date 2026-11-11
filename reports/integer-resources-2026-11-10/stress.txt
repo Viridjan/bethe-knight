@@ -1,0 +1,43 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  New runs start with one empty stress block
+PASS  Stress recovery target 0
+PASS  Stress recovery target 50
+PASS  Stress recovery target 100
+PASS  Stress recovery target 150
+PASS  Stress recovery target 200
+PASS  Stress recovery target 250
+PASS  Partial blocks do not add another penalty
+PASS  Stress caps at five full bars
+PASS  Stress cannot go negative
+FAIL  Exhaustion adds five once, not per frame
+FAIL  Recovery rearms exhaustion and action costs detect it immediately
+PASS  Old saves migrate without an exhaustion charge or rest bonus
+FAIL  Stress truncates the integer regeneration rate
+PASS  Kraken requires a full base bar, max stress and underwater survival
+PASS  Partial first bar does not qualify
+PASS  Zero and upper-bar energy do not qualify
+PASS  Zero and upper-bar energy do not qualify
+PASS  Partly filled final stress bar does not qualify
+PASS  Missing underwater survival is explicit
+PASS  A real monster death reduces stress once
+PASS  Boss victory reduces stress by 100, not 150 or twice
+PASS  A persistent collectible reduces stress once
+PASS  Capacity collectibles reduce stress once
+PASS  Ability collectibles reduce stress once
+PASS  Legacy stars also reduce stress only once
+PASS  Death adds twenty and respawn does not reset it
+PASS  Dash-only grey hair does not add exhaustion stress
+PASS  Rest qualifies at exactly twelve hours
+PASS  A backwards clock grants nothing
+PASS  Real save records its timestamp
+PASS  Eligible load commits its rest recovery
+PASS  A second claim cannot repeat the reduction
+PASS  Reduced stress and rest timestamp persist together
+PASS  Reloading the saved file cannot repeat rest
+PASS  Twenty-four hours still grants only two bars
+PASS  Failed saves cannot grant or consume rest
+PASS  Failed ordinary saves also leave the successful-save timestamp unchanged
+PASS  Actual Continue flow claims rest and explains the reduction
+PASS  A second Continue does not repeat the rest reward or message
+STRESS: 3 failure(s)

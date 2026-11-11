@@ -22,11 +22,10 @@ func battle(objects: Array, energy := 40.0) -> void:
 func targets() -> Array:
 	return w.ents.filter(func(e): return e is E.CombatEnemy or e is E.BreakWall)
 
-func swing(punch := true) -> void:
+func swing() -> void:  # one attack button: fist without the sword, sword with it
 	p().attack_cooldown_timer = 0
 	p().attack_timer = 0
-	if punch: p().set("punch_buf",0.1)
-	else: p().attack_buf = 0.1
+	p().attack_buf = 0.1
 	for i in 12: p()._attack_update(DT)
 
 func enemy(x: int, y := 208) -> Dictionary:
@@ -50,8 +49,8 @@ func _ready() -> void:
 	swing()
 	check(target.hp == 2 and is_equal_approx(Game.adv.stamina,38),"Enemy outside the tiny fist is missed; only attempt cost is charged")
 	Game.adv.abilities = ["attack"]
-	swing(false)
-	check(target.hp == 1 and is_equal_approx(Game.adv.stamina,32),"Sword reaches farther and pays the same 2 + 4 costs")
+	swing()
+	check(target.hp == 1 and is_equal_approx(Game.adv.stamina,32) and p().attack_kind == "sword","The sword replaces the fist on the same button, reaches farther and pays the same 2 + 4 costs")
 	battle([enemy(86,196)])
 	target = targets()[0]
 	swing()
@@ -78,7 +77,18 @@ func _ready() -> void:
 		check(false,"Hidden walls can be authored and directly revealed")
 	else:
 		check_hidden_walls()
-	check(InputMap.has_action("punch") and Game.DEFAULT_KEYS.punch == KEY_Q and Game.DEFAULT_PAD.punch == JOY_BUTTON_Y,"Punch has remappable keyboard and controller input")
+	check(not InputMap.has_action("punch") and Game.DEFAULT_KEYS.attack == KEY_X and Game.DEFAULT_KEYS.dash == KEY_A,"Fist and sword share the attack button: X on the keyboard, dash on A")
+	battle([])
+	p().attack_buf = 0
+	var swings := 0
+	for i in 120:  # mash the button every 5 frames for 2 s: one attack per 0.25 s cooldown, none dropped
+		if i % 5 == 0: p().attack_buf = p()._attack_press_buffer()
+		var before: int = p().attack_log.size()
+		p().attack_buf -= DT
+		p().attack_cooldown_timer -= DT
+		p()._attack_update(DT)
+		swings += p().attack_log.size() - before
+	check(swings == 8,"Mashing attack gives a steady rhythm (%d swings in 2 s)" % swings)
 	if w: w.free()
 	Game.adv = {}
 	Game.adv_temp = false
@@ -95,7 +105,7 @@ func check_hidden_walls() -> void:
 	wall = targets()[0]
 	check(wall.revealed,"Hidden-wall reveal survives room rebuild")
 	Game.adv.abilities = ["attack"]
-	for i in 3: swing(false)
+	for i in 3: swing()
 	check(not wall.collidable,"The sword can still break a revealed hidden wall")
 	battle([{"t":"breakwall","x":84,"y":200,"w":1,"h":24},{"t":"hidden_wall","x":86,"y":200,"w":8,"h":24},enemy(86)])
 	wall = w.ents.filter(func(e): return e.d.t == "hidden_wall")[0]

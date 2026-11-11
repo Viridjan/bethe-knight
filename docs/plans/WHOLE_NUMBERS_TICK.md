@@ -1,6 +1,6 @@
 # Whole-number gameplay values on a 0.2 s gameplay tick
 
-_Status: approved plan, not implemented. Scope and stress-rule conflicts resolved by the designer on 2026-11-07; see [decision record](../DOCUMENT_CONFLICTS.md). Preserve unrelated work when implementing._
+_Status: implemented 2026-11-10; [delivery report](../../reports/integer-resources-2026-11-10/README.md). Scope and stress-rule conflicts resolved by the designer on 2026-11-07; see [decision record](../DOCUMENT_CONFLICTS.md). Preserve unrelated work when implementing._
 
 ## Context
 Whole numbers apply to **gameplay resources and scores**: stamina, stress, HP, costs, resource rates, attack
@@ -9,7 +9,7 @@ scores and their saved/editor/displayed values. Divisions for those values trunc
 input sampling/buffering and attack timings/speeds remain responsive at the existing 60 Hz physics step.
 They must not be quantized or run on the slower resource tick.
 
-The current resource implementation stores stamina as a float and applies fractional changes per frame:
+Before this migration, the resource implementation stored stamina as a float and applied fractional changes per frame:
 regen 4–8–3/s scaled by the newer completed-block stress rule (70–100% recovery), water 40/s, heat 2/s,
 climbing approximately 11.2/s up and 2.45/s still, climb jump approximately 6.75. Truncating each frame's
 resource change would erase small rates. Instead continuous **resource accounting only** runs on a

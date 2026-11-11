@@ -73,6 +73,24 @@ func _ready() -> void:
 	world.layer_manager.worlds.cave.set_physics_process(false)
 	check(Game.adv.layer=="main" and Game.adv.spawn==[20,224],"A layer entrance outside authored regions keeps the previous checkpoint")
 	world.queue_free()
+	await get_tree().process_frame
+	var hot=Game.new_level("Hot",40,30)
+	hot.entities=[{"t":"spawn","x":16,"y":216},{"t":"respawn","x":96,"y":200,"w":32,"h":24}]
+	hot.heat_drain=2
+	Game.level=hot
+	Game.adv_world={"start":"test","abilities":[],"rooms":{"test":{"pos":Vector2i.ZERO,"level":hot}}}
+	Game.adv=Game.Adventure.new_run(Game.adv_world)
+	world=load("res://scripts/world.gd").new()
+	add_child(world)
+	world.set_physics_process(false)
+	var before=Game.adv.get("spawn")
+	world.player.pos=Vector2(112,224)
+	world.activate_checkpoint(world.player)
+	check(Game.adv.get("spawn")==before,"A savepoint does not activate while heat drains stamina")
+	world.data.heat_drain=0
+	world.activate_checkpoint(world.player)
+	check(Game.adv.get("spawn")!=before,"The same savepoint activates once the fatigue is gone")
+	world.queue_free()
 	Game.adv={}
 	await get_tree().process_frame
 	print("CHECKPOINT AREAS: %d failure(s)"%fails)

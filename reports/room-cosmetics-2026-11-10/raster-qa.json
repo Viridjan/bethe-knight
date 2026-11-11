@@ -1,0 +1,774 @@
+{
+  "passed": true,
+  "files_checked": 64,
+  "assets": [
+    {
+      "path": "assets/room-scenery/backdrops/cave/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/cave/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/cave/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 8
+    },
+    {
+      "path": "assets/room-scenery/backdrops/deep_cave/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 10
+    },
+    {
+      "path": "assets/room-scenery/backdrops/deep_cave/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/deep_cave/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/sand_cave/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 10
+    },
+    {
+      "path": "assets/room-scenery/backdrops/sand_cave/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/sand_cave/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/volcanic_cave/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 10
+    },
+    {
+      "path": "assets/room-scenery/backdrops/volcanic_cave/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/volcanic_cave/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/house/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 13
+    },
+    {
+      "path": "assets/room-scenery/backdrops/house/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/house/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 13
+    },
+    {
+      "path": "assets/room-scenery/backdrops/tower/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/tower/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/tower/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/ruins/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/ruins/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/ruins/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/underwater/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/underwater/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/underwater/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 8
+    },
+    {
+      "path": "assets/room-scenery/backdrops/flooded_ruins/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 10
+    },
+    {
+      "path": "assets/room-scenery/backdrops/flooded_ruins/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 3
+    },
+    {
+      "path": "assets/room-scenery/backdrops/flooded_ruins/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 10
+    },
+    {
+      "path": "assets/room-scenery/backdrops/canopy/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 8
+    },
+    {
+      "path": "assets/room-scenery/backdrops/canopy/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/canopy/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/marsh/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/marsh/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/marsh/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 9
+    },
+    {
+      "path": "assets/room-scenery/backdrops/plateau/background.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 8
+    },
+    {
+      "path": "assets/room-scenery/backdrops/plateau/foreground.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "colors": 2
+    },
+    {
+      "path": "assets/room-scenery/backdrops/plateau/preview.png",
+      "size": [
+        320,
+        180
+      ],
+      "alpha_range": [
+        255,
+        255
+      ],
+      "colors": 7
+    },
+    {
+      "path": "assets/room-scenery/sand/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/sand/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/sea/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/sea/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/cavern/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/cavern/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/cavern_deep/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/cavern_deep/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/sky/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/sky/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/temple/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/temple/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/building/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/building/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/forest/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/forest/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/island_shore/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/island_shore/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/volcano/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/volcano/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/volcanic_cave/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/volcanic_cave/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/marsh/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/marsh/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/rocky_plateau/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/rocky_plateau/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/ruins/ceiling.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    },
+    {
+      "path": "assets/room-scenery/ruins/underwater.png",
+      "size": [
+        128,
+        24
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "cells": 8
+    }
+  ]
+}

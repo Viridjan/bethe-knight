@@ -68,8 +68,7 @@ static func lighthouse_talk(run: Dictionary) -> String:
 		return "The three crystals are safe. The boat is yours." if not has_event(run,"boat_lost") else "You survived the crossing. The boat was lost at sea."
 	if run.quests.get(QUEST,"") != "started":
 		run.quests[QUEST] = "started"
-		if not run.abilities.has("attack"): run.abilities.append("attack")
-		return "Take this sword. Recover three crystals from the old ruins below the lighthouse. Their entrance is open, but the sword can break the barriers inside. Bring all three back and you may sail."
+		return "Recover three crystals from the old ruins below the lighthouse. The fallen traveller beyond the sand cave carries a sword. Their entrance is open, but the sword can break the barriers inside. Bring all three back and you may sail."
 	if count(run,CRYSTAL)<REQUIRED:
 		return "You have %d of %d crystals. Use the sword to break the old barriers in the ruins." % [count(run,CRYSTAL),REQUIRED]
 	if transact(run,{CRYSTAL:REQUIRED},true,{},["boat_unlocked"]):

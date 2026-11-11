@@ -58,7 +58,7 @@ func check_runtime(motion: Dictionary) -> void:
 	attacker.rect.position.x += 12
 	w._tick_entity(attacker, DT)
 	check(absi(attacker.rect.position.x - 332) <= 1, "A route resumes after external displacement without teleporting")
-	var pickup = E.make(w, {"t": "refill", "x": 200, "y": 176, "motion": {"mode": "path", "speed": 2.0, "points": [[200, 176], [240, 176]]}})
+	var pickup = E.make(w, {"t": "stamina_orb", "x": 200, "y": 176, "motion": {"mode": "path", "speed": 2.0, "points": [[200, 176], [240, 176]]}})
 	w._register(pickup)
 	var pickup_start: Vector2i = pickup.rect.position
 	for i in 60: w._tick_entity(pickup, DT)

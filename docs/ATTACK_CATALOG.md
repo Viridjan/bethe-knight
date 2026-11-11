@@ -162,14 +162,16 @@ this version does not automatically sample a melee animation's swept union.
 
 Moving hits (ranged shots, body and movement attacks with a speed) count the strip they sweep too:
 `area = hitbox_area + √hitbox_area × 15` (`SWEEP_LENGTH`, tiles). Area attacks already count their whole area, so this
-keeps types comparable: the Ape's scream 165, leap 105, stone throw 44, slam 37.5; library charge 14, leap 26,
-shot 3.6, lob 7.2. Tune `SWEEP_LENGTH` in `scripts/attack_catalog.gd`, then refresh the score column.
+keeps types comparable. Final scores truncate to whole numbers: Ape scream 164, leap 104, log throw 28, slam 37; library charge 13, leap 26,
+shot 3, lob 7. Tune `SWEEP_LENGTH` in `scripts/attack_catalog.gd`, then refresh the score column.
 
 ```
 raw = base_weight × area / measured_time × weighted_projectile_count
 penalty = 1 + 4 × clamp((windup - measured_time) / (2 - measured_time), 0, 1)
-score = raw / penalty
+score = int(raw / penalty + follow_up_total)
 ```
+
+Each follow-up contributes its returned integer score; enemy totals likewise truncate at their returned score boundary. Stored CSV scores and editor totals use whole numbers. Intermediate area, speed, time and penalty calculations retain precision.
 
 This implements a neutral penalty of 1 at or below measured time, rising linearly
 to 5 at two seconds. All type weights initially equal 1.
@@ -242,13 +244,16 @@ Enemy loadout cards expose one **Range** field: the maximum center-to-center dis
 
 Ape attack bindings also have a per-phase **Trigger** selector (`trigger_condition` in the range CSV): **Normal rules**, **Player cornered**, **Player above/below**, **Player nearby**, **Player far away**, or **Always**. Retreat leap defaults to Player cornered, using the ground-corridor coverage definition below. Above/below uses the Ape's existing vertical-alignment test; nearby/far uses the scream's configured Range.
 
-An explicit trigger replaces that attack's normal decision heuristic. It enables a candidate rather than interrupting the current animation: priority, Range, Skip %, and skip cooldown still decide when the attack starts while the Ape is idle. Normal rules retains the old per-attack heuristic. Triggered landing/projectile effects and follow-ups remain separate. Other enemy families keep their existing decision rules; these context conditions are currently implemented for the Ape. Old files without the column receive the same cornered-retreat default on load.
+An explicit trigger replaces that attack's normal decision heuristic. It enables a candidate rather than interrupting the current animation: priority, Range, Skip %, and skip cooldown still decide when the attack starts while the Ape is idle. Normal rules retains the old per-attack heuristic. Triggered landing/projectile effects and follow-ups remain separate. Hornback and library-monster bindings additionally expose Normal rules / Player cornered; other Ape context conditions remain Ape-only. Their default decision rules are unchanged. Old files without the column receive the same cornered-retreat default on load.
 
 
-**Player cornered — coverage definition.** Enemy profiles select `cornered_coverage_attack`, separate from the attack binding that reacts to it. The Ape defaults to `ape_scream`; the enemy settings show a Cornered coverage selector. Disabled turns this condition off. Only attacks with an accurate registered static footprint can be selected; the Ape currently supplies its circular scream. Leaps/projectiles are not approximated as solid coverage of their travel bounds.
+**Player cornered — coverage definition.** Enemy profiles select `cornered_coverage_attack`, separate from the attack binding that reacts to it. The Ape defaults to `ape_scream`; the enemy settings show a Cornered coverage selector. Disabled turns this condition off. Only attacks with an accurate registered coverage adapter can be selected. The Ape supplies its circular scream; Hornback families and grounded library monsters supply a floor-charge sweep. Flying charges, leaps and projectiles are not approximated as solid coverage of their travel bounds. Ordinary profiles default to Disabled.
 
 The shared `combat/cornered_coverage.gd` detector requires a grounded player on a supported floor within one tile of the enemy's floor. It searches toward the player, starting outside the enemy body. Any solid collision in the first three tile rows above the player's floor counts as the nearest wall, including a lone low block or overhang. One-way platforms may support the floor but do not count as walls. The player body must be fully between the enemy and the wall.
 
 Candidate search uses an attack-bounds-sized rectangle centred on the player, enlarged by two tiles total (one on each edge). Both enemy centre and wall must lie in that tracer. It does not enlarge the attack. For every clear standing position in the corridor, at pixel spacing, the chosen attack's real hit predicate must hit the player's damage rectangle. Floor gaps, a floor-level difference exceeding one tile, missing walls and any uncovered standing position make the condition false. Circle checks use the same strict circle-versus-rectangle routine as actual scream damage. Searches over 4096 pixels are conservatively rejected.
 
 This tests covered ground-level space, not whether jumping, climbing or breaking the qualifying block could escape. The detector itself accepts real rectangular or circular providers and generic solid/support queries. Other enemies still need their own accurate footprint/context adapter before their UI can offer this trigger.
+
+
+**Ordinary ground charges (2026-11-10).** The forecast uses the real floor controller, collision body, speed/assist scale, maximum distance and fractional remainder in disposable state. Existing ledge, solid, spike and acid stopping rules clip the swept damage rectangle. The candidate envelope spans potential left/right travel; only the actual current-direction clipped sweep supplies `hits()`. Actor/player state is not changed. Both AI decision paths consume the condition; library instances without grounded charge support return false. Profile/CSV Save and Reload preserve coverage, health and reaction selection. See [delivery evidence and editor captures](../reports/ordinary-cornered-2026-11-10/README.md).

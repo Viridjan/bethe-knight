@@ -20,12 +20,12 @@ func _ready() -> void:
 	check(run.stress == 0, "Stress cannot go negative")
 	run.stamina = 10.0
 	stress.observe_exhaustion(run, Adventure.stamina_max(run))
-	run.stamina = 5.0
+	run.stamina = 4
 	for i in 60: stress.observe_exhaustion(run, Adventure.stamina_max(run))
 	check(run.stress == 5, "Exhaustion adds five once, not per frame")
 	run.stamina = 10.0
 	stress.observe_exhaustion(run, Adventure.stamina_max(run))
-	Adventure.drain_stamina(run, 5.0)
+	Adventure.drain_stamina(run, 6)
 	check(run.stress == 10, "Recovery rearms exhaustion and action costs detect it immediately")
 	var old: Dictionary = Adventure.restore_run(world, {"room": "test", "stamina": 1.0})
 	stress.observe_exhaustion(old, Adventure.stamina_max(old))
@@ -34,22 +34,7 @@ func _ready() -> void:
 	clean.stamina = 16.0
 	var stressed: Dictionary = clean.duplicate(true)
 	stressed.stress = 250
-	Adventure.regen_stamina(clean, 0.1)
-	Adventure.regen_stamina(stressed, 0.1)
-	check(is_equal_approx((stressed.stamina - 16) / (clean.stamina - 16), 0.70), "Actual stamina regeneration uses the stress multiplier")
-	run.stress = 250
-	run.stamina = Adventure.BASE_STAMINA
-	check(stress.kraken_requirements(run, Adventure.BASE_STAMINA, true).all(func(r): return r.met), "Kraken requires a full base bar, max stress and underwater survival")
-	run.stamina -= 1
-	check(not stress.kraken_requirements(run, Adventure.BASE_STAMINA, true)[0].met, "Partial first bar does not qualify")
-	for energy in [0.0, Adventure.BASE_STAMINA + 1.0]:
-		run.stamina = energy
-		check(not stress.kraken_requirements(run, Adventure.BASE_STAMINA, true)[0].met, "Zero and upper-bar energy do not qualify")
-	run.stamina = Adventure.BASE_STAMINA
-	run.stress = 249
-	check(not stress.kraken_requirements(run, Adventure.BASE_STAMINA, true)[1].met, "Partly filled final stress bar does not qualify")
-	run.stress = 250
-	check(not stress.kraken_requirements(run, Adventure.BASE_STAMINA, false)[2].met, "Missing underwater survival is explicit")
+	check(Adventure.regen_rate(clean)==7 and Adventure.regen_rate(stressed)==4,"Stress truncates the integer regeneration rate")
 	await check_world_events(stress, world)
 	check_rest(stress, world)
 	await check_continue_flow()

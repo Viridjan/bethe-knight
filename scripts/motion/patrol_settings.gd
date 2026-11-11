@@ -2,7 +2,7 @@ extends RefCounted
 const MAX_POINTS := 64
 const CARDINAL := [[1, 0], [-1, 0], [0, 1], [0, -1]]
 # These are room/encounter anchors, not movable bodies. Do not silently move story gates.
-const ANCHORS := ["layer_passage","boat","rock_giant","trigger_zone", "pressure_plate","spawn", "respawn", "door", "house_door", "auto_walk", "camera_zone", "boss_gate", "ape_chase", "vent_plug"]
+const ANCHORS := ["dead_skeleton","layer_passage","boat","rock_giant","trigger_zone", "pressure_plate","spawn", "respawn", "door", "house_door", "auto_walk", "camera_zone", "boss_gate", "ape_chase", "vent_plug"]
 
 static func supports(data: Dictionary) -> bool:
 	return data.t not in ANCHORS and not str(data.t).begins_with("boss_")

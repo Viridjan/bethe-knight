@@ -26,6 +26,8 @@ run '^0 failure\(s\)' res://tests/test.tscn
 run '^PUNCH: 0 failure\(s\)' res://tests/punch.tscn
 run '^SMOKE OK' res://tests/smoke.tscn
 run '^IDENTITY: 0 failure\(s\)' res://tests/identity.tscn
+run '^SWORD SKELETON: 0 failure\(s\)' res://tests/sword_skeleton.tscn
+run '^INTEGER RESOURCES: 0 failure\(s\)' res://tests/integer_resources.tscn
 run '^STAMINA RECOVERY: 0 failure\(s\)' res://tests/stamina_recovery.tscn
 run '^STRESS: 0 failure\(s\)' res://tests/stress.tscn
 run '^NONMAP PROGRESSION: 0 failure\(s\)' res://tests/nonmap_progression.tscn
@@ -43,6 +45,8 @@ run '^WEB MENU OK' res://tests/web_menu.tscn
 run '^ATTACK CATALOG OK' res://tests/attack_catalog.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_composition.tscn
 run '^APE COMPOSITION: 0 failure\(s\)' res://tests/ape_fixture_variants.tscn
+run '^ROOM COSMETICS: 0 failure\(s\)' res://tests/room_cosmetics.tscn
+run '^ORDINARY CORNERED: 0 failure\(s\)' res://tests/ordinary_cornered.tscn
 run '^CORNERED COVERAGE: 0 failure\(s\)' res://tests/cornered_coverage.tscn
 run '^APE ATTACK TRIGGERS: 0 failure\(s\)' res://tests/ape_attack_triggers.tscn
 run '^APE FOLLOWUPS: 0 failure\(s\)' res://tests/ape_followups.tscn

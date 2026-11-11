@@ -1,12 +1,13 @@
 # Art assets: layout standard
 
 Most art is drawn by code at runtime (`scripts/*_art.gd`); the PNGs next to it are reference exports for previews,
-the main menu's Art screen and review. The game loads PNGs only from `paper-pixels/` and the theme folders.
+the main menu's Art screen and review. The game loads PNGs from `paper-pixels/`, the theme folders and `props/`.
 
 | Folder | Runtime? | Source | Regenerate |
 |---|---|---|---|
 | `paper-pixels/` | yes (`scripts/art.gd`) | Paper Pixels by VEXED, CC0 (third-party names kept) | - |
 | `themes/<theme>/` | yes: `background`, `foreground`, `terrain`, `decorations`, `inner_corners` (`preview` is reference) | `tools/export_themes.gd`, `tools/export_island_art.gd` | see `themes/README.md` |
+| `props/` | yes (`scripts/entities.gd`) | original pixel artwork | `python3 pixel-art/dead-skeleton/build.py` |
 | `nori/` | no (`scripts/character_art.gd`) | original | `tools/export_nori.gd` |
 | `enemies/` | no (`scripts/enemy_art.gd`, `scripts/ape_art.gd`) | original | `tools/export_enemies.gd`, `tools/export_ape.gd` |
 | `blocks/` | no (`scripts/block_art.gd`) | original | `tools/export_blocks.gd` |
@@ -21,3 +22,7 @@ Rules for new art:
 3. **Names**: lowercase `snake_case`, the subject's name (`thornmite.png`, `serpent.png`).
 4. **Each folder** has a `README.md` (source, licence, how to regenerate) and one `preview.html`.
 5. Review captures and before/after shots go under `docs/reviews/`, not here.
+
+## Room scenery
+
+[Room scenery](room-scenery/README.md) adds independent indoor backdrops and ceiling/underwater decoration atlases. [Browse the set](room-scenery/preview.html). Runtime artwork is authored in `scripts/room_scenery_art.gd`; exported PNGs are reproducible references. These draw-only assets have no collision or gameplay resource effects.

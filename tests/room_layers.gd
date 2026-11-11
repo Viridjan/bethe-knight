@@ -142,6 +142,7 @@ func check_lighthouse_climb() -> void:
 			bot.hold={}
 			bot.update(1.0/60.0)
 			inside.after_player_move()
+			inside.frame+=1
 			inside.update_stamina(1.0/60.0)
 		bot.tap={"jump":true}
 		var landed:=false
@@ -151,6 +152,7 @@ func check_lighthouse_climb() -> void:
 			elif bot.pos.x>goal+2:bot.hold.left=true
 			bot.update(1.0/60.0)
 			inside.after_player_move()
+			inside.frame+=1
 			inside.update_stamina(1.0/60.0)
 			if bot.on_ground and absf(bot.pos.y-floor_y)<1:
 				landed=true

@@ -1,0 +1,15 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Ordinary charge coverage and cornered condition are valid authoring
+PASS  Ground charge covers every standing escape position and enables its binding
+PASS  Prediction does not move the enemy, alter motion remainder or damage the player
+PASS  A short real charge cannot use the search envelope as damage reach
+PASS  Ordinary corner condition rejects an airborne player
+PASS  An open floor corridor does not qualify
+PASS  Real charge safety stops before intervening spikes
+PASS  A cornered binding starts the ordinary charge through its actual AI decision
+PASS  Coverage can be disabled explicitly
+PASS  Grounded library charge uses the same coverage adapter
+PASS  Unsupported flying trajectories cannot pretend to use a floor-charge footprint
+PASS  Unsupported footprint references are rejected
+ORDINARY CORNERED: 0 failure(s)

@@ -55,7 +55,7 @@ class World:
                     for i in range(max(1, w_ // T)):
                         for j in range(max(1, h_ // T)):
                             self.items.setdefault((ex + i, ey + j), []).append((t, name, e))
-                elif t in ("ability_dash", "ability_climb", "ability_attack", "goal", "strawberry", "refill", "energy_fragment", "discovery_npc"):
+                elif t in ("ability_dash", "ability_climb", "ability_attack", "goal", "strawberry", "dead_skeleton", "energy_fragment", "discovery_npc"):
                     self.items.setdefault((ex, ey), []).append((t, name, e))
                 elif t == "spawn" and name == self.start and not hasattr(self, "spawn"):
                     self.spawn = (ex, ey)
@@ -152,8 +152,6 @@ def explore(W, m, abilities, starts, goal=None, good=None, room=None, exits=None
                 touched.setdefault(it[0] + ":" + it[1] + ":%d,%d" % c, (x, y))
                 if goal and it[0] == goal:
                     return True
-                if it[0] == "refill":
-                    dash = 1
         if mode == "G":
             if not W.support(x, y):
                 push((x, y, "F", 0, dash, 0, stam))
@@ -186,7 +184,7 @@ def explore(W, m, abilities, starts, goal=None, good=None, room=None, exits=None
                             break
                         cx, cy = nx, ny
                     if ok and (cx, cy) != (x, y):
-                        nd = 1 if any(i[0] == "refill" for c in ((cx, cy), (cx, cy - 1)) for i in W.items.get(c, ())) else 0
+                        nd = 0
                         if dy < 0 and dx == 0:
                             push((cx, cy, "H", m["hover"], nd, 0, stam))
                         else:

@@ -117,5 +117,6 @@
 			"id": "home",
 			"to": "i01_west_shore:home"
 		}
-	]
+	],
+	"backdrop": "ruins"
 }

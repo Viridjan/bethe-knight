@@ -11,6 +11,7 @@ extends RefCounted
 # world.json: {"start": "room_name", "rooms": {"room_name": [tile_x, tile_y], ...}}
 # Room files live next to it: <dir>/<room_name>.json. Notes and future ideas: docs/METROID_NOTES.md.
 
+const GameTick := preload("res://scripts/progression/game_tick.gd")
 const Stress := preload("res://scripts/progression/stress.gd")
 const Story := preload("res://scripts/progression/story_progress.gd")
 
@@ -21,12 +22,12 @@ const ABILITIES := ["dash", "climb", "attack", "double_jump", "heat_resist"]
 # Stamina is the player's health and ability fuel (docs/STORY_DESIGN.md section 3).
 # A run starts with a base of 27 that always regenerates; each stamina block picked up adds 17.
 # run.blocks counts the base as the first block (so 1 = just the base).
-const BASE_STAMINA := 27.0  # 40, 32 on 2026-10-29, 27 on 2026-11-07 (-15%); whole numbers (a jump costs 5)
-const STAMINA_PER_BLOCK := 17.0  # what a stamina block pickup adds (20 until 2026-11-07, -15%)
-const STAMINA_REGEN_MAX := 8.0  # per second at half full (see regen_factor), across the full owned capacity
-const STAMINA_REGEN_EMPTY := 4.0  # per second with the bar empty
-const STAMINA_REGEN_FULL := 3.0  # per second with the bar full
-const WATER_DRAIN := 40.0  # per second while in water (4 every 0.1 s); no regeneration there
+const BASE_STAMINA := 27  # 40, 32 on 2026-10-29, 27 on 2026-11-07 (-15%); whole numbers (a jump costs 5)
+const STAMINA_PER_BLOCK := 17  # what a stamina block pickup adds (20 until 2026-11-07, -15%)
+const STAMINA_REGEN_MAX := 8  # per second at half full (see regen_rate), across the full owned capacity
+const STAMINA_REGEN_EMPTY := 4  # per second with the bar empty
+const STAMINA_REGEN_FULL := 3  # per second with the bar full
+const WATER_DRAIN := 40  # per second while in water (8 every resource tick); no regeneration there
 
 # -> {"start": String, "rooms": {name: {"pos": Vector2i (tiles), "level": Dictionary}}}
 # Rooms whose file is missing or invalid are skipped.
@@ -201,49 +202,48 @@ static func new_run(world: Dictionary) -> Dictionary:
 	return {"room": world.start, "spawn": null, "abilities": world.get("abilities", []).duplicate(), "visited": [world.start],
 		"revealed_walls": [], "stars": [], "deaths": 0, "time": 0.0, "done": false,
 		"layer":"main", "story_version": 1, "items": {}, "quests": {}, "events": [], "stress_blocks": 1,
-		"stress": 0.0, "stress_exhausted": false, "last_saved_at": 0,
+		"stress": 0, "stress_exhausted": false, "last_saved_at": 0,
 		"blocks": 1, "stamina": BASE_STAMINA, "taken": [],  # taken: one-time pickups, "room:x:y"
 		"seen": [], "kills": {}, "fragments": 0}  # fragments: total pieces; each three grant one capacity block
 
 # Calculate stamina capacity from the base allowance plus collected extra blocks.
-static func stamina_max(run: Dictionary) -> float:
+static func stamina_max(run: Dictionary) -> int:
 	return BASE_STAMINA + (run.blocks - 1) * STAMINA_PER_BLOCK
 
 # Every owned stamina bar regenerates, including fully depleted bars.
-static func regen_stamina(run: Dictionary, dt: float) -> void:
+static func regen_stamina(run: Dictionary, tick: int, per_second := GameTick.PER_SECOND) -> void:
 	var top := stamina_max(run)
 	Stress.observe_exhaustion(run, stamina_max(run))
-	var rate := STAMINA_REGEN_MAX * regen_factor(run.stamina / stamina_max(run)) * Stress.recovery_multiplier(run)
-	run.stamina = minf(top, run.stamina + rate * dt)
+	var rate := regen_rate(run)
+	run.stamina = mini(top, int(run.stamina) + GameTick.share(rate, tick, per_second))
 	Stress.observe_exhaustion(run, stamina_max(run))
 
-# Regeneration speed as a share of STAMINA_REGEN_MAX, by how full the bar is (0..1): from 4/s empty, linearly up
-# to 8/s at half full, then linearly down to 3/s full.
-static func regen_factor(fill: float) -> float:
-	fill = clampf(fill, 0.0, 1.0)
-	var low := STAMINA_REGEN_EMPTY / STAMINA_REGEN_MAX
-	var high := STAMINA_REGEN_FULL / STAMINA_REGEN_MAX
-	return lerpf(low, 1.0, fill * 2.0) if fill <= 0.5 else lerpf(1.0, high, fill * 2.0 - 1.0)
+# Whole points per second: interpolate 4/8/3 using integer fill percentages, then truncate the stress adjustment.
+static func regen_rate(run: Dictionary) -> int:
+	var fill := clampi(int(run.stamina) * 100 / stamina_max(run), 0, 100)
+	var rate := (STAMINA_REGEN_EMPTY * (50 - fill) + STAMINA_REGEN_MAX * fill) / 50 if fill <= 50 else (STAMINA_REGEN_MAX * (100 - fill) + STAMINA_REGEN_FULL * (fill - 50)) / 50
+	return rate * Stress.recovery_percent(run) / 100
 
 # Being in water drains stamina. Returns false when it's all gone: the player drowns.
-# Drain stamina for the elapsed underwater time and report whether any stamina remains.
-static func water_stamina(run: Dictionary, dt: float) -> bool:
-	run.stamina = maxf(0.0, run.stamina - WATER_DRAIN * dt)
+# Drain one resource tick underwater and report whether any stamina remains.
+static func water_stamina(run: Dictionary, tick: int) -> bool:
+	run.stamina = maxi(0, int(run.stamina) - GameTick.share(WATER_DRAIN, tick))
 	Stress.observe_exhaustion(run, stamina_max(run))
 	return run.stamina > 0
 
 # Wears stamina down by up to amount, never below 0 and never refusing (a jump always happens).
 # Subtract an action cost without going below zero; this function itself never refuses the action.
 static func drain_stamina(run: Dictionary, amount: float) -> void:
-	run.stamina = maxf(0.0, run.stamina - amount)
+	run.stamina = maxi(0, int(run.stamina) - int(amount))
 	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Pays for an action; false (nothing spent) when there isn't enough.
 # Pay only when enough stamina is available; return whether payment succeeded.
 static func spend_stamina(run: Dictionary, amount: float) -> bool:
-	if run.stamina < amount:
+	var cost := int(amount)
+	if run.stamina < cost:
 		return false
-	run.stamina -= amount
+	run.stamina = int(run.stamina) - cost
 	Stress.observe_exhaustion(run, stamina_max(run))
 	return true
 
@@ -256,7 +256,7 @@ static func refill_stamina(run: Dictionary) -> void:
 # Increase capacity by one block and add the new block stamina immediately.
 static func add_stamina_block(run: Dictionary) -> void:
 	run.blocks += 1
-	run.stamina += STAMINA_PER_BLOCK
+	run.stamina = int(run.stamina) + STAMINA_PER_BLOCK
 	Stress.observe_exhaustion(run, stamina_max(run))
 
 # Persistent, explicit-interaction discovery. Stable IDs also survive room resizing.
@@ -308,7 +308,7 @@ static func restore_run(world: Dictionary, run) -> Dictionary:
 	run.fragments = maxi(0, int(run.fragments)) if _finite(run.fragments) else 0
 	run.deaths = maxi(0, int(run.deaths)) if _finite(run.deaths) else 0
 	run.time = maxf(0.0, run.time) if _finite(run.time) else 0.0
-	run.stamina = clampf(run.stamina, 0.0, stamina_max(run)) if _finite(run.stamina) else stamina_max(run)
+	run.stamina = clampi(int(run.stamina), 0, stamina_max(run)) if _finite(run.stamina) else stamina_max(run)
 	var room_layers: Dictionary = world.rooms.get(run.room,{}).get("level",{}).get("layers",{})
 	if run.get("layer","main")!="main" and not room_layers.has(run.layer):run.layer="main"
 	Stress.normalize(run, stamina_max(run))

@@ -65,9 +65,9 @@ func _exit_tree() -> void:
 # Default controls (Celeste keyboard layout + gamepad).
 const DEFAULT_KEYS := {
 	"left": KEY_LEFT, "right": KEY_RIGHT, "up": KEY_UP, "down": KEY_DOWN,
-	"jump": KEY_C, "dash": KEY_X, "grab": KEY_Z, "pause": KEY_ESCAPE,
-	"map": KEY_M, "debug": KEY_F1, "attack": KEY_A, "hitboxes": KEY_F2,
-	"assist": KEY_F12, "interact": KEY_S, "stamina_debug": KEY_F3, "state_debug": KEY_F4, "punch": KEY_Q,
+	"jump": KEY_C, "dash": KEY_A, "grab": KEY_Z, "pause": KEY_ESCAPE,
+	"map": KEY_M, "debug": KEY_F1, "attack": KEY_X, "hitboxes": KEY_F2,
+	"assist": KEY_F12, "interact": KEY_S, "stamina_debug": KEY_F3, "state_debug": KEY_F4,
 }
 const ALT_KEYS := {"jump": KEY_SPACE, "dash": KEY_SHIFT, "grab": KEY_V}
 # Gamepad: one button per action (JOY_BUTTON_*), PAD_AXIS + axis for a trigger, -1 = none.
@@ -77,7 +77,7 @@ const DEFAULT_PAD := {
 	"up": JOY_BUTTON_DPAD_UP, "down": JOY_BUTTON_DPAD_DOWN,
 	"jump": JOY_BUTTON_A, "attack": JOY_BUTTON_X, "dash": JOY_BUTTON_RIGHT_SHOULDER,
 	"grab": PAD_AXIS + JOY_AXIS_TRIGGER_RIGHT, "pause": JOY_BUTTON_START,
-	"map": JOY_BUTTON_BACK, "debug": -1, "hitboxes": -1, "assist": -1, "stamina_debug": -1, "state_debug": -1, "interact": JOY_BUTTON_B, "punch": JOY_BUTTON_Y,
+	"map": JOY_BUTTON_BACK, "debug": -1, "hitboxes": -1, "assist": -1, "stamina_debug": -1, "state_debug": -1, "interact": JOY_BUTTON_B,
 }
 const PAD_NAMES := {
 	JOY_BUTTON_A: "A / Cross", JOY_BUTTON_B: "B / Circle", JOY_BUTTON_X: "X / Square", JOY_BUTTON_Y: "Y / Triangle",
@@ -88,7 +88,7 @@ const PAD_NAMES := {
 	JOY_BUTTON_DPAD_UP: "D-pad Up", JOY_BUTTON_DPAD_DOWN: "D-pad Down",
 	JOY_BUTTON_DPAD_LEFT: "D-pad Left", JOY_BUTTON_DPAD_RIGHT: "D-pad Right", -1: "-",
 }
-const ACTION_NAMES := ["left", "right", "up", "down", "jump", "dash", "grab", "attack", "punch", "interact", "pause", "map", "debug", "hitboxes", "assist", "stamina_debug", "state_debug"]
+const ACTION_NAMES := ["left", "right", "up", "down", "jump", "dash", "grab", "attack", "interact", "pause", "map", "debug", "hitboxes", "assist", "stamina_debug", "state_debug"]
 
 var main: Node
 var sfx: Node
@@ -229,6 +229,11 @@ func _load_settings() -> void:
 		settings[k] = cf.get_value("s", k, settings[k])
 	if not cf.has_section_key("s", "music_volume"):  # saved before the volume sliders: effects start at 100%
 		settings.sfx_volume = 1.0
+	settings.keys.erase("punch")  # the fist now shares the attack button
+	settings.pad.erase("punch")
+	if settings.keys.get("attack") == KEY_A and settings.keys.get("dash") == KEY_X:  # the old defaults: attack moved to X
+		settings.keys.attack = KEY_X
+		settings.keys.dash = KEY_A
 	for a in DEFAULT_KEYS:  # keep any new actions added after the file was saved
 		if not settings.keys.has(a):
 			settings.keys[a] = DEFAULT_KEYS[a]
@@ -378,10 +383,12 @@ const MAX_COORD := 1 << 20  # pixels; far beyond any level, keeps int() conversi
 static func validate_level(d, fallback_name := "untitled", layer_child := false) -> Dictionary:
 	if not d is Dictionary:
 		return {}
+	var backdrop = d.get("backdrop", "auto")
+	if not backdrop is String or backdrop not in preload("res://scripts/room_scenery_art.gd").BACKDROPS: return {}
 	var environment = d.get("environment", "")
 	if not environment is String or (environment != "" and environment not in load("res://scripts/environment_art.gd").THEMES):
 		return {}
-	if d.has("heat_drain") and not _is_num(d.heat_drain,0,100): return {}
+	if d.has("heat_drain") and (not _is_num(d.heat_drain,0,100) or d.heat_drain != floor(d.heat_drain)): return {}
 	var w = d.get("w")
 	var h = d.get("h")
 	if not (_is_whole(w) and _is_whole(h)):
@@ -391,6 +398,18 @@ static func validate_level(d, fallback_name := "untitled", layer_child := false)
 	var ents = d.get("entities")
 	if not name is String or not tiles is Array or tiles.size() != h or not ents is Array:
 		return {}
+	# Retired crystal types must not make otherwise valid legacy rooms unreadable.
+	var retired_ids := {}
+	for e in ents:
+		if e is Dictionary and e.get("t","") in ["refill","refill_two"] and e.has("object_id"):
+			retired_ids[e.object_id] = true
+	ents = ents.filter(func(e): return not (e is Dictionary and e.get("t","") in ["refill","refill_two"]))
+	for e in ents:
+		if not e is Dictionary or not e.get("trigger") is Dictionary: continue
+		for edge in ["on_enter","on_exit"]:
+			if e.trigger.get(edge) is Array:
+				e.trigger[edge] = e.trigger[edge].filter(func(link): return not (link is Dictionary and retired_ids.has(link.get("target"))))
+	d.entities = ents
 	var tile_re := RegEx.create_from_string("^[01]*$")
 	for row in tiles:
 		if not row is String or row.length() != w or tile_re.search(row) == null:

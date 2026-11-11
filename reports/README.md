@@ -4,6 +4,10 @@ Merged 2026-11-07. Read [current implementation status](../docs/IMPLEMENTATION_S
 
 | Consolidated record | Contents |
 | --- | --- |
+| [Ordinary cornered coverage](ordinary-cornered-2026-11-10/README.md) | Ground-charge footprint prediction, ordinary AI context, editor controls and save/reload evidence |
+| [Sword skeleton and Treetop branch](sword-skeleton-2026-11-10/README.md) | Sword after Sand Cave, Climb in the opposite village branch, new corpse artwork and removal of dash crystals |
+| [Integer resources and scores](integer-resources-2026-11-10/README.md) | Twelve-frame resource tick, integer saves/displays, stress percentages and catalogue scores; fresh verification and HUD capture |
+| [November 10 baseline](baseline-2026-11-10/README.md) | Fresh test baseline and diagnosis of sandbox lint-cache access |
 | [Checkpoint areas](checkpoint-areas-2026-11-08/README.md) | User-drawn activation regions, lowest safe grounded anchors, airborne activation and 75 migrated checkpoints |
 | [Retained room layers and map conversion](room-layers-2026-11-07/README.md) | Active/inactive planes, audio isolation, editor support, Cove Town houses and Shore lighthouse conversion (2026-11-08) |
 | [Combat and editor deliveries](consolidated/COMBAT_AND_EDITOR.md) | Ape composition/follow-ups, attack catalogue/UI/triggers, corner coverage, punch, health/motion/brood foundations, patrols, stress and non-map story systems |

@@ -9,7 +9,7 @@ static func items(value) -> bool:
 		if not (amount is int or amount is float) or not is_finite(float(amount)) or amount<0 or amount>9999 or amount!=floorf(amount):return false
 	return true
 static func validate(data: Dictionary) -> String:
-	if data.t in PICKUPS+PEOPLE+["boat"]:
+	if data.t in PICKUPS+PEOPLE+["boat","dead_skeleton"]:
 		for field in ["name","item","once_event","locked_text","repeat_text"]:
 			if data.has(field) and (not data[field] is String or data[field].length()>500):return "Invalid story text: "+field
 	if data.t=="item_pickup":

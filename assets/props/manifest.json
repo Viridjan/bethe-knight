@@ -1,0 +1,24 @@
+{
+  "dead_skeleton": {
+    "file": "dead_skeleton.png",
+    "cell_size": [
+      32,
+      16
+    ],
+    "columns": [
+      "sword_present",
+      "sword_taken"
+    ],
+    "rows": [
+      "fallen_traveller"
+    ],
+    "pivot": [
+      16,
+      16
+    ],
+    "collision": "none; interaction rectangle only",
+    "source": "../../pixel-art/dead-skeleton/build.py",
+    "provenance": "Original pixel artwork authored for Bethe Knight; no third-party source imagery.",
+    "license": "CC0-1.0"
+  }
+}

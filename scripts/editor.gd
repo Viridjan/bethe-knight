@@ -16,7 +16,7 @@ const MotionInspector := preload("res://scripts/editor_motion.gd")
 const E := preload("res://scripts/entities.gd")
 const Art := preload("res://scripts/art.gd")
 const TileLayer := preload("res://scripts/tile_layer.gd")
-const STORY_TYPES := ["lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]
+const STORY_TYPES := ["dead_skeleton", "lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]
 const CheckpointAreas := preload("res://scripts/progression/checkpoint_area.gd")
 const T := 8
 const MAX_UNDO := 60
@@ -67,6 +67,7 @@ var ui: CanvasLayer
 var name_edit: LineEdit
 var w_spin: SpinBox
 var h_spin: SpinBox
+var backdrop_pick: OptionButton
 var environment_pick: OptionButton
 var heat_spin: SpinBox
 var enemy_spin: SpinBox
@@ -115,7 +116,7 @@ func _ready() -> void:
 	room_layers=load("res://scripts/layers/editor_layers.gd").new(self)
 	_build_ui()
 	_create_tile_layer()
-	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
+	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""),level)
 	_refresh()
 	_frame_room()
 
@@ -200,14 +201,24 @@ func _build_ui() -> void:
 	environment_pick.item_selected.connect(func(index):
 		_push_undo()
 		level.environment="" if index==0 else Art.EnvironmentArt.THEMES[index-1]
-		tile_layer.setup(level.tiles,level.w,level.h,level.environment)
+		tile_layer.setup(level.tiles,level.w,level.h,level.environment,level)
 		_refresh()
 		_sync_fields())
+	tools.add_child(_lbl("Backdrop (cosmetic)"))
+	backdrop_pick=OptionButton.new()
+	for id in Art.Scenery.BACKDROPS:backdrop_pick.add_item(str(id).replace("_"," ").capitalize())
+	backdrop_pick.tooltip_text="Scenery only: indoor walls, caves and submerged ruins. Does not change terrain, liquid, heat or collision."
+	tools.add_child(backdrop_pick)
+	backdrop_pick.item_selected.connect(func(index):
+		_push_undo()
+		level.backdrop=Art.Scenery.BACKDROPS[index]
+		tile_layer.setup(level.tiles,level.w,level.h,level.get("environment",""),level)
+		_redraw())
 	tools.add_child(_lbl("Heat drain / second"))
 	heat_spin=_spin(0,100,int(level.get("heat_drain",2 if level.get("environment","") in ["volcano","volcanic_cave"] else 0)))
-	heat_spin.step=0.25
+	heat_spin.step=1
 	heat_spin.tooltip_text="Continuous energy loss while hot, replacing natural regeneration. Zero disables heat. Default volcano heat is 2 per second."
-	heat_spin.value_changed.connect(func(value):_push_undo();level.heat_drain=value)
+	heat_spin.value_changed.connect(func(value):_push_undo();level.heat_drain=int(value))
 	tools.add_child(heat_spin)
 	_sync_fields.call_deferred()
 
@@ -286,13 +297,13 @@ static func palette_group(t: String) -> String:
 		return "Terrain"
 	if t.begins_with("spikes") or t in ["rockfall", "trap_spikes"]:
 		return "Hazards"
-	if t.begins_with("spring") or t.begins_with("booster") or t in ["refill", "refill_two", "bumper", "feather", "dream", "zip"]:
+	if t.begins_with("spring") or t.begins_with("booster") or t in ["bumper", "feather", "dream", "zip"]:
 		return "Movement"
 	if t in ["camera_zone", "trigger_zone", "pressure_plate"]:
 		return "Triggers"
 	if t.begins_with("ability") or t.begins_with("stamina") or t in ["strawberry", "goal", "energy_fragment", "quest_crystal", "stress_block", "item_pickup"]:
 		return "Pickups"
-	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc", "lighthouse_keeper", "dialogue_npc", "boat", "layer_passage"] or t.begins_with("village"):
+	if t in ["spawn", "respawn", "door", "house_door", "building", "note", "island_prop", "discovery_npc", "dead_skeleton", "lighthouse_keeper", "dialogue_npc", "boat", "layer_passage"] or t.begins_with("village"):
 		return "Doors & people"
 	return "Other"
 
@@ -410,6 +421,7 @@ func _sync_fields() -> void:
 	h_spin.value = level.h
 	enemy_spin.set_value_no_signal(int(level.get("enemy_count", -1)))
 	if environment_pick!=null: environment_pick.select(Art.EnvironmentArt.THEMES.find(str(level.get("environment","")))+1)
+	if backdrop_pick!=null:backdrop_pick.select(Art.Scenery.BACKDROPS.find(level.get("backdrop","auto")))
 	if heat_spin!=null:heat_spin.set_value_no_signal(float(level.get("heat_drain",2 if level.get("environment","") in ["volcano","volcanic_cave"] else 0)))
 
 # Show a short temporary message in the editor status bar.
@@ -457,7 +469,7 @@ func _set_level(d: Dictionary) -> void:
 	zip_pending = null
 	rect_start = null
 	_sync_fields()
-	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""))
+	tile_layer.setup(level.tiles, level.w, level.h, level.get("environment", ""),level)
 	_refresh()
 
 func _motion_error(entity: Dictionary) -> String:
@@ -622,7 +634,7 @@ func _resize_bounds(bounds: Rect2i) -> bool:
 	sel_start = null
 	_prune_trigger_links()
 	_sync_fields()
-	tile_layer.setup(level.tiles,level.w,level.h,level.get("environment",""))
+	tile_layer.setup(level.tiles,level.w,level.h,level.get("environment",""),level)
 	_refresh()
 	_status("Resized to %d × %d tiles (Ctrl+Z to undo)" % [level.w,level.h])
 	return true
@@ -741,6 +753,7 @@ func _playtest_floor() -> Vector2i:
 # Full rebuild: load, undo, new, resize.
 # Recreate all preview objects after a structural edit such as load, resize or undo.
 func _refresh() -> void:
+	if tile_layer!=null:tile_layer.refresh_cosmetics()
 	if is_instance_valid(motion_panel): motion_panel.clear_selection()
 	if is_instance_valid(trigger_panel): trigger_panel.clear_selection()
 	_refresh_navigation()
@@ -753,6 +766,7 @@ func _refresh() -> void:
 # Rebuild one preview after level.entities[i] was appended or edited in place.
 # Rebuild only one object preview when the rest of the room has not changed.
 func _refresh_one(i: int) -> void:
+	if tile_layer!=null:tile_layer.refresh_cosmetics()
 	CheckpointAreas.prepare(level)
 	var e = E.make(null, level.entities[i])
 	if i == preview.size():
@@ -854,7 +868,7 @@ func _paste(c: Vector2i) -> void:
 	var copies: Array = clip.entities.duplicate(true)
 	var remap := {}
 	for copy in copies:
-		if copy.t in ["lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]:
+		if copy.t in ["dead_skeleton", "lighthouse_keeper", "dialogue_npc", "quest_crystal", "stress_block", "item_pickup"]:
 			copy.id = "story_%x_%x" % [Time.get_ticks_usec(), randi()]
 		if copy.has("object_id"):
 			var fresh := _new_object_id(remap.values())
@@ -954,7 +968,7 @@ func _place_point(c: Vector2i, click := false) -> void:
 				elif tool in STORY_TYPES: _ask_story(e)
 				return  # already there
 	var placed := {"t":tool,"x":x,"y":y}
-	if tool in ["lighthouse_keeper","dialogue_npc","quest_crystal","stress_block","item_pickup"]: placed.id="story_%x_%x"%[Time.get_ticks_usec(),randi()]
+	if tool in ["dead_skeleton","lighthouse_keeper","dialogue_npc","quest_crystal","stress_block","item_pickup"]: placed.id="story_%x_%x"%[Time.get_ticks_usec(),randi()]
 	level.entities.append(placed)
 	if tool == "note":
 		level.entities[-1].text = ""
@@ -1325,8 +1339,8 @@ func _draw_background(ci: CanvasItem) -> void:
 	var view := Rect2(cam.position - vs / 2.0, vs)
 	ci.draw_rect(view, Color("0c0c1e"))
 	var b := Rect2(0, 0, level.w * T, level.h * T)
-	if level.get("environment", "") != "":
-		Art.draw_background(ci, view, 0.0, level.environment, b)
+	if level.get("environment", "") != "" or Art.Scenery.resolve("",level.get("backdrop",""))!="outdoors":
+		Art.draw_background(ci, view, 0.0, level.environment, b, level.get("backdrop",""))
 	else:
 		ci.draw_rect(b, Art.SKY)
 	if cam.zoom.x >= 2:
@@ -1551,7 +1565,7 @@ func _tool_help(id: String) -> String:
 		"discovery_npc":"Character the player can speak to with Interact.",
 		"stamina_block":"Permanent stamina capacity upgrade, collected once per run.",
 		"stamina_orb":"Collectible that restores stamina.",
-		"refill":"Restores a dash when collected.", "refill_two":"Grants two dashes when collected.",
+		"dead_skeleton":"Fallen traveller: interact to take the sword once; the bones remain.",
 		"goal":"Level goal: touching it completes the level.",
 		"strawberry":"Legacy star collectible.",
 		"note":"Design note: enter its text after placing it.",

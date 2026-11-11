@@ -407,7 +407,7 @@ func _update_summary() -> void:
 		summary.text = ""
 		if is_instance_valid(score_value):
 			var result: Dictionary = catalog.score_attack(row)
-			score_value.text = "Score  %.2f" % result.score if result.valid else "Score  —"
+			score_value.text = "Score  %d" % result.score if result.valid else "Score  —"
 			score_value.tooltip_text = "Raw %.2f / warning factor %.2f" % [result.raw, result.penalty] if result.valid else result.reason
 
 func _update_feedback() -> void:
@@ -528,7 +528,7 @@ func _effect_help(e: Array, effect: String = "") -> String:
 
 func _attack_trigger_picker(row: Dictionary) -> OptionButton:
 	var pick := OptionButton.new()
-	var conditions: Array = Catalog.ATTACK_CONDITIONS.keys()
+	var conditions: Array = Catalog.condition_choices(row.enemy_id)
 	for condition in conditions: pick.add_item(Catalog.ATTACK_CONDITIONS[condition])
 	pick.select(conditions.find(Catalog.attack_condition(row)))
 	pick.custom_minimum_size = Vector2(140,ROW_H)
@@ -562,7 +562,7 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 		var label := Game.label({"max_range_units": "Range", "skip_chance": "Skip %"}[column], 12)
 		binding_line.add_child(label)
 		binding_line.add_child(edit)
-	if row.enemy_id == "boss_ape":
+	if Catalog.condition_choices(row.enemy_id).size()>1:
 		binding_line.add_child(Game.label("Trigger",12))
 		binding_line.add_child(_attack_trigger_picker(row))
 	for b in [["up", -1, k == 0], ["down", 1, k == selected_count - 1], ["cross", 0, false]]:
@@ -602,7 +602,13 @@ func _select_enemy(i: int) -> void:
 	preview.ent = load("res://scripts/entities.gd").make(null, data)
 	form.add_child(preview)
 	if e[0] == "boss_ape": _ape_profile_fields()
-	elif preview.ent != null and preview.ent.has_method("variant_hp"): _family_health_fields(preview.ent.family())
+	elif preview.ent != null and preview.ent.has_method("variant_hp"):
+		_family_health_fields(preview.ent.family())
+		if not Catalog.coverage_attacks(preview.ent.family()).is_empty():
+			var coverage := HBoxContainer.new()
+			coverage.add_child(Game.label("Cornered coverage",12))
+			coverage.add_child(_cornered_coverage_picker(preview.ent.family()))
+			form.add_child(coverage)
 	var own: Array = (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
 	if not own.is_empty():
 		var own_row := HBoxContainer.new()
@@ -829,9 +835,10 @@ func _cornered_coverage_picker(enemy_id: String) -> OptionButton:
 	pick.custom_minimum_size.y = ROW_H
 	pick.add_theme_font_size_override("font_size",12)
 	pick.disabled = not writable
-	pick.tooltip_text = "Attack whose actual damage footprint must cover the ground corridor for Player cornered. Separate from the reaction chosen on each attack row. Only accurate static coverage adapters are listed; moving attacks need a coverage model first."
+	pick.tooltip_text = "Attack whose actual damage footprint must cover the ground corridor for Player cornered. Separate from the reaction chosen on each attack row. Only supported coverage adapters are listed. Ground charges use collision-clipped swept body coverage; flying and projectile trajectories are unsupported."
 	pick.item_selected.connect(func(index):
-		profile.cornered_coverage_attack = choices[index]
+		if not catalog.enemy_profiles.has(enemy_id): catalog.enemy_profiles[enemy_id] = profile
+		catalog.enemy_profiles[enemy_id].cornered_coverage_attack = choices[index]
 		dirty = true
 		dirty_changed.emit()
 		_update_feedback())
@@ -1085,7 +1092,7 @@ func _attack_frames(e: Array, attack: Dictionary) -> Array:
 
 func _show_score(label: Label, attack: Dictionary) -> void:
 	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}
-	label.text = "%.2f" % sc.score if sc.valid else "-"
+	label.text = "%d" % sc.score if sc.valid else "-"
 
 func _binding_change(row: Dictionary, column: String, value: String) -> void:
 	if column == "max_range_units": row.min_range_units = "0"  # Range is a maximum-only editor control.
@@ -1218,12 +1225,12 @@ func _score_text(e: Array) -> String:
 		var enemy = load("res://scripts/entities.gd").make(null, {"t": e[0], "x": 0, "y": 0})
 		var area := float(enemy.rect.size.x * enemy.rect.size.y) / 64.0
 		var result: Dictionary = catalog.enemy_score(catalog.ordered_attacks(e[0], e[1]).map(func(b): return b.attack_name), area)
-		lines.append("Score %s (body %.2f once, then each attack; its variants change speed, warning and recovery)" % ["%.2f" % result.score if result.valid else "unavailable: " + result.reason, area])
+		lines.append("Score %s (body %.2f once, then each attack; its variants change speed, warning and recovery)" % ["%d" % result.score if result.valid else "unavailable: " + result.reason, area])
 	else:
 		for phase in ["normal", "enraged"]:
 			var ids: Array = catalog.ordered_attacks(e[0], phase).filter(func(b): return not catalog.triggered(b)).map(func(b): return b.attack_name)
 			var result: Dictionary = catalog.enemy_score(ids, 9.0)
-			lines.append("Selected attacks · Phase %s: %.2f (body 9 once; triggered consequence totals pending)%s" % ["1" if phase == "normal" else "2", result.score, "" if result.valid else "; unavailable: " + result.reason])
+			lines.append("Selected attacks · Phase %s: %d (body 9 once; triggered consequence totals pending)%s" % ["1" if phase == "normal" else "2", result.score, "" if result.valid else "; unavailable: " + result.reason])
 	return "\n".join(lines)
 
 func _help(field: String) -> String:

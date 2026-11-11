@@ -6,6 +6,9 @@ import progression as P
 
 
 class Progression(unittest.TestCase):
+    def test_skeleton_counts_as_sword_reward(self):
+        self.assertEqual(P.power("dead_skeleton:s2_shore:8,39"), "attack")
+
     def test_reversible_forks_remain_choices(self):
         world = SimpleNamespace(rooms={"ape": (40, 0, {}), "jungle": (0, 0, {}), "sand": (80, 0, {})})
         entrances = [("ape", (41, 5)), ("jungle", (38, 5)), ("sand", (81, 5))]

@@ -22,7 +22,6 @@ static func solid(tiles: Array, w: int, h: int, x: int, y: int) -> bool:
 static func draw_range(ci: CanvasItem, tiles: Array, w: int, h: int, x0: int, y0: int, x1: int, y1: int, environment: String) -> void:
 	var atlas := texture(environment, "terrain")
 	var corners := texture(environment, "inner_corners")
-	var props := texture(environment, "decorations")
 	for y in range(y0, y1):
 		for x in range(x0, x1):
 			if tiles[y].unicode_at(x) != 49: continue
@@ -40,9 +39,6 @@ static func draw_range(ci: CanvasItem, tiles: Array, w: int, h: int, x0: int, y0
 				var dy := 1 if corner>=2 else -1
 				if (right if dx==1 else left) and (down if dy==1 else up) and not solid(tiles,w,h,x+dx,y+dy):
 					ci.draw_texture_rect_region(corners,dest,Rect2(corner*8,0,8,8))
-			# Props require two clear cells overhead; they never affect collision.
-			if not up and y>=2 and code%11==0 and not solid(tiles,w,h,x,y-2) and not solid(tiles,w,h,x+1,y-1) and not solid(tiles,w,h,x+1,y-2):
-				ci.draw_texture_rect_region(props,Rect2(x*8,y*8-16,16,16),Rect2((code/11%8)*16,0,16,16))
 # Where the camera is in the room (area) sets the perspective: a smooth shift, at most the 10% overscan
 # (slack) each way, so the picture never jumps. 0 when the room fits the view.
 # Derive a smooth bounded background offset from the camera position within the room.

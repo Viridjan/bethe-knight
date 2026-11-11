@@ -1,0 +1,14 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+FAIL  Fresh resources are integers
+FAIL  Legacy fractional resources truncate on load
+FAIL  Heat rates truncate to whole points
+PASS  Four-block penalty truncates cumulative percentage
+FAIL  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+FAIL  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+FAIL  Attack scores truncate without quantizing timing or geometry
+FAIL  Enemy total score truncates
+FAIL  Deterministic resource tick module exists
+INTEGER RESOURCES: 8 failure(s)

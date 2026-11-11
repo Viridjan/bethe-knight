@@ -1,0 +1,28 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Ordinary charge coverage and cornered condition are valid authoring
+PASS  Ground charge covers every standing escape position and enables its binding
+PASS  Prediction does not move the enemy, alter motion remainder or damage the player
+PASS  A short real charge cannot use the search envelope as damage reach
+PASS  Ordinary corner condition rejects an airborne player
+PASS  An open floor corridor does not qualify
+PASS  Real charge safety stops before intervening spikes
+PASS  A cornered binding starts the ordinary charge through its actual AI decision
+PASS  Coverage can be disabled explicitly
+PASS  Grounded library charge uses the same coverage adapter
+PASS  Library selection receives the real cornered context
+FAIL  Library cornered binding is ineligible in an open corridor
+PASS  Unsupported flying trajectories cannot pretend to use a floor-charge footprint
+FAIL  Editing health then coverage persists both fields on a newly created family profile
+PASS  Unsupported footprint references are rejected
+ORDINARY CORNERED: 2 failure(s)
+WARNING: 1 RID of type "Canvas" was leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2733)
+WARNING: 11 RIDs of type "CanvasItem" were leaked.
+   at: _free_rids (servers/rendering/renderer_canvas_cull.cpp:2735)
+ERROR: 1 RID allocations of type 'N16RendererViewport8ViewportE' were leaked at exit.
+ERROR: 7 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.
+ERROR: 3 RID allocations of type 'PN18TextServerAdvanced22ShapedTextDataAdvancedE' were leaked at exit.
+ERROR: 1 RID allocations of type 'PN18TextServerAdvanced12FontAdvancedE' were leaked at exit.
+WARNING: 89 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

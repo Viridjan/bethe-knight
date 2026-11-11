@@ -117,7 +117,7 @@ class Hud extends Control:
 		var y := M
 		# Two attached resource rows; item counts belong to the map's Items page.
 		if w.heat_drain()>0: draw_rect(Rect2(Vector2.ZERO,sz),Color(0.75,0.12,0.03,0.12))
-		if w.adventure(): ResourceBars.draw(self,Game.adv,bar_color(Game.adv.stamina/Adventure.stamina_max(Game.adv)),minf(360,sz.x*0.28))
+		if w.adventure(): ResourceBars.draw(self,Game.adv,bar_color(float(Game.adv.stamina)/Adventure.stamina_max(Game.adv)),minf(360,sz.x*0.28))
 		# top centre: the area's name
 		var area: String = w.data.get("name", "")
 		var aw := font.get_string_size(area, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x
@@ -239,6 +239,7 @@ var freeze := 0.0
 var shake_t := 0.0
 var trigger_router = null
 var deaths := 0
+var frame := 0  # active physics frames; resource accounting runs every twelve
 var time := 0.0
 var respawn_timer := 0.0
 var parts: Array = []   # [pos, vel, life, color]
@@ -351,7 +352,7 @@ func _ready() -> void:
 		snow.append(Vector2(randf() * VIEW.x, randf() * VIEW.y))
 	_build()
 	_create_tile_layer()
-	tile_layer.setup(tiles, gw, gh, data.get("environment", ""))
+	tile_layer.setup(tiles, gw, gh, data.get("environment", ""), data)
 	if layer_active: Game.get_music_engine().follow_environment(data.get("environment", ""))
 	_load_near()
 	_scan_floor_gaps()
@@ -610,7 +611,7 @@ func enter_room(next: String, at = null, fresh_player := false) -> void:  # fres
 		near_layers.erase(room)
 		tiles = tile_layer.tiles
 	else:
-		tile_layer.setup(tiles, gw, gh, data.get("environment", ""))
+		tile_layer.setup(tiles, gw, gh, data.get("environment", ""), data)
 	_load_near()
 	_scan_floor_gaps()
 	_unstick()
@@ -682,7 +683,7 @@ func _process(_delta: float) -> void:
 	l.z_index = -1
 	l.position = Vector2(r.pos * T) - room_origin
 	add_child(l)
-	l.setup(r.level.tiles, int(r.level.w), int(r.level.h), r.level.get("environment", ""))
+	l.setup(r.level.tiles, int(r.level.w), int(r.level.h), r.level.get("environment", ""),r.level)
 	near_layers[n] = l
 
 # Remember a destroyed wall or persistent boss object in the current run.
@@ -736,25 +737,32 @@ func show_note(text: String) -> void:
 
 # Adventure stamina: regenerates out of water; in water it drains, and running out there drowns the player.
 # Regenerate adventure stamina outside water or drain it underwater, triggering drowning at zero.
-func update_stamina(dt: float) -> void:
+func update_stamina(_dt: float) -> void:
 	if not adventure() or player.dead:
 		return
-	Adventure.Stress.observe_exhaustion(Game.adv, Adventure.stamina_max(Game.adv))
-	var was: float = Game.adv.stamina
-	var why := "regen"
 	var heat := heat_drain()
-	if player.stun_blocks_regen():why="stunned"
-	elif player.state==player.ST_CLIMB:why="climbing"
+	# Regeneration is paced per frame; stun, climbing, water and heat keep the 0.2 s resource tick.
+	var regen: bool = heat <= 0 and not player.stun_blocks_regen() and player.state != player.ST_CLIMB and not in_water()
+	if not regen and frame % Adventure.GameTick.FRAMES != 0:
+		return
+	var tick := frame / Adventure.GameTick.FRAMES
+	Adventure.Stress.observe_exhaustion(Game.adv, Adventure.stamina_max(Game.adv))
+	var was: int = int(Game.adv.stamina)
+	var why := "regen"
+	if regen:Adventure.regen_stamina(Game.adv,frame,Adventure.GameTick.FRAMES_PER_SECOND)
+	elif player.stun_blocks_regen():why="stunned"
+	elif player.state==player.ST_CLIMB:
+		why="climbing"
+		Adventure.drain_stamina(Game.adv,Adventure.GameTick.share(player.climb_drain_per_s(),tick))
 	elif in_water():
 		why="water"
-		if not Adventure.water_stamina(Game.adv,dt):player.die(Vector2.UP)
-	elif heat<=0:Adventure.regen_stamina(Game.adv,dt)
+		if not Adventure.water_stamina(Game.adv,tick):player.die(Vector2.UP)
 	if heat>0 and not player.dead:
 		why="water + heat" if why=="water" else "heat"
-		Adventure.drain_stamina(Game.adv,heat*dt)
+		Adventure.drain_stamina(Game.adv,Adventure.GameTick.share(heat,tick))
 		if Game.adv.stamina<=0:player.die(Vector2.UP)
-	if Game.adv.stamina != was:
-		_tally(why, Game.adv.stamina - was, dt)
+	if Game.adv.stamina != was or was < Adventure.stamina_max(Game.adv) or why != "regen":
+		_tally(why, Game.adv.stamina - was, DT if regen else 0.2)
 
 # Walking onto a Respawn slab: it becomes the respawn point (and the save's).
 func set_respawn(p: Vector2) -> void:
@@ -786,8 +794,12 @@ func safe_spawn(p: Vector2) -> bool:
 	return true
 
 # Check whether the player centre is inside a water entity.
-func heat_drain() -> float:
+func heat_drain() -> int:
 	return preload("res://scripts/progression/environment_rules.gd").heat(data,Game.adv)
+
+# Water and heat drain stamina: a savepoint taken there could respawn the player into a death loop.
+func fatigued() -> bool:
+	return adventure() and (in_water() or heat_drain() > 0)
 
 func in_water() -> bool:
 	return liquid_at(player.hurt_rect(), "water")
@@ -874,7 +886,7 @@ func collect_energy_fragment(key: String) -> bool:
 func spend_melee_stamina(amount: float) -> bool:
 	if not adventure() or Game.settings.get("infinite_stamina", false):
 		return true
-	var was: float = Game.adv.stamina
+	var was: int = int(Game.adv.stamina)
 	if not Adventure.spend_stamina(Game.adv, amount):
 		return false
 	stamina_event("melee", Game.adv.stamina - was)
@@ -882,7 +894,7 @@ func spend_melee_stamina(amount: float) -> bool:
 
 func drain_stamina(amount: float, why := "jump") -> void:
 	if adventure():
-		var was: float = Game.adv.stamina
+		var was: int = int(Game.adv.stamina)
 		Adventure.drain_stamina(Game.adv, amount)
 		stamina_event(why, Game.adv.stamina - was)
 
@@ -918,12 +930,12 @@ func view_rect() -> Rect2:
 	return Rect2(cam.position - VIEW / 2.0, VIEW) if cam != null else Rect2(bounds)
 
 # Add to the F3 recap: how often (or how long) a cause changed stamina, and by how much in all.
-func _tally(why: String, delta: float, amount: float) -> void:
-	var t: Array = stamina_totals.get(why, [0.0, 0.0])
+func _tally(why: String, delta: int, amount: float) -> void:
+	var t: Array = stamina_totals.get(why, [0.0, 0])
 	stamina_totals[why] = [t[0] + amount, t[1] + delta]
 
 # Remember a one-off stamina change and its cause, for the F3 stamina panel (last few only).
-func stamina_event(why: String, delta: float) -> void:
+func stamina_event(why: String, delta: int) -> void:
 	_tally(why, delta, 1.0)
 	stamina_log.push_front([time, why, delta])
 	if stamina_log.size() > 10:
@@ -933,7 +945,7 @@ func stamina_event(why: String, delta: float) -> void:
 func refill_stamina() -> void:
 	Game.play_sfx("refill")
 	if adventure():
-		var was: float = Game.adv.stamina
+		var was: int = int(Game.adv.stamina)
 		Adventure.refill_stamina(Game.adv)
 		stamina_event("stamina orb (refill)", Game.adv.stamina - was)
 
@@ -1050,7 +1062,7 @@ func player_touch(p) -> void:
 
 # At most one selected region activates per contact check, so overlaps cannot thrash saves.
 func activate_checkpoint(p) -> void:
-	if p.dead or done:return
+	if p.dead or done or fatigued():return
 	var hr:Rect2i=p.hurt_rect()
 	var checkpoints:Array=touch_by_type.get("spawn",[]).duplicate()
 	checkpoints.append_array(touch_by_type.get("respawn",[]))
@@ -1196,6 +1208,7 @@ func _physics_process(_delta: float) -> void:
 	if freeze > 0:
 		freeze -= dt
 		return
+	frame += 1
 	time += dt
 	if player.dead:
 		respawn_timer -= dt
@@ -1412,16 +1425,22 @@ func _rest_view(view: Rect2, area: Rect2) -> Rect2:
 
 # Paint room scenery, including visible portions of adjacent rooms during a transition.
 func _draw_background(ci: CanvasItem) -> void:
-	if layer_key!="main":return
 	var view := Rect2(cam.position - VIEW / 2.0, VIEW)
-	Art.draw_background(ci, view, time, data.get("environment", ""), Rect2(0, 0, data.w * T, data.h * T))
+	var room_area := Rect2(0,0,data.w*T,data.h*T)
+	if layer_key!="main":
+		if Art.Scenery.resolve(data.get("environment",""),data.get("backdrop",""))=="outdoors":return
+		var interior := Art.Scenery.interior_bounds(data)
+		if not interior.has_area():return
+		Art.draw_background(ci,view,time,data.get("environment",""),room_area,data.get("backdrop",""),interior)
+		return
+	Art.draw_background(ci, view, time, data.get("environment", ""), room_area, data.get("backdrop",""))
 	if adventure():  # each themed room's painting belongs to its room: it slides in and out with it in a transition
 		for n in [room] + near_layers.keys():
 			var r: Dictionary = Game.adv_world.rooms[n]
 			var area := Rect2(Vector2(r.pos * T) - room_origin, Vector2(r.level.w, r.level.h) * T)
 			var env: String = r.level.get("environment", "")
 			if area.intersects(view) and env in Art.EnvironmentArt.THEMES:
-				Art.EnvironmentArt.draw_background(ci, _rest_view(view, area), env, area, area.intersection(view))
+				Art.draw_background(ci, _rest_view(view, area), time, env, area, r.level.get("backdrop",""), area.intersection(view))
 	for s in (snow if data.get("environment", "") == "" else []):
 		ci.draw_rect(Rect2((view.position + s).floor(), Vector2.ONE), Color(1, 1, 1, 0.35))
 

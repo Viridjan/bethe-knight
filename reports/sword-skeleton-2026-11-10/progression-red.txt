@@ -1,0 +1,17 @@
+F
+======================================================================
+FAIL: test_skeleton_counts_as_sword_reward (test_progression.Progression.test_skeleton_counts_as_sword_reward)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/viridjan/Projects/bethe-knight/tests/test_progression.py", line 10, in test_skeleton_counts_as_sword_reward
+    self.assertEqual(P.power("dead_skeleton:s2_shore:8,39"), "attack")
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'skeleton' != 'attack'
+- skeleton
++ attack
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

@@ -1,7 +1,7 @@
 extends RefCounted
 ## Shared stamina policy and the deliberately tiny, horizontal unarmed hitbox.
-const ATTEMPT_COST := 2.0
-const ENEMY_HIT_COST := 4.0  # once on the first accepted enemy hit, never on walls/shields
+const ATTEMPT_COST := 2
+const ENEMY_HIT_COST := 4  # once on the first accepted enemy hit, never on walls/shields
 const PUNCH_TIME := 0.12
 const PUNCH_ACTIVE_FROM := 0.08
 const PUNCH_ACTIVE_TO := 0.02

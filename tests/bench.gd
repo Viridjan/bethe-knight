@@ -184,7 +184,7 @@ static func level(sc: String) -> Dictionary:
 		"dense":  # 2500 entities above a long corridor
 			d = Game.new_level("bench_dense", 240, 40)
 			d.entities = [{"t": "spawn", "x": 16, "y": 37 * 8}]
-			var touch := ["spikes_up", "refill", "refill_two", "strawberry", "spring_up", "booster", "bumper", "feather"]
+			var touch := ["spikes_up", "stamina_orb", "strawberry", "spring_up", "booster", "bumper", "feather"]
 			for i in 1500:
 				d.entities.append({"t": touch[i % touch.size()], "x": rng.randi_range(2, 237) * 8, "y": rng.randi_range(2, 24) * 8})
 			for i in 1000:
@@ -344,7 +344,7 @@ func _editor_bench() -> void:
 		ed._push_undo()
 	r.undo_stack_static_mem_bytes = Performance.get_monitor(Performance.MEMORY_STATIC) - m0
 	r.undo_us = _time(func(_i): ed._undo(), 20)
-	ed.tool = "refill"
+	ed.tool = "stamina_orb"
 	r.place_point_us = _time(func(i): ed._place_point(Vector2i(5 + i * 3, 3)), 20)
 	ed.tool = "crumble"
 	r.place_rect_us = _time(func(i): ed._place_rect(Vector2i(5 + i * 3, 9), Vector2i(6 + i * 3, 10)), 20)

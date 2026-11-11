@@ -1,0 +1,17 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Dash crystals are absent from the entity catalogue
+PASS  Keeper starts crystal quest without granting a sword
+FAIL  Legacy crystal entities are removed without invalidating saved rooms or layers
+PASS  Dead skeleton is an authorable story entity
+PASS  Dash-crystal consumption API is removed
+PASS  Passing the skeleton does not automatically collect the sword
+PASS  Interact takes the skeleton's sword
+PASS  Repeated interaction leaves the skeleton without duplicate rewards
+PASS  Skeleton sword survives save and continue
+PASS  Sword skeleton is placed after the sand-cave exit
+PASS  Authored skeleton rests on safe permanent ground beyond the cave exit
+PASS  The sword can be reached and taken from the actual Shore entrance without another ability
+PASS  Opposite village branch contains climb reward
+PASS  Village branch reward is reachable with no sword or climb prerequisite
+SWORD SKELETON: 1 failure(s)

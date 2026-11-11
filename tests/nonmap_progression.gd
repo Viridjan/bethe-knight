@@ -17,7 +17,7 @@ func _ready() -> void:
 		var run := Adventure.new_run(world)
 		check(not story.can_sail(run),"Boat is quest-locked initially")
 		story.lighthouse_talk(run)
-		check(run.abilities.has("attack") and run.quests.get("lighthouse_crystals") == "started","Lighthouse quest grants sword and records its stage")
+		check(not run.abilities.has("attack") and run.quests.get("lighthouse_crystals") == "started","Lighthouse quest records its stage without granting the skeleton sword")
 		for i in 3:
 			check(story.collect_crystal(run,"crystal_%d"%i),"A unique quest crystal is collected")
 		check(not story.collect_crystal(run,"crystal_0") and story.count(run,"crystal") == 3,"Crystal collection cannot duplicate on reload or interaction")
@@ -36,8 +36,8 @@ func _ready() -> void:
 		var run := {"stamina":10.0,"stress_blocks":bars,"stress":0.0}
 		for full in bars+1:
 			run.stress=50.0*full
-			check(is_equal_approx(Stress.recovery_multiplier(run),1.0-0.3*full/bars),"Stress penalty follows completed blocks / owned blocks")
+			check(is_equal_approx(Stress.recovery_multiplier(run),(100-int(30*full/bars))/100.0),"Stress penalty follows completed blocks / owned blocks")
 			run.stress=mini(full*50+49,bars*50)
-			check(is_equal_approx(Stress.recovery_multiplier(run),1.0-0.3*full/bars),"Partial stress blocks add no penalty")
+			check(is_equal_approx(Stress.recovery_multiplier(run),(100-int(30*full/bars))/100.0),"Partial stress blocks add no penalty")
 	print("NONMAP PROGRESSION: %d failure(s)"%failures)
 	Game.quit_game(failures)

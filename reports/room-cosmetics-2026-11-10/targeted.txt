@@ -1,0 +1,43 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Unknown cosmetic backdrop IDs are rejected
+PASS  Interior backdrop can override terrain while caves select an enclosed default
+PASS  Ceiling props are generated on actual roof undersides
+PASS  Water regions receive their own cosmetic set
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Hanging art is anchored to its source ceiling
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Underwater art is clipped inside the actual water region
+PASS  Cosmetic placement does not alter terrain, entities or resources
+PASS  Backdrop cave has native-size artwork
+PASS  Backdrop deep_cave has native-size artwork
+PASS  Backdrop sand_cave has native-size artwork
+PASS  Backdrop volcanic_cave has native-size artwork
+PASS  Backdrop house has native-size artwork
+PASS  Backdrop tower has native-size artwork
+PASS  Backdrop ruins has native-size artwork
+PASS  Backdrop underwater has native-size artwork
+PASS  Backdrop flooded_ruins has native-size artwork
+PASS  Backdrop canopy has native-size artwork
+PASS  Backdrop marsh has native-size artwork
+PASS  Backdrop plateau has native-size artwork
+PASS  Backdrop changes leave environment and heat behavior unchanged
+PASS  Cosmetic backdrop edits participate in undo
+ROOM COSMETICS: 0 failure(s)

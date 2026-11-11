@@ -1,0 +1,97 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Fresh resources are integers
+PASS  Legacy fractional resources truncate on load
+PASS  Heat rates truncate to whole points
+PASS  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+PASS  Four-block penalty truncates cumulative percentage
+PASS  Attack scores truncate without quantizing timing or geometry
+PASS  Enemy total score truncates
+PASS  Integer interpolation at 0 stamina
+PASS  Integer interpolation at 11 stamina
+PASS  Integer interpolation at 22 stamina
+PASS  Integer interpolation at 33 stamina
+PASS  Integer interpolation at 44 stamina
+PASS  Room validation rejects fractional resource rates
+PASS  Five consecutive ticks preserve whole rate 0
+PASS  Five consecutive ticks preserve whole rate 1
+PASS  Five consecutive ticks preserve whole rate 2
+PASS  Five consecutive ticks preserve whole rate 3
+PASS  Five consecutive ticks preserve whole rate 4
+PASS  Five consecutive ticks preserve whole rate 5
+PASS  Five consecutive ticks preserve whole rate 6
+PASS  Five consecutive ticks preserve whole rate 7
+PASS  Five consecutive ticks preserve whole rate 8
+PASS  Five consecutive ticks preserve whole rate 9
+PASS  Five consecutive ticks preserve whole rate 10
+PASS  Five consecutive ticks preserve whole rate 11
+PASS  Five consecutive ticks preserve whole rate 12
+PASS  Five consecutive ticks preserve whole rate 13
+PASS  Five consecutive ticks preserve whole rate 14
+PASS  Five consecutive ticks preserve whole rate 15
+PASS  Five consecutive ticks preserve whole rate 16
+PASS  Five consecutive ticks preserve whole rate 17
+PASS  Five consecutive ticks preserve whole rate 18
+PASS  Five consecutive ticks preserve whole rate 19
+PASS  Five consecutive ticks preserve whole rate 20
+PASS  Five consecutive ticks preserve whole rate 21
+PASS  Five consecutive ticks preserve whole rate 22
+PASS  Five consecutive ticks preserve whole rate 23
+PASS  Five consecutive ticks preserve whole rate 24
+PASS  Five consecutive ticks preserve whole rate 25
+PASS  Five consecutive ticks preserve whole rate 26
+PASS  Five consecutive ticks preserve whole rate 27
+PASS  Five consecutive ticks preserve whole rate 28
+PASS  Five consecutive ticks preserve whole rate 29
+PASS  Five consecutive ticks preserve whole rate 30
+PASS  Five consecutive ticks preserve whole rate 31
+PASS  Five consecutive ticks preserve whole rate 32
+PASS  Five consecutive ticks preserve whole rate 33
+PASS  Five consecutive ticks preserve whole rate 34
+PASS  Five consecutive ticks preserve whole rate 35
+PASS  Five consecutive ticks preserve whole rate 36
+PASS  Five consecutive ticks preserve whole rate 37
+PASS  Five consecutive ticks preserve whole rate 38
+PASS  Five consecutive ticks preserve whole rate 39
+PASS  Five consecutive ticks preserve whole rate 40
+PASS  Five consecutive ticks preserve whole rate 41
+PASS  Five consecutive ticks preserve whole rate 42
+PASS  Five consecutive ticks preserve whole rate 43
+PASS  Five consecutive ticks preserve whole rate 44
+PASS  Five consecutive ticks preserve whole rate 45
+PASS  Five consecutive ticks preserve whole rate 46
+PASS  Five consecutive ticks preserve whole rate 47
+PASS  Five consecutive ticks preserve whole rate 48
+PASS  Five consecutive ticks preserve whole rate 49
+PASS  Five consecutive ticks preserve whole rate 50
+PASS  Five consecutive ticks preserve whole rate 51
+PASS  Five consecutive ticks preserve whole rate 52
+PASS  Five consecutive ticks preserve whole rate 53
+PASS  Five consecutive ticks preserve whole rate 54
+PASS  Five consecutive ticks preserve whole rate 55
+PASS  Five consecutive ticks preserve whole rate 56
+PASS  Five consecutive ticks preserve whole rate 57
+PASS  Five consecutive ticks preserve whole rate 58
+PASS  Five consecutive ticks preserve whole rate 59
+PASS  Five consecutive ticks preserve whole rate 60
+PASS  Physics advances on a frame without resource accounting
+PASS  Pause does not advance the resource clock
+PASS  Hit freeze does not advance the resource clock
+PASS  Inactive layer does not advance the resource clock
+PASS  Continuous resources do not change between tick frames
+PASS  Jump costs apply immediately between ticks
+PASS  Resource tick regenerates whole points
+PASS  Low heat rate loses exactly two points per second without regeneration
+PASS  Climbing up loses eleven whole points per second
+PASS  Holding a wall loses two points per second
+PASS  Heat adds to climbing drain
+PASS  Water and heat combine to forty-two points per second
+PASS  Heat still drains during stun without regeneration
+PASS  Climb jump immediately pays six plus the ordinary five-point jump cost
+PASS  Attack cost is immediate between ticks
+PASS  F3 regeneration presents integer rates and percentages
+PASS  Hard landing records exhaustion immediately between resource ticks
+INTEGER RESOURCES: 0 failure(s)

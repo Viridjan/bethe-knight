@@ -13,15 +13,14 @@ Use the current documents below for work. Dated reports and old prompts preserve
 | Retained interiors and layer passages | [Room layers](ROOM_LAYERS.md) |
 | Room/world editing and reachability tools | [World design](WORLD_DESIGN.md), [selection/snapping](WORLD_EDITOR_SELECTION.md), [progression explorer](PROGRESSION_REPORT.md), [terrain morphing](TERRAIN_MORPHING.md), [respawns](RESPAWN_POINTS.md) |
 | Attacks, enemies, patrols | [Catalogue](ATTACK_CATALOG.md), [enemies](ENEMIES.md), [patrol authoring](PATROL_AUTHORING.md) |
-| Plans awaiting implementation / decisions | [Whole-number tick](plans/WHOLE_NUMBERS_TICK.md), [mechanics architecture](MECHANICS_ARCHITECTURE_PLAN.md), [attack scoring](ATTACK_SCORING_PLAN.md), [enemy patterns](ENEMY_PATTERNS.md), [older character/Kraken proposals](BETHE_KNIGHT_DESIGN.md) |
+| Plans awaiting implementation / decisions | [mechanics architecture](MECHANICS_ARCHITECTURE_PLAN.md), [attack scoring](ATTACK_SCORING_PLAN.md), [enemy patterns](ENEMY_PATTERNS.md), [older character/Kraken proposals](BETHE_KNIGHT_DESIGN.md) |
 | Merged reviews, delivery evidence and historical design | [Reports](../reports/README.md) |
 
 ## Confirmed resource and timing rules
 
-Physics and inputs retain normal precision and responsiveness. Whole-number rules apply to
-resources and scores; the planned resource tick does not drive movement, input or attacks.
-Stress uses completed blocks with a maximum 30% penalty. Both former conflicts are resolved;
-the resource-tick migration is still pending. Details: [decision record](DOCUMENT_CONFLICTS.md)
+The [whole-number tick](plans/WHOLE_NUMBERS_TICK.md) is implemented. Physics and inputs retain normal precision and responsiveness. Whole-number rules apply to
+resources and scores; the resource tick does not drive movement, input or attacks.
+Stress uses completed blocks with a maximum 30% penalty. Both former conflicts are resolved. Details: [decision record](DOCUMENT_CONFLICTS.md)
 and [implementation plan](plans/WHOLE_NUMBERS_TICK.md).
 
 ## Maintaining one source of truth

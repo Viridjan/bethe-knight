@@ -10,7 +10,7 @@ Updated 2026-11-08. A checkpoint has a user-defined **activation rectangle** and
 4. The outline previews the actual respawn position. Unsupported selections are rejected; a region made unsafe by later terrain edits appears red and cannot be saved until fixed. Painting/erasing terrain refreshes the preview when the stroke ends.
 5. Right-click an area to remove it; redraw to change its bounds. Undo restores the previous region. Multiple checkpoints are allowed; placing a new one does not remove the others.
 
-Entering any part of the selected region activates its anchor, including while jumping, falling or climbing. The player does **not** need to touch the ground marker. Activation is silent, without particles or a stamina refill. An unchanged checkpoint is not repeatedly saved.
+Entering any part of the selected region activates its anchor, including while jumping, falling or climbing. A checkpoint does not activate while the player is fatigued: in water or in a room whose heat drains stamina. Saving there could respawn the player straight into another death. The player does **not** need to touch the ground marker. Activation is silent, without particles or a stamina refill. An unchanged checkpoint is not repeatedly saved.
 
 If regions overlap, the smaller/more specific rectangle wins; equal-sized regions choose the nearer anchor. Only one can activate during a contact check, preventing repeated save changes from overlapping zones.
 

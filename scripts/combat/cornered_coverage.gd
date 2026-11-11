@@ -1,5 +1,6 @@
 extends RefCounted
 ## Pure geometry: the caller supplies real attack damage and solid/support queries.
+const FloorMotion := preload("res://scripts/motion/surface_patrol.gd")
 const TILE := 8
 const WALL_HEIGHT := 3*TILE
 const MAX_SCAN := 4096
@@ -57,3 +58,25 @@ static func evaluate(enemy: Rect2i, player: Rect2i, damage: Rect2i, grounded: bo
 		checked += 1
 	if checked == 0: return no("no clear standing positions")
 	return {"cornered":true,"reason":"floor corridor covered","wall":wall,"tracer":tracer}
+
+# Replay the real floor controller against read-only queries; never mutate the actor.
+# bounds is the facing-independent search envelope; hits uses only the actual swept body.
+static func ground_charge(body: Rect2i, direction: int, per_tick: float, maximum: float, remainder: float, safe: Callable, blocked: Callable) -> Dictionary:
+	if direction == 0 or not is_finite(per_tick) or not is_finite(maximum) or per_tick <= 0 or maximum <= 0 or per_tick > MAX_SCAN or maximum + per_tick > MAX_SCAN: return {}
+	var motion := FloorMotion.Floor.new()
+	motion.remainder = remainder
+	var state := {"body":body,"sweep":body}
+	var moved := func(at):
+		state.body = at
+		state.sweep = state.sweep.merge(at)
+	var supported := func(): return safe.call(state.body,direction)
+	var travelled := 0.0
+	for tick in MAX_SCAN:
+		travelled += per_tick
+		var stopped := motion.advance(state.body,per_tick,direction,supported,blocked,moved)
+		if stopped or travelled >= maximum:
+			var reach := maximum + per_tick + body.size.x
+			var bounds := Rect2(body.get_center().x-reach,body.position.y,2*reach,body.size.y)
+			var sweep: Rect2i = state.sweep
+			return {"bounds":bounds,"hits":func(box): return sweep.intersects(box),"sweep":sweep}
+	return {}  # too slow/long for a bounded forecast; never claim partial coverage

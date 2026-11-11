@@ -46,7 +46,9 @@ Physics and input handling retain their normal precision and update cadence. Mov
 collision/movement remainders, input sampling/buffering, and attack timings/speeds may use decimals. Do not
 quantize them or move them onto a slow resource tick. Preserve the 60 Hz physics step and responsive controls.
 
-The planned 0.2-second tick applies only to continuous resource accounting; it is not a physics or input tick.
+The 0.2-second tick applies only to continuous resource accounting; it is not a physics or input tick.
+Stamina regeneration is the exception (designer, 2026-11-11): it stays whole-number but is paced per physics
+frame, one point at a time; environmental and climbing drains keep the tick.
 See `docs/plans/WHOLE_NUMBERS_TICK.md`. Stress uses completed blocks with a maximum 30% regeneration penalty;
 the old interpolated 35% rule is superseded. This scope was clarified by the designer on 2026-11-07.
 

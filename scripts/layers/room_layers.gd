@@ -63,7 +63,6 @@ func activate(id: String, at: Vector2) -> bool:
 	actor.attack_hit.clear()
 	actor.attack_timer=0
 	actor.attack_buf=0
-	actor.punch_buf=0
 	actor.dash_attack_timer=0
 	actor._set_state(actor.ST_NORMAL)
 	actor.speed=Vector2.ZERO

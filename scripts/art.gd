@@ -8,6 +8,7 @@ extends RefCounted
 # Sprite drawing helpers for the Paper Pixels pack (CC0, VEXED) in assets/paper-pixels.
 # Sheet coordinates below are 8x8 cells unless noted as pixel rects.
 
+const Scenery := preload("res://scripts/room_scenery_art.gd")
 const EnvironmentArt := preload("res://scripts/environment_art.gd")
 
 const TILES := preload("res://assets/paper-pixels/Tiles.png")
@@ -132,9 +133,13 @@ static func draw_tile_range(ci: CanvasItem, tiles: Array, gw: int, gh: int, x0: 
 
 # Parallax backdrop: moon, drifting clouds, tree line.
 # Draw the default background treatment for a supplied camera view.
-static func draw_background(ci: CanvasItem, view: Rect2, t: float, environment := "", area := Rect2()) -> void:
+static func draw_background(ci: CanvasItem, view: Rect2, t: float, environment := "", area := Rect2(), backdrop := "", clip := Rect2()) -> void:
+	var style := Scenery.resolve(environment,backdrop)
+	if style != "outdoors":
+		Scenery.draw_background(ci,view,style,area,clip)
+		return
 	if environment in EnvironmentArt.THEMES:
-		EnvironmentArt.draw_background(ci, view, environment, area)
+		EnvironmentArt.draw_background(ci, view, environment, area, clip)
 		return
 	ci.draw_rect(view.grow(16), SKY)
 	var moon_at := view.position + Vector2(view.size.x * 0.72, 18) + EnvironmentArt.parallax_shift(view, area) * 0.3

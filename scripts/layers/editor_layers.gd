@@ -48,7 +48,7 @@ func select(id: String) -> bool:
 	editor.rect_start=null
 	editor.sel=Rect2i()
 	editor._sync_fields()
-	editor.tile_layer.setup(editor.level.tiles,editor.level.w,editor.level.h,editor.level.get("environment",""))
+	editor.tile_layer.setup(editor.level.tiles,editor.level.w,editor.level.h,editor.level.get("environment",""),editor.level)
 	editor._refresh()
 	refresh_picker()
 	return true

@@ -17,22 +17,28 @@ class Chunk extends Node2D:
 	var cells: Rect2i
 	var draw_count := 0
 	var environment := ""
+	var cosmetic_data := {}
 
 	# Draw this helper node from its owner data; it is presentation only.
 	func _draw() -> void:
 		draw_count += 1
+		var document: Dictionary = cosmetic_data.duplicate()
+		document.merge({"tiles":tiles,"w":level_size.x,"h":level_size.y,"environment":environment},true)
+		Art.Scenery.draw_decorations(self,document,cells)
 		Art.draw_tile_range(self, tiles, level_size.x, level_size.y,
 			cells.position.x, cells.position.y, cells.end.x, cells.end.y, environment)
 
 var environment := ""
+var has_scenery := false
 var tiles: Array = []
 var level_size := Vector2i.ZERO
 var chunk_grid := Vector2i.ZERO
 var chunks: Array[Chunk] = []
 
 # Replace old chunks and partition the shared terrain array into non-overlapping drawable regions.
-func setup(level_tiles: Array, w: int, h: int, room_environment := "") -> void:
+func setup(level_tiles: Array, w: int, h: int, room_environment := "", room_data: Dictionary = {}) -> void:
 	environment = room_environment
+	has_scenery = environment != "" or Art.Scenery.theme_for(room_data) in Art.Scenery.EnvironmentArt.THEMES
 	for chunk in chunks:
 		remove_child(chunk)
 		chunk.free()
@@ -43,6 +49,7 @@ func setup(level_tiles: Array, w: int, h: int, room_environment := "") -> void:
 	for y in chunk_grid.y:
 		for x in chunk_grid.x:
 			var chunk := Chunk.new()
+			chunk.cosmetic_data = room_data
 			chunk.environment = environment
 			chunk.tiles = tiles
 			chunk.level_size = level_size
@@ -60,9 +67,9 @@ func mark_cell_dirty(c: Vector2i) -> Array[Vector2i]:
 	if not Rect2i(Vector2i.ZERO, level_size).has_point(c):
 		return marked
 	var offsets := [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]
-	if environment != "":
-		# Concave caps read diagonals; 16px surface props also read two cells above.
-		for dy in range(-2, 3):
+	if has_scenery:
+		# Surface props read up to three cells above or below their source cell.
+		for dy in range(-3, 4):
 			for dx in range(-1, 2):
 				if Vector2i(dx, dy) not in offsets: offsets.append(Vector2i(dx, dy))
 	for offset in offsets:
@@ -74,3 +81,7 @@ func mark_cell_dirty(c: Vector2i) -> Array[Vector2i]:
 			marked.append(index)
 			chunks[index.y * chunk_grid.x + index.x].queue_redraw()
 	return marked
+
+# Cosmetic water/prop edits invalidate retained drawings without rebuilding collision data.
+func refresh_cosmetics() -> void:
+	for chunk in chunks:chunk.queue_redraw()

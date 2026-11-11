@@ -1,0 +1,6 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+FAIL  Ordinary charge coverage and cornered condition are valid authoring
+FAIL  Ordinary enemies expose a real coverage/context adapter
+PASS  Unsupported footprint references are rejected
+ORDINARY CORNERED: 2 failure(s)

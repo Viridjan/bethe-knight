@@ -8,7 +8,7 @@ func _ready() -> void:
 	Game.editor_return = "menu"
 	var fixture := Game.new_level("Resize",20,16)
 	fixture.tiles[5] = fixture.tiles[5].substr(0,5)+"1"+fixture.tiles[5].substr(6)
-	fixture.entities = [{"t":"zip","x":40,"y":40,"w":8,"h":8,"tx":80,"ty":56}, {"t":"refill","x":48,"y":48,"motion":{"mode":"path","speed":2,"points":[[48,48],[64,48]]}}]
+	fixture.entities = [{"t":"zip","x":40,"y":40,"w":8,"h":8,"tx":80,"ty":56}, {"t":"stamina_orb","x":48,"y":48,"motion":{"mode":"path","speed":2,"points":[[48,48],[64,48]]}}]
 	Game.editor_level = fixture
 	var editor = load("res://scripts/editor.gd").new()
 	add_child(editor)
@@ -79,7 +79,7 @@ func check_world_save(editor, fixture: Dictionary) -> void:
 	var manifest_before := FileAccess.get_file_as_string(Game.world_path)
 	after.entities[-1].motion = {"mode":"path","speed":2,"points":[[88,64],[144,64]]}
 	# Use a movable object for this variant-only path.
-	after.entities[-1].t = "refill"
+	after.entities[-1].t = "stamina_orb"
 	Game.save_level(after,folder,"a_after")
 	editor._resize_bounds(Rect2i(0,0,14,16))
 	check(not editor._save() and Game.load_level("a",folder).w == 20 and Game.load_level("a_after",folder).w == 20 and FileAccess.get_file_as_string(Game.world_path) == manifest_before,"A variant-only path cut refuses saving without partially changing saved files")

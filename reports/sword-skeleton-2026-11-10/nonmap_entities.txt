@@ -1,0 +1,32 @@
+Godot Engine v4.7.2.stable.arch_linux.ed1daf0bf (2026-08-17 01:18:38 UTC) - https://godotengine.org
+
+PASS  Quest crystals cannot be claimed before speaking to the keeper
+PASS  Real keeper starts the quest without granting a sword
+PASS  Real crystal is an explicit interactable unique inventory pickup
+PASS  Stress upgrade adds one persistent capacity block
+PASS  Room rebuild cannot duplicate quest or stress pickups
+PASS  Map overlay exposes Items and Abilities tabs
+PASS  Abilities page lists the acquired sword
+PASS  Resource rows are attached and stress segmentation follows owned capacity
+PASS  Thick water uses real water immersion rules
+PASS  Thick-water steering is slower than normal water
+PASS  Heat causes net energy loss rather than being cancelled by regeneration
+PASS  Heat-resistance ability disables the heat drain and tint
+PASS  Acquired double jump grants one real airborne jump
+PASS  The double jump cannot repeat infinitely in one airtime
+PASS  Real NPC denies rewards without required items
+PASS  Repeated direct item interaction cannot duplicate a key
+PASS  Real NPC consumes key and grants its reward only once
+PASS  Giant foot finds the floor and leaves a passable gap while raised
+PASS  Giant warns before the damaging stomp
+PASS  Giant stomp lands on the floor and creates a short ground wave
+PASS  Room validation rejects malformed story transactions
+PASS  Real boat refuses travel until the quest is turned in
+PASS  Unlocked boat starts a playable crossing without editing a map
+PASS  Successful crossing transfers to configured dock and persistently loses the boat
+PASS  Editor environment selection exposes the default volcanic heat
+PASS  Editor authors whole heat drain
+PASS  Heat-setting undo restores implicit room defaults
+PASS  Pasted quest pickups receive a new persistent ID
+PASS  Story entity settings are reachable in the editor
+NONMAP ENTITIES: 0 failure(s)

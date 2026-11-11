@@ -30,6 +30,8 @@ BOSSES = {"ape": "a1_ape_arena:ape_", "guardian": "i16_guardian_chamber:guardian
 
 def power(key):  # "ability_dash:room:x,y" -> "dash", "boss_ape:..." -> "ape"
     t = key.split(":")[0]
+    if t == "dead_skeleton":
+        return "attack"
     return t[len("ability_"):] if t.startswith("ability_") else t[len("boss_"):]
 
 
@@ -106,7 +108,7 @@ def _survey_one(job):
             markers=[e for e in level['entities'] if e['t'] in ('spawn','respawn')]
             if markers: starts=[(ox+marker_origin(e)[0]//T,oy+marker_origin(e)[1]//T) for e in markers]
     ground, touched = explore(_W, dict(TIERS)[tier], set(abilities), starts)
-    return ground, [k for k in touched if k.startswith("ability_") or k.startswith("boss_")]
+    return ground, [k for k in touched if k.startswith("ability_") or k.startswith("boss_") or k.startswith("dead_skeleton:")]
 
 
 # Explore several ability sets under every model at once; per set: {cell: tier} (best tier wins), pickups per tier.
@@ -251,7 +253,7 @@ def build(world_dir):
     W = World(world_dir)
     base, walls = set(W.solid), breakwalls(W)
     nodes, order = {}, []
-    placed = {t[len("ability_"):] for items in W.items.values() for t, _, _ in items if t.startswith("ability_")}
+    placed = {power(t) for items in W.items.values() for t, _, _ in items if t.startswith("ability_") or t == "dead_skeleton"}
     starting = frozenset(json.loads(Path(world_dir, "world.json").read_text()).get("abilities", []))
     unplaced = [a for a in ABILITIES if a not in placed and a not in starting]  # no pickup in the world yet: dashed "what if" branches
     todo = [starting]

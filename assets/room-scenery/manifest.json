@@ -1,0 +1,44 @@
+{
+	"backdrop_size": [
+		320,
+		180
+	],
+	"backdrops": [
+		"cave",
+		"deep_cave",
+		"sand_cave",
+		"volcanic_cave",
+		"house",
+		"tower",
+		"ruins",
+		"underwater",
+		"flooded_ruins",
+		"canopy",
+		"marsh",
+		"plateau"
+	],
+	"cosmetic_only": true,
+	"decoration_cell": [
+		16,
+		24
+	],
+	"decoration_columns": 8,
+	"provenance": "Original deterministic pixel art; no third-party images.",
+	"source": "scripts/room_scenery_art.gd",
+	"themes": [
+		"sand",
+		"sea",
+		"cavern",
+		"cavern_deep",
+		"sky",
+		"temple",
+		"building",
+		"forest",
+		"island_shore",
+		"volcano",
+		"volcanic_cave",
+		"marsh",
+		"rocky_plateau",
+		"ruins"
+	]
+}

@@ -188,7 +188,8 @@
 			"legacy_offset": [
 				40,
 				0
-			]
+			],
+			"backdrop": "house"
 		},
 		"h2_quest_house": {
 			"name": "Quest Giver's House",
@@ -263,7 +264,8 @@
 			"legacy_offset": [
 				40,
 				0
-			]
+			],
+			"backdrop": "house"
 		}
 	}
 }

@@ -22,7 +22,7 @@ func _ready() -> void:
 		check(Adventure.Story.count(Game.adv,"crystal")==0,"Quest crystals cannot be claimed before speaking to the keeper")
 		p().interact=true
 		npc.touch(p())
-		check(Game.has_ability("attack") and w.dialogue!=null,"Real keeper grants sword and opens dialogue")
+		check(not Game.has_ability("attack") and w.dialogue!=null,"Real keeper starts the quest without granting a sword")
 		w.dialogue.finish()
 		p().interact=true
 		crystal.touch(p())
@@ -37,6 +37,7 @@ func _ready() -> void:
 		w.ui.add_child(map)
 		map._set_tab(2)
 		check(map.TABS==["Map","Monsters","Items","Abilities"] and map.progress.visible,"Map overlay exposes Items and Abilities tabs")
+		w.grant_ability("attack")
 		map._set_tab(3)
 		check(map.progress_content.get_children().any(func(n):return n is Label and n.text=="Sword"),"Abilities page lists the acquired sword")
 		map.free()
@@ -51,7 +52,8 @@ func _ready() -> void:
 		fixture([])
 		w.data.heat_drain=2.0
 		Game.adv.stamina=20
-		w.update_stamina(1)
+		for tick in 5:
+			w.frame=tick*12;w.update_stamina(DT)
 		check(is_equal_approx(Game.adv.stamina,18),"Heat causes net energy loss rather than being cancelled by regeneration")
 		Game.adv.abilities.append("heat_resist")
 		check(w.heat_drain()==0,"Heat-resistance ability disables the heat drain and tint")
@@ -107,7 +109,7 @@ func _ready() -> void:
 	editor.environment_pick.item_selected.emit(editor.environment_pick.selected)
 	check(editor.level.environment=="volcano" and editor.heat_spin.value==2,"Editor environment selection exposes the default volcanic heat")
 	editor.heat_spin.value=3.25
-	check(editor.level.heat_drain==3.25,"Editor authors fractional heat drain")
+	check(editor.level.heat_drain is int and editor.level.heat_drain==3,"Editor authors whole heat drain")
 	editor._undo()
 	check(not editor.level.has("heat_drain") and editor.heat_spin.value==2,"Heat-setting undo restores implicit room defaults")
 	editor.clip={"w":2,"h":2,"tiles":["00","00"],"entities":[{"t":"quest_crystal","id":"original","x":0,"y":0}]}

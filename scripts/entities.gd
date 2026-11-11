@@ -34,12 +34,13 @@ const CorneredCoverage := preload("res://scripts/combat/cornered_coverage.gd")
 # type id (saved in level JSON) -> [editor label, sized (drag a rect in the editor), palette color, class]
 # See docs/ADDING_ENTITIES.md before adding a type.
 # Registry row layout: [editor label, can drag to size, representative color, implementation class].
-# JSON uses the string key (for example refill), not the class name.
+# JSON uses the string key (for example stamina_orb), not the class name.
 const TYPES := {
 	"trap_spikes": ["Timed retracting spikes", true, Color("e3a661"), TimedSpikes],
 	"trigger_zone": ["Enter/exit trigger", true, Color("65dec6"), LinkedTrigger],
 	"pressure_plate": ["Pressure plate", true, Color("b3c976"), LinkedTrigger],
-	"lighthouse_keeper": ["Lighthouse Keeper (Sword Quest)", false, Color("b6a1df"), LighthouseKeeper],
+	"dead_skeleton": ["Dead Skeleton (Sword)", false, Color("cdc8ab"), DeadSkeleton],
+	"lighthouse_keeper": ["Lighthouse Keeper (Crystal Quest)", false, Color("b6a1df"), LighthouseKeeper],
 	"quest_crystal": ["Quest Crystal", false, Color("8addff"), QuestCrystal],
 	"stress_block": ["Stress Capacity Upgrade", false, Color("c58ad0"), StressBlock],
 	"item_pickup": ["Inventory Item", false, Color("ddc984"), ItemPickup],
@@ -58,8 +59,6 @@ const TYPES := {
 	"spring_up": ["Spring ^", false, Color("e0a030"), Spring],
 	"spring_left": ["Spring <", false, Color("e0a030"), Spring],
 	"spring_right": ["Spring >", false, Color("e0a030"), Spring],
-	"refill": ["Dash Crystal", false, Color("4ee05a"), Refill],
-	"refill_two": ["Double Crystal", false, Color("ff6def"), Refill],
 	"strawberry": ["Star", false, Color("ffd34e"), Star],  # id kept for old level files
 	"energy_fragment": ["Energy Fragment (Interact)", false, Color("8ce1cc"), Discovery],
 	"discovery_npc": ["Character (Interact)", false, Color("a4b7cf"), Discovery],
@@ -171,7 +170,7 @@ static func make(w, d: Dictionary):
 #   draw(ci)   stay inside vis_rect()   touch(p)    player hurtbox overlaps touch_rect()
 #   respawn    seconds until usable again (convention for pickups)
 #   Player hooks entities may call: die, bounce, super_bounce, side_bounce, explode_launch,
-#   use_refill, refill_dash, refill_stamina, boost, start_star_fly, set_lift_speed.
+#   refill_dash, refill_stamina, boost, start_star_fly, set_lift_speed.
 #   World hooks: freeze_for, shake_dir, burst, dust, collect_berry, complete.
 # Base contract shared by all placed objects. Flags choose which World collision lists contain it.
 # These objects are not Nodes: World must call update(), touch() and draw() itself.
@@ -564,36 +563,6 @@ class Spring extends Ent:
 				ci.draw_rect(Rect2(r.end.x - 2 + ext, r.position.y, 2, 8), pad)
 
 
-# Dash/stamina crystal. It disappears temporarily only when the player actually benefits from using it.
-class Refill extends Ent:
-	var two := false
-	var t := 0.0
-	# Initialize Refill dimensions, collision flags and starting data before World uses the object.
-	func setup() -> void:
-		two = d.t == "refill_two"
-		rect = Rect2i(rect.position.x, rect.position.y, 8, 8)  # exactly the sprite
-	# Advance Refill timers and behavior for dt seconds; this is called by World, not by Godot automatically.
-	func update(dt: float) -> void:
-		t += dt
-		if respawn > 0:
-			respawn -= dt
-	# Apply Refill interaction when World reports an overlapping player.
-	func touch(p) -> void:
-		if respawn <= 0 and p.use_refill(two):
-			w.freeze_for(0.05)
-			w.burst(center(), Color("ff6def") if two else Color("4ee05a"), 8)
-			respawn = 2.5
-	# Draw Refill at its current pose; this must also work for an editor preview with no World.
-	func draw(ci: CanvasItem) -> void:
-		var c := center() + Vector2(0, round(sin(t * 3) * 1.0))
-		if respawn > 0:
-			ci.draw_arc(c, 2, 0, TAU, 8, Color(1, 1, 1, 0.3), 1.0)
-			return
-		var col := Color("ff6def") if two else Color("4ee05a")
-		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -5), c + Vector2(4, 0), c + Vector2(0, 5), c + Vector2(-4, 0)]), col)
-		ci.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -3), c + Vector2(1.5, 0), c + Vector2(0, 1), c + Vector2(-1.5, 0)]), col.lightened(0.6))
-
-
 # Adventure pickup that unlocks one movement ability for the rest of the run.
 class AbilityOrb extends Ent:  # adventure pickup that unlocks a move for the rest of the run
 	var ability := ""
@@ -930,19 +899,47 @@ class CombatEnemy extends Ent:
 	func _binding() -> Array:  # its row in enemy_attacks.csv (empty: removed in the Monster Editor, so it never attacks)
 		return AttackCatalog.shared().ordered_attacks(family(), "default", [attack_id()]) if attack_id() != "" else []
 	func atk_range(fallback_px: float) -> float:  # its range binding's maximum, in px (0 without a binding)
-		if AttackCatalog.shared().assignments.is_empty(): return fallback_px  # catalogue failed to load
+		if not AttackCatalog.shared().loaded: return fallback_px  # catalogue failed to load
 		var rules := _binding()
 		return 0.0 if rules.is_empty() else AttackCatalog.max_range(rules[0]) * T
 	func atk_ready() -> bool:  # bound, past its minimum range, and not skipped (a skipped attack waits its recovery)
 		if skip_cd > 0: return false
 		var rules := _binding()
-		if rules.is_empty(): return AttackCatalog.shared().assignments.is_empty()
+		if rules.is_empty(): return not AttackCatalog.shared().loaded
 		if w != null and w.player != null and center().distance_to(w.player.center()) < float(rules[0].min_range_units) * T * scale: return false
+		if AttackCatalog.attack_condition(rules[0]) == "player_cornered" and not _cornered(w.player if w != null else null): return false
 		var skip := str(rules[0].get("skip_chance", ""))
 		if skip != "" and randf() * 100.0 < float(skip):
 			skip_cd = maxf(0.5, atk("recovery_s", 1.0))
 			return false
 		return true
+
+	func floor_charge_available() -> bool:
+		return false
+
+	func _cornered_coverage(p) -> Dictionary:
+		if w == null or motion_driven or not floor_charge_available(): return {}
+		if w.collide_solid(Rect2i(rect.position.x,rect.end.y,rect.size.x,1)) == null: return {}
+		var selected: String = AttackCatalog.shared().enemy_profile(family()).get("cornered_coverage_attack","")
+		if selected != "charge": return {}
+		var direction := signi(int(p.center().x-center().x))
+		var speed: float = AttackCatalog.shared().value("charge","initial_speed_units_s",13.75)*T*speed_multiplier
+		var maximum: float = AttackCatalog.shared().value("charge","max_distance_units",16.5)*T
+		return CorneredCoverage.ground_charge(rect,direction,speed*w.DT*Game.settings.game_speed,maximum,floor_patrol.remainder,safe_step_at,blocked)
+
+	func _cornered(p) -> bool:
+		if w == null or p == null or p.dead or not p.on_ground or not collidable: return false
+		var footprint := _cornered_coverage(p)
+		if footprint.is_empty(): return false
+		var solid := func(box): return w.collide_solid(box,self) != null
+		var support := func(box): return solid.call(box) or w.collide_jumpthru_outside(box,Rect2i(box.position-Vector2i(0,1),box.size)) != null
+		return CorneredCoverage.evaluate(rect,p.hitbox(),p.damage_rect(),p.on_ground,footprint,solid,support).cornered
+
+	func attack_context() -> Dictionary:
+		if w == null: return {}
+		var rows: Array = AttackCatalog.shared().ordered_attacks(family(),"default")
+		if not rows.any(func(row): return AttackCatalog.attack_condition(row)=="player_cornered"): return {}
+		return {"player_cornered":_cornered(w.player)}
 
 	# Return the base family ID so variants can share art and common metadata.
 	func family() -> String:
@@ -990,11 +987,14 @@ class CombatEnemy extends Ent:
 	# its box's leading edge exactly over the edge of the ground.
 	# Check that the leading foot has support and will not step into nearby spikes or acid.
 	func safe_step() -> bool:
-		var foot := Rect2i(rect.end.x if facing > 0 else rect.position.x - 1, rect.end.y, 1, 2)
+		return safe_step_at(rect,facing)
+
+	func safe_step_at(body: Rect2i, direction: int) -> bool:
+		var foot := Rect2i(body.end.x if direction > 0 else body.position.x - 1, body.end.y, 1, 2)
 		if w.collide_solid(foot) == null:
 			return false
 		for entity in w.touchables:
-			if entity.collidable and (entity.d.t == "acid" or entity.d.t.begins_with("spikes_")) and entity.rect.intersects(Rect2i(rect.position + Vector2i(facing * 2, 0), rect.size).grow(2)):
+			if entity.collidable and (entity.d.t == "acid" or entity.d.t.begins_with("spikes_")) and entity.rect.intersects(Rect2i(body.position + Vector2i(direction * 2, 0), body.size).grow(2)):
 				return false
 		return true
 
@@ -1367,6 +1367,7 @@ class HornbackEnemy extends CombatEnemy:
 	var gravity_speed := 0.0
 	var charged := 0.0  # px run in the current charge
 	func attack_id() -> String: return "charge"
+	func floor_charge_available() -> bool: return true
 	# Initialize HornbackEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1450,6 +1451,9 @@ class ActionMonster extends CombatEnemy:
 	func ground() -> bool:
 		return MonsterLib.MOVES[d.move].ground
 
+	func floor_charge_available() -> bool:
+		return ground() and "charge" in d.attacks
+
 	func update(dt: float) -> void:
 		if w != null and w.player != null:
 			update_shots(orbs, dt, 0.0)
@@ -1484,7 +1488,7 @@ class ActionMonster extends CombatEnemy:
 				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
 					func(a):
 						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
-						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale, skip_waits, clock)
+						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale, skip_waits, clock, attack_context())
 				if not chosen.is_empty():
 					facing = -1 if w.player.center().x < center().x else 1
 					Game.play_sfx("enemy_alert")
@@ -1909,6 +1913,28 @@ class Discovery extends Ent:
 			var icon := ButtonArt.prompt("interact")
 			ci.draw_texture_rect(icon,Rect2(Vector2(rect.get_center())-Vector2(5,rect.size.y/2.0+13),Vector2(10,10)),false)
 
+
+# Fallen traveller remains in place after the sword is taken.
+class DeadSkeleton extends Discovery:
+	const SHEET := preload("res://assets/props/dead_skeleton.png")
+	func setup() -> void:
+		super.setup()
+		rect.size = Vector2i(32,16)
+	func sword_taken() -> bool:
+		return w != null and w.adventure() and Game.has_ability("attack")
+	func touch(p) -> void:
+		near = 0.12
+		if p.dead or not p.interact or not w.adventure(): return
+		p.interact = false
+		if sword_taken():
+			w.show_interaction("Only the traveller's bones remain.")
+			return
+		w.grant_ability("attack")
+		w.show_interaction("You take the fallen traveller's sword.")
+	func draw(ci: CanvasItem) -> void:
+		ci.draw_texture_rect_region(SHEET,Rect2(rect),Rect2(32 if sword_taken() else 0,0,32,16))
+		if near > 0 and w != null and not sword_taken():
+			ci.draw_texture(ButtonArt.prompt("interact"),Vector2(rect.get_center())+Vector2(-5,-24))
 
 # Story interactions use shared transactional progress, not map-specific hardcoded positions.
 class LighthouseKeeper extends Discovery:

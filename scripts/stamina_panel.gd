@@ -20,7 +20,7 @@ func _ready() -> void:
 func _process(_dt: float) -> void:
 	if world == null or not world.adventure():
 		return
-	history.append([world.time, float(Game.adv.stamina)])
+	history.append([world.time, int(Game.adv.stamina)])
 	while history.size() > 2 and world.time - history[0][0] > HISTORY:
 		history.pop_front()
 	queue_redraw()
@@ -28,25 +28,23 @@ func _process(_dt: float) -> void:
 # Current continuous rate and why, using the same capacity/stress rules as gameplay.
 func rate() -> Array:
 	var run: Dictionary = Game.adv
-	if world.player.dead:
-		return [0.0, "dead"]
-	var heat: float = world.heat_drain()
-	if heat > 0:
-		return [-heat - (Adventure.WATER_DRAIN if world.in_water() else 0.0), "heat: drain (no regen)"]
-	if world.player.stun_blocks_regen():
-		return [0.0, "stunned: no regen"]
-	if world.player.state == Player.ST_CLIMB:
-		return [0.0, "climbing: no regen"]
-	if world.in_water():
-		return [-Adventure.WATER_DRAIN, "in water: drain (no regen)"]
+	if world.player.dead:return [0, "dead"]
+	var heat: int = world.heat_drain()
+	var drain := 0
+	var cause := ""
+	if world.player.stun_blocks_regen():cause="stunned"
+	elif world.player.state == Player.ST_CLIMB:
+		drain=world.player.climb_drain_per_s();cause="climbing"
+	elif world.in_water():drain=Adventure.WATER_DRAIN;cause="water"
+	if heat>0:drain+=heat;cause+=" + heat" if cause!="" else "heat"
+	if cause!="":return [-drain,cause+": no regen"]
 	var top := regen_top(run)
 	if run.stamina < top:
-		var k := Adventure.regen_factor(run.stamina / top) * Adventure.Stress.recovery_multiplier(run)
-		return [Adventure.STAMINA_REGEN_MAX * k, "regen x%.2f to %.0f (full capacity)" % [k, top]]
-	return [0.0, "idle (all stamina bars full)"]
+		return [Adventure.regen_rate(run), "regen %d%% to %d (full capacity)" % [Adventure.Stress.recovery_percent(run), top]]
+	return [0, "idle (all stamina bars full)"]
 
 # Empty bars remain recoverable; owned blocks alone determine the target.
-static func regen_top(run: Dictionary) -> float:
+static func regen_top(run: Dictionary) -> int:
 	return Adventure.stamina_max(run)
 
 func _line(font: Font, y: float, s: String, col := Color.WHITE) -> float:
@@ -65,19 +63,19 @@ func _draw() -> void:
 	var run: Dictionary = Game.adv
 	var mx := Adventure.stamina_max(run)
 	var r := rate()
-	y = _line(font, y, "STAMINA (F3)   %.1f / %.0f   (%d%%)" % [run.stamina, mx, int(100.0 * run.stamina / mx)], Color("7cf0c0"))
-	y = _line(font, y, "blocks %d = base %.0f + %d x %.0f" % [run.blocks, Adventure.BASE_STAMINA, run.blocks - 1, Adventure.STAMINA_PER_BLOCK])
-	y = _line(font, y, "now: %+.1f/s  %s" % [r[0], r[1]], Color("ffd84a") if r[0] < 0 else Color("9fe0ff"))
+	y = _line(font, y, "STAMINA (F3)   %d / %d   (%d%%)" % [run.stamina, mx, int(100.0 * run.stamina / mx)], Color("7cf0c0"))
+	y = _line(font, y, "blocks %d = base %d + %d x %d" % [run.blocks, Adventure.BASE_STAMINA, run.blocks - 1, Adventure.STAMINA_PER_BLOCK])
+	y = _line(font, y, "now: %+d/s  %s" % [r[0], r[1]], Color("ffd84a") if r[0] < 0 else Color("9fe0ff"))
 	y += 6
 	y = _line(font, y, "GAIN", Color("7cf0c0"))
-	y = _line(font, y, "• regen: %.0f/s empty, %.0f/s at half, %.0f/s full (out of water, not climbing)" % [Adventure.STAMINA_REGEN_EMPTY, Adventure.STAMINA_REGEN_MAX, Adventure.STAMINA_REGEN_FULL])
-	y = _line(font, y, "• stamina block: +%.0f capacity and stamina (once each)" % Adventure.STAMINA_PER_BLOCK)
+	y = _line(font, y, "• regen: %d/s empty, %d/s at half, %d/s full (out of water, not climbing)" % [Adventure.STAMINA_REGEN_EMPTY, Adventure.STAMINA_REGEN_MAX, Adventure.STAMINA_REGEN_FULL])
+	y = _line(font, y, "• stamina block: +%d capacity and stamina (once each)" % Adventure.STAMINA_PER_BLOCK)
 	y = _line(font, y, "• stamina orb: refill to max, back after 2.5 s")
 	y = _line(font, y, "LOSS", Color("ff8a6a"))
-	y = _line(font, y, "• jump / wall jump: -%.0f, needs %.0f (swimming free) · can jump now: %s" % [Player.JUMP_STAMINA, Player.JUMP_STAMINA, "yes" if run.stamina >= Player.JUMP_STAMINA else "NO"])
-	y = _line(font, y, "• water: -%.0f/s, drown at 0" % Adventure.WATER_DRAIN)
-	y = _line(font, y, "• respawn: base bar refilled to %.0f (a hit is always a death)" % Adventure.BASE_STAMINA, Color(0.7, 0.7, 0.7))
-	y = _line(font, y, "• hair turns grey below 20%% (%.1f)" % (0.2 * mx), Color(0.7, 0.7, 0.7))
+	y = _line(font, y, "• jump / wall jump: -%d, needs %d (swimming free) · can jump now: %s" % [Player.JUMP_STAMINA, Player.JUMP_STAMINA, "yes" if run.stamina >= Player.JUMP_STAMINA else "NO"])
+	y = _line(font, y, "• water: -%d/s, drown at 0" % Adventure.WATER_DRAIN)
+	y = _line(font, y, "• respawn: base bar refilled to %d (a hit is always a death)" % Adventure.BASE_STAMINA, Color(0.7, 0.7, 0.7))
+	y = _line(font, y, "• hair turns grey below 20%% (%d)" % (mx / 5), Color(0.7, 0.7, 0.7))
 	# graph: last HISTORY s, max at the top, dashed lines at block boundaries
 	y += 4
 	var g := Rect2(12, y, W - 24, 110)
@@ -102,18 +100,18 @@ func _draw() -> void:
 	y = g.end.y + 20
 	y = _line(font, y, "GRAPH", Color("9fe0ff"))
 	y = _line(font, y, "• yellow line: your stamina over the last %d s (right edge = now)" % int(HISTORY), Color("ffd84a"))
-	y = _line(font, y, "• green line: maximum (%.0f)" % mx, Color(0.49, 0.94, 0.75))
+	y = _line(font, y, "• green line: maximum (%d)" % mx, Color(0.49, 0.94, 0.75))
 	y = _line(font, y, "• dashed lines: where one block ends and the next begins", Color(0.75, 0.75, 0.75))
 	y += 6
 	y = _line(font, y, "RECAP (since the level started)", Color("9fe0ff"))
-	var spent := 0.0
-	var gained := 0.0
+	var spent := 0
+	var gained := 0
 	for why in world.stamina_totals:
 		var t: Array = world.stamina_totals[why]
-		var n := "%5.1fs" % t[0] if why in ["regen", "water"] else "%4dx " % int(t[0])
-		y = _line(font, y, "  %s  %+7.1f  %s" % [n, t[1], why], Color("7cf0c0") if t[1] >= 0 else Color("ff8a6a"))
+		var n := "%5.1fs" % t[0] if why in ["regen", "water", "heat", "water + heat", "climbing"] else "%4dx " % int(t[0])
+		y = _line(font, y, "  %s  %+7d  %s" % [n, t[1], why], Color("7cf0c0") if t[1] >= 0 else Color("ff8a6a"))
 		if t[1] < 0:
 			spent -= t[1]
 		else:
 			gained += t[1]
-	y = _line(font, y, "  spent %.1f, gained %.1f" % [spent, gained])
+	y = _line(font, y, "  spent %d, gained %d" % [spent, gained])

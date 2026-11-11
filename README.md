@@ -24,7 +24,7 @@ In the browser, saves, options and your own levels are kept by the browser; the 
     godot -e --path .         # open in editor
 
 ## Controls (remappable in Options)
-Arrows move · C/Space jump · X/Shift dash · Z/V grab · S interact (house doors) · Q punch · A sword attack (swings toward the held direction; F1 → `DASH_DIRS` / `ATTACK_DIRS` limit dash and attack to 0 off, 1 horizontal, -1 vertical, 2 four-way, 3 eight-way, 4 free aim) · Esc pause · M map · F1 movement tuning · F2 hitboxes · F3 stamina · F4 state machine · F12 assist mode (the pause menu also opens F1, F3 and F4, top right). Gamepad: A jump · R1 dash · X sword · Y punch · R2 grab · B interact, back in menus (remap in Options → Controller Buttons).
+Arrows move · C/Space jump · A/Shift dash · Z/V grab · S interact (house doors) · X attack (a short punch until the sword is found, then the sword replaces it; the sword swings toward the held direction; F1 → `DASH_DIRS` / `ATTACK_DIRS` limit dash and attack to 0 off, 1 horizontal, -1 vertical, 2 four-way, 3 eight-way, 4 free aim) · Esc pause · M map · F1 movement tuning · F2 hitboxes · F3 stamina · F4 state machine · F12 assist mode (the pause menu also opens F1, F3 and F4, top right). Gamepad: A jump · R1 dash · X sword · Y punch · R2 grab · B interact, back in menus (remap in Options → Controller Buttons).
 
 ## Stress
 
@@ -39,12 +39,11 @@ Physics, collision, input sampling/buffering and attack timings/speeds retain no
 and the existing responsive update cadence. The physics step remains 60 Hz.
 
 Whole-number arithmetic applies to gameplay resources and scores, including their saved,
-editor and displayed values. The approved migration uses a 0.2-second tick **only for continuous
-resource accounting**; one-off jump/attack costs remain immediate. This migration is planned,
-not implemented. See the [tick plan](docs/plans/WHOLE_NUMBERS_TICK.md).
+editor and displayed values. The resource system uses a 0.2-second tick **only for continuous
+resource accounting**; one-off jump/attack costs remain immediate. The integer migration is implemented. See the [tick plan](docs/plans/WHOLE_NUMBERS_TICK.md).
 
 The newer stress rule remains: only completed blocks contribute, with a maximum 30% penalty.
-In the planned integer calculation, truncate the cumulative percentage: four owned blocks give
+In the integer calculation, truncate the cumulative percentage: four owned blocks give
 0/7/15/22/30% penalty as blocks fill. See the [confirmed decisions](docs/DOCUMENT_CONFLICTS.md).
 
 ## Moves
@@ -57,7 +56,7 @@ A fall of 10+ tiles is a hard landing: stamina to 0 and a 1 s stun (stars over t
 second star). F3 shows a stamina recap.
 
 ## Objects
-Spikes and springs (one editor entry each: they face away from the wall they're placed on; click again to rotate), dash crystal, double-dash crystal, star (collectible), jump-through,
+Spikes and springs (one editor entry each: they face away from the wall they're placed on; click again to rotate), dead skeleton (sword), stamina orb, star (collectible), jump-through,
 crumble block, falling block, zip mover, dream block, green/red bubble, bumper, feather, crystal heart (goal),
 dash / climb ability orbs (adventure only), note (design reminder: "Needs double jump", "Boss arena"…;
 its text shows in the editor, and in game while standing on it), door (drag a rectangle; links to another door by
@@ -72,7 +71,7 @@ Breakable Wall: solid until hit 3 times with the attack (`hp` in the level file)
 ## Adventure
 Title screen → Adventure → New Game / Continue. The adventure is one big world of connected rooms (Metroid style):
 walk off a room's edge into the next one. The story starts without dash, climb and sword. Ability pickups unlock them; the current
-map plan places the first sword at the lighthouse quest NPC (placement pending). Bosses (the Ape, the Guardian) open their gates when beaten. Rooms are grouped in regions,
+first sword is taken from the dead skeleton on Shore, just after Sand Cave; optional climb is in Treetop Village. Bosses (the Ape, the Guardian) open their gates when beaten. Rooms are grouped in regions,
 each with a zodiac sign that sets its monsters; moving into a new region plays a fade.
 M offers Map, Monsters, Items and Abilities tabs; the map shows explored rooms. Progress saves automatically (`user://save.cfg`, section `[adventure]`).
 The game ships one world, the story (`res://worlds/story/`, chapter 1 in progress, see `docs/STORY_DESIGN.md`); the world editor edits it (cyan lines = door links).

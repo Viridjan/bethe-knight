@@ -1,31 +1,30 @@
 # Current work
 
-Updated 2026-11-07. This is the single active task list. [Documentation index](docs/README.md) · [Implementation ledger](docs/IMPLEMENTATION_STATUS.md) · [Merged reports](reports/README.md).
+Updated 2026-11-10. This is the single active task list. [Documentation index](docs/README.md) · [Implementation ledger](docs/IMPLEMENTATION_STATUS.md) · [Merged reports](reports/README.md).
 
 ## Map delivery
 
 Follow the [cluster/connector/secret/shortcut plan](docs/STORY_DESIGN.md#0-current-map-plan-room-clusters-and-branching-connections). Systems being available does not mean their content has been placed.
 
 - [ ] Arrange dense, irregular room clusters separated by branching playable connectors; add local loops, regional shortcuts and reserved secret-room pockets. Most rooms stay low; each area has at least two varied rooms, with each boss arena a single tall room.
-- [x] Place the sword/crystal quest keeper near the top of the lighthouse interior; spread its five mages across landings. The sand cave currently has no sword orb.
+- [x] Place the crystal quest keeper near the top of the lighthouse interior; spread its five mages across landings. Sword is now taken from the dead skeleton after Sand Cave.
 - [ ] Author the small ruins below the lighthouse: open entrance, at least two compact varied rooms, sword-breakable internal barriers, three unique interactable crystals and a short quest-return loop.
 - [ ] Configure departure boat and arrival dock/lighthouse; keep sea left of West Shore and keep the two landmasses physically disconnected. First voyage must run the tentacle survival/shipwreck and leave no usable boat.
 - [ ] Build the island's west → marsh → rocky plateau → volcano progression, north/south/east shore satellites, and maze/surface cross-links. Preserve useful existing rooms/IDs and hand-shaped shore pools.
 - [ ] Place thick water, giant feet, heat previews, cool retreat points and later movement/heat-resistance rewards. Do not require giant climbing, hidden upgrades or an ability obtainable only beyond its own gate.
-- [ ] Choose dash/wavedash, climb and later ability reward locations; resolve Treetop Village's onward connection and Ape reward. The initial wavedash gap remains a return gate, with a jump-only alternate route.
+- [ ] Author the remaining [accepted rewards and village return route](docs/plans/PROGRESSION_REWARDS.md): Ape dash, marsh double jump, cool-foothill heat resistance and the canopy return. Sword/climb placements are delivered. The initial wavedash gap remains a pre-departure return gate, with a jump-only alternate route.
 - [ ] Author teaching encounters for existing timed spikes/triggers/patrols and optional discoveries. New discoveries are interactable fragments, upgrades, NPCs or encounters; no new passive stars.
 - [ ] Validate seams, four-sided resizing, conditional variants, safe entrances/spawns, progression-state reachability, quest events and shortcut travel times. Keep isolated movement tests separate from full encounter tests.
 
 ## Systems and design work
 
-- [ ] Whole-number gameplay/tick migration: [plan](docs/plans/WHOLE_NUMBERS_TICK.md). Follow the [confirmed decisions](docs/DOCUMENT_CONFLICTS.md): preserve physics/input precision and use the newer 30% completed-block stress rule. This is approved work awaiting implementation, not a feature already delivered.
-- [ ] Expand ordinary-enemy Player cornered support with actual attack footprints/context adapters. The shared detector and Ape adapter exist.
+- [ ] Add accurate cornered coverage for further flying/leap/projectile runners as their shared models are implemented. [Grounded Hornback/library charge coverage is delivered](reports/ordinary-cornered-2026-11-10/README.md), alongside the existing Ape adapter.
 - [ ] General enemy composition: conditions/phases, active summoners, configurable attached weapons/effects, conditional death actions, item drops and explosions. Shared health, patrol and brood foundations already exist.
-- [ ] Review the broader Enemy-tab composition model before changing its schema/UI; preserve current Ape phase/loadout controls and existing catalogue/profile authority.
+- [ ] Implement the [reviewed Enemy-tab composition model](docs/plans/ENEMY_COMPOSITION_REVIEW.md) in small supported slices; preserve current Ape phase/loadout controls and existing catalogue/profile authority. The review is complete; generic runtime/schema/UI changes remain.
 - [ ] Complete progressive occluded hidden-tile discovery, pogo/non-pogo hazard distinctions, damage-based tough walls and a distinct hidden-wall discovery sound. Punch reveal and three-hit sword-breakable walls already exist.
 - [ ] Decide final stat names/budget and the multi-hit damage/knockback contract before implementing Dexterity/Constitution/Attack derivation or route-affecting base nerfs.
 - [ ] Finish net capture animation, flexible bridges and lighthouse mirror/flame interaction; place dialogue/quests and agreed branch rewards.
-- [ ] Decide wall-grab drain, reusable-refill policy, village skill-point rewards and broader ability-page presentation. Existing defaults are implementation facts, not resolved design decisions.
+- [ ] Author the accepted village skill-point quests and broader ability-page presentation. [Climb and stamina-orb policies are settled](docs/plans/PROGRESSION_REWARDS.md); dash crystals are removed.
 - [ ] Evaluate positional audio and research elevation cues before implementing them.
 - [ ] Develop region-specific real-world references/city-jungle direction and update visible legacy protagonist labels where appropriate; preserve licensed source names and save-directory compatibility.
 - [ ] General story-event graph authoring, save slots, map stations, per-screen exploration and animation-driven state endings remain later system work; named flags and NPC transactions are already available.
@@ -39,6 +38,10 @@ Follow the [cluster/connector/secret/shortcut plan](docs/STORY_DESIGN.md#0-curre
 - **Optimizations:** measure again before reviving deliberately rejected/deferred pooling, batching, undo-storage or label/grid changes. Historical measurements are in `OPTIMIZATION_RESULTS.md` and the merged history.
 
 ## Recent delivery
+
+[Sword skeleton and branch reward](reports/sword-skeleton-2026-11-10/README.md): take Sword from the dead skeleton after Sand Cave; Climb is in Treetop Village. Keeper retains the crystal quest. Dash crystals are removed, including editor/runtime support and obsolete saved-room entities.
+
+[Integer resources and scores](reports/integer-resources-2026-11-10/README.md): continuous accounting every twelve active physics frames; immediate action costs; legacy save truncation; integer stress percentages, heat controls, F3 and catalogue scores. Physics/input remain precise at 60 Hz.
 
 [Checkpoint areas](docs/RESPAWN_POINTS.md) replace tiny map markers: user-drawn activation rectangles, lowest safe grounded anchors, airborne activation and 75 migrated story/layer checkpoints.
 

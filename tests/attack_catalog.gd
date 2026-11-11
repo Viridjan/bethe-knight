@@ -39,10 +39,10 @@ func _ready() -> void:
 	sample.windup_s = "0.5"
 	var score: Dictionary = catalog.score_attack(sample)
 	var swept: float = (2 + sqrt(2.0) * catalog.SWEEP_LENGTH) / 0.5  # its area plus the strip it sweeps, over 20 / 40 s
-	check(score.valid and is_equal_approx(score.score, swept), "A moving hit counts its area plus its swept strip over the 20-unit travel time")
+	check(score.valid and is_equal_approx(score.score, int(swept)), "A moving hit counts its area plus its swept strip over the 20-unit travel time")
 	sample.windup_s = "1.25"
 	score = catalog.score_attack(sample)
-	check(score.valid and is_equal_approx(score.penalty, 3.0) and is_equal_approx(score.score, swept / 3.0), "Wind-up penalty interpolates from execution time to 2 seconds")
+	check(score.valid and is_equal_approx(score.penalty, 3.0) and is_equal_approx(score.score, int(swept / 3.0)), "Wind-up penalty interpolates from execution time to 2 seconds")
 	sample.windup_s = "2"
 	check(is_equal_approx(catalog.score_attack(sample).penalty, 5), "Two seconds gives maximum penalty")
 	sample.initial_speed_units_s = "10"
@@ -52,11 +52,11 @@ func _ready() -> void:
 	sample.multishot = "8"
 	sample.aimed_shot = "0"
 	sample.spread_deg = "0"
-	check(is_equal_approx(catalog.score_attack(sample).score, swept * (1 + 7 * 0.2)), "A full-circle multishot counts the shots away from the player at 20 percent")
+	check(is_equal_approx(catalog.score_attack(sample).score, int(swept * (1 + 7 * 0.2))), "A full-circle multishot counts the shots away from the player at 20 percent")
 	sample.multishot = "3"
 	sample.aimed_shot = "1"
 	sample.spread_deg = "15"
-	check(is_equal_approx(catalog.score_attack(sample).score, swept * 3) and catalog.shot_angles(sample) == [-15.0, 0.0, 15.0], "A tight multishot fan counts every shot; shot 0 is the lowest")
+	check(is_equal_approx(catalog.score_attack(sample).score, int(swept * 3)) and catalog.shot_angles(sample) == [-15.0, 0.0, 15.0], "A tight multishot fan counts every shot; shot 0 is the lowest")
 	sample.aimed_shot = "3"
 	catalog.attacks.append(sample)
 	check(not catalog.validate().is_empty(), "The aimed shot must be one of the shots")
@@ -327,7 +327,7 @@ func _review_fixes(path: String) -> void:
 	c.attack("ape_throw").base_weight = "1.0049"
 	var saved: String = c.save_all()
 	c.reload()
-	check(saved == "" and str(c.attack("ape_retreat").score) == "%.2f" % c.score_attack(c.attack("ape_retreat")).score, "Saved scores match the saved values")
+	check(saved == "" and str(c.attack("ape_retreat").score) == "%d" % c.score_attack(c.attack("ape_retreat")).score, "Saved scores match the saved values")
 	check(FileAccess.file_exists(dir + "attacks.csv.bak") and FileAccess.file_exists(dir + "enemy_attacks.csv.bak"), "Saving keeps the previous CSV pair as .bak")
 	# skip % rolls once per decision: a skipped attack waits its recovery instead of being re-rolled next frame
 	var rule: Dictionary = c.ordered_attacks("enemy_murkspore", "default")[0]

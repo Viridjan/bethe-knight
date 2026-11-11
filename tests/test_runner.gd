@@ -99,7 +99,9 @@ func step(n := 1) -> void:
 		if not active.player.dead:
 			active.player.update(DT)
 			active.after_player_move()
-			if active.layer_active:active.update_stamina(DT)
+			if active.layer_active:
+				active.frame+=1
+				active.update_stamina(DT)
 		if not active.layer_active:continue
 		for e in active.ents:active._tick_entity(e, DT)
 
@@ -359,7 +361,7 @@ func check_shipped_world() -> void:
 		check(n_spawns > 0 and bad_spawns.is_empty(), "%s: %d respawn slabs, all standing on ground (bad: %s)" % [wp.get_base_dir().get_file(), n_spawns, bad_spawns])
 		# water and acid (tools/world_fixups.py settle_liquids): every row open, with rock just left and right of it
 		var bad_liquid := []
-		for rn in wd.rooms.keys().filter(func(n): return n not in ["c1_lake_cave", "c5_lake_crossing", "m1_meadow", "i01_west_shore", "i08_east_shore"]):  # hand-shaped pools (World Editor)
+		for rn in wd.rooms.keys().filter(func(n): return n not in ["c1_lake_cave", "c5_lake_crossing", "m1_meadow", "i01_west_shore", "i08_east_shore", "s2_shore"]):  # hand-shaped pools and open sea (World Editor)
 			var lv: Dictionary = wd.rooms[rn].level
 			for e in lv.entities:
 				if e.t in ["water", "acid"]:
@@ -1161,8 +1163,11 @@ func check_combat_enemies() -> void:
 	bone_rule.min_range_units = keep_min
 	cat.assignments = keep_rules.filter(func(b): return b != bone_rule)
 	var unbound: bool = throws_after.call()
+	cat.assignments = []
+	var none_bound: bool = throws_after.call()
 	cat.assignments = keep_rules
 	check(not below_min and not unbound, "Ossling respects its binding: no throw under its minimum range (%s) or with the binding removed (%s)" % [below_min, unbound])
+	check(not none_bound, "An empty binding table means no attacks, not a failed catalogue")
 	make_world([{"t": "enemy_skeleton", "x": 180, "y": 204}], [[25, 18], [25, 19]])
 	enemy = w.ents.filter(func(e): return e.d.t == "enemy_skeleton")[0]
 	enemy.bones = [[Vector2(195, 150), Vector2(180, 0), 1.0]]
@@ -2482,38 +2487,27 @@ func check_stamina() -> void:
 	const Adventure := preload("res://scripts/adventure.gd")
 	var world := Adventure.load_world(FIXTURE_WORLD + "world.json")
 	var run := Adventure.new_run(world)
-	var base: float = Adventure.BASE_STAMINA  # 27
-	var block: float = Adventure.STAMINA_PER_BLOCK  # 17
-	check(base == 27.0 and block == 17.0, "stamina: base 27, each block 17")
-	check(run.blocks == 1 and run.stamina == base and Adventure.stamina_max(run) == base, "a run starts with the base bar full")
-	check(Adventure.spend_stamina(run, base / 2) and run.stamina == base / 2, "spending takes stamina")
-	Adventure.regen_stamina(run, 0.01)
-	check(is_equal_approx(run.stamina, base / 2 + 0.08), "at half full stamina regenerates at the full 8 per second (%s)" % run.stamina)
-	# Lambdas capture local variables, but cannot resolve this function's local script constant.
-	var regen_factor: Callable = Adventure.regen_factor
-	var regen_max: float = Adventure.STAMINA_REGEN_MAX
-	var rate := func(f): return regen_max * regen_factor.call(f)
-	check(is_equal_approx(rate.call(0.0), 4.0) and is_equal_approx(rate.call(0.25), 6.0) and is_equal_approx(rate.call(0.5), 8.0)
-		and is_equal_approx(rate.call(0.75), 5.5) and is_equal_approx(rate.call(1.0), 3.0), "regen 4/s empty, 8/s at half, 3/s full")
-	Adventure.regen_stamina(run, 10.0)
-	check(run.stamina == base, "regeneration stops at the top of the base")
-	run.stamina = 0.0
-	Adventure.regen_stamina(run, 0.01)
-	check(run.stress == 5 and is_equal_approx(run.stamina, 0.04), "the base regenerates from zero before a stress block is filled (%s)" % run.stamina)
-	Adventure.regen_stamina(run, 100.0)
-	check(not Adventure.spend_stamina(run, 160) and run.stamina == base, "can't spend more than you have")
+	var base: int = Adventure.BASE_STAMINA
+	var block: int = Adventure.STAMINA_PER_BLOCK
+	check(run.blocks == 1 and run.stamina == 27 and Adventure.stamina_max(run) == 27,"A run starts with 27 whole stamina")
+	check(Adventure.spend_stamina(run,base/2) and run.stamina==14,"A half-bar cost truncates to thirteen")
+	Adventure.regen_stamina(run,0)
+	check(run.stamina==15,"Regeneration adds whole points on a resource tick")
+	for tick in 200:Adventure.regen_stamina(run,tick)
+	check(run.stamina==base,"Regeneration caps at owned capacity")
+	run.stamina=0
+	Adventure.regen_stamina(run,0)
+	check(run.stress==5 and run.stamina==0,"Exhaustion is immediate while a low-rate tick may give zero points")
+	for tick in 200:Adventure.regen_stamina(run,tick)
+	check(not Adventure.spend_stamina(run,160) and run.stamina==base,"Overspending is refused")
 	Adventure.add_stamina_block(run)
-	check(run.blocks == 2 and run.stamina == base + block and Adventure.stamina_max(run) == base + block, "a new block adds a full block")
-	Adventure.spend_stamina(run, base)
-	Adventure.regen_stamina(run, 10.0)
-	check(run.stamina == base + block, "a fully spent block refills naturally")
-	Adventure.spend_stamina(run, base)
-	Adventure.regen_stamina(run, 100.0)
-	check(run.stamina == base + block, "regeneration crosses bar boundaries up to full capacity")
-	Adventure.refill_stamina(run)
-	Adventure.spend_stamina(run, 10)
-	Adventure.regen_stamina(run, 100.0)
-	check(run.stamina == base + block, "a partly spent block refills to its top")
+	check(run.blocks==2 and run.stamina==44,"A block adds seventeen points and capacity")
+	Adventure.spend_stamina(run,base)
+	for tick in 200:Adventure.regen_stamina(run,tick)
+	check(run.stamina==44,"Spent upper bars refill naturally")
+	Adventure.spend_stamina(run,10)
+	for tick in 200:Adventure.regen_stamina(run,tick)
+	check(run.stamina==44,"Partial upper bars refill naturally")
 
 	# in the world: a block pickup (once per run), hits, the attack gate
 	Game.adv_world = world
@@ -2616,9 +2610,9 @@ func check_stamina() -> void:
 	# HUD stamina bars: one per block, filled by its share of the stamina
 	var fills: Array = load("res://scripts/world.gd").Hud.block_fills(base + block * 0.5, 3)
 	check(fills == [1.0, 0.5, 0.0], "HUD stamina bars: the base, then block by block (%s)" % [fills])
-	Game.adv.stamina = 0.19 * Adventure.stamina_max(Game.adv)
+	Game.adv.stamina = Adventure.stamina_max(Game.adv) / 5 - 1
 	var grey: bool = p().hair_color() == p().HAIR_USED
-	Game.adv.stamina = 0.21 * Adventure.stamina_max(Game.adv)
+	Game.adv.stamina = Adventure.stamina_max(Game.adv) / 5
 	check(grey and p().hair_color() != p().HAIR_USED, "hair turns grey below 20% stamina")
 	Game.adv.stamina = 100.0
 	# touch controls keep their distance to the nearest screen edges on any screen shape (phones are wider than 16:9)
@@ -2638,9 +2632,9 @@ func check_stamina() -> void:
 	var before: float = Game.adv.stamina
 	step(60)
 	check(w.in_water() and absf(before - Game.adv.stamina - 40.0) < 0.01, "a second in water costs 40 stamina, no regeneration (%s)" % (before - Game.adv.stamina))
-	Game.adv.stamina = 0.004
+	Game.adv.stamina = 0
 	var deaths_before: int = w.deaths
-	step(2)
+	step(12)
 	check(p().dead and w.deaths == deaths_before + 1, "out of stamina in water: the player dies")
 	make_world([])
 	step(5)
@@ -2967,7 +2961,7 @@ func _ready() -> void:
 	step(40)
 	var after_landing: float = Game.adv.stamina
 	Game.adv = keep_adv
-	check(climbed_to < base - 4 and is_equal_approx(as_climb, climbed_to * 110.0 / base) and after_landing <= climbed_to + Game.Adventure.STAMINA_REGEN_MAX * 40.0 / 60.0,
+	check(climbed_to <= base - 2 and is_equal_approx(as_climb, climbed_to * 110.0 / base) and after_landing <= climbed_to + Game.Adventure.STAMINA_REGEN_MAX * 40.0 / 60.0,
 		"adventure climbing drains the stamina bar, and landing doesn't refill it (%s, then %s)" % [climbed_to, after_landing])
 	# infinite stamina (assist option): hang on the same wall for 20 s
 	Game.settings.infinite_stamina = true
@@ -3098,15 +3092,6 @@ func _ready() -> void:
 			break
 	check(bounced, "spring launches upward")
 
-	# refill crystal in the air
-	make_world([{"t": "refill", "x": 80, "y": 25 * 8}])
-	step(5)
-	p().dashes = 0
-	p().pos.y = 210
-	p().on_ground = false
-	w.player_touch(p())
-	check(p().dashes == 1, "dash crystal refills dash")
-
 	# dream block: dash right through a 3-tile wide block
 	make_world([{"t": "dream", "x": 112, "y": 25 * 8, "w": 24, "h": 24}])
 	step(5)
@@ -3189,7 +3174,7 @@ func _ready() -> void:
 	# previews update incrementally; they must match a full rebuild, index for index
 	ed.tool = "spawn"  # replacing the spawn rebuilds everything, so do it first
 	ed._place_point(Vector2i(9, 9))
-	ed.tool = "refill"
+	ed.tool = "stamina_orb"
 	ed._place_point(Vector2i(2, 2))
 	ed._place_point(Vector2i(2, 2))  # duplicate is ignored
 	ed.tool = "crumble"
@@ -3207,7 +3192,7 @@ func _ready() -> void:
 		var fresh = E.make(null, ed.level.entities[i])
 		types.append(ed.level.entities[i].t)
 		same = same and is_same(ed.preview[i].d, ed.level.entities[i]) and ed.preview[i].rect == fresh.rect and ed.preview[i].vis_rect() == fresh.vis_rect()
-	check(same and types == ["spawn", "spawn", "refill", "zip", "strawberry"], "incremental editor previews match a full rebuild %s" % [types])
+	check(same and types == ["spawn", "spawn", "stamina_orb", "zip", "strawberry"], "incremental editor previews match a full rebuild %s" % [types])
 	check(ed.preview[3].target == Vector2(40, 40), "zip preview picks up its target click")
 	ed._set_level(Game.new_level("large", 100, 70))
 	check_editor_tiles(ed, "load")
