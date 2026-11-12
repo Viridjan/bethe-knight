@@ -26,6 +26,7 @@ var view := "enemies"  # "attacks" (attack definitions) or "enemies" (each enemy
 var enemy_index := 0
 var form_scroll: ScrollContainer
 var world_cache := {}
+var stats: HFlowContainer  # the selected enemy's health and coverage fields
 var effect_hints: Array = []  # visible effect controls and the profile effect IDs they describe
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["enemy_monster", "default", "Library monster"],
@@ -68,7 +69,7 @@ func _ready() -> void:
 	save_button = Game.button("Save changes", _save)
 	save_button.disabled = not writable
 	save_button.tooltip_text = "Validate and save both CSVs. New attack selections use the saved changes."
-	save_button.add_theme_stylebox_override("normal", _surface("294862", "476b88", 10))
+	save_button.add_theme_stylebox_override("normal", _surface("2d5273", "2d5273", 10))
 	heading.add_child(save_button)
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 6)
@@ -77,8 +78,21 @@ func _ready() -> void:
 	enemy_tab = Game.button("Enemy loadouts", _show_enemies)
 	for tab in [attack_tab, enemy_tab]:
 		tab.toggle_mode = true
-		tab.add_theme_stylebox_override("pressed", _surface("26364b", "44638b", 10))
+		var plain := StyleBoxFlat.new()
+		plain.bg_color = Color(0, 0, 0, 0)
+		plain.content_margin_left = 4
+		plain.content_margin_right = 4
+		plain.content_margin_top = 6
+		plain.content_margin_bottom = 6
+		plain.border_color = Color("6f8fc4")
+		var chosen: StyleBoxFlat = plain.duplicate()
+		chosen.border_width_bottom = 2
+		for state in ["normal", "hover", "focus"]: tab.add_theme_stylebox_override(state, plain)
+		for state in ["pressed", "hover_pressed"]: tab.add_theme_stylebox_override(state, chosen)
+		tab.add_theme_color_override("font_color", Color("8a93a6"))
+		tab.add_theme_color_override("font_pressed_color", Color("eef0f5"))
 		tabs.add_child(tab)
+	tabs.add_theme_constant_override("separation", 18)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.add_child(spacer)
@@ -116,6 +130,8 @@ func _ready() -> void:
 	form.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(form)
 	summary = Game.label("", 12)
+	summary.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	summary.modulate = Color(1, 1, 1, 0.7)
 	summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(summary)
 	feedback = Game.label("", 12)
@@ -136,9 +152,30 @@ static func _surface(background: String, border: String, padding: int = 10) -> S
 	style.content_margin_bottom = padding
 	return style
 
+# Section heading: small, quiet, left-aligned. The same everywhere on the page.
+func _caption(text: String) -> Label:
+	var caption := Game.label(text, 11)
+	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	caption.modulate = Color("7f96b3")
+	return caption
+
+# A value's name beside its box: quieter than the value.
+func _tag(text: String) -> Label:
+	var tag := Game.label(text, 12)
+	tag.modulate = Color(1, 1, 1, 0.62)
+	return tag
+
+# One label + control pair that wraps as a unit in the stats row.
+func _stat(parent: Control, text: String, control: Control) -> void:
+	var pair := HBoxContainer.new()
+	pair.add_theme_constant_override("separation", 6)
+	pair.add_child(_tag(text))
+	pair.add_child(control)
+	parent.add_child(pair)
+
 func _card(parent: Node) -> VBoxContainer:
 	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", _surface("1c2330", "303c4c", 7))
+	panel.add_theme_stylebox_override("panel", _surface("1a202c", "1a202c", 10))
 	parent.add_child(panel)
 	var content := VBoxContainer.new()
 	content.add_theme_constant_override("separation", 6)
@@ -185,13 +222,14 @@ func _tabs() -> void:
 static func _soft_theme(base: Theme) -> Theme:
 	var t: Theme = base.duplicate() if base != null else Game.theme.duplicate()
 	var text := Color("d4d7e0")
-	t.set_stylebox("normal", "Button", _surface("242e3e", "35445a", 8))
-	t.set_stylebox("hover", "Button", _surface("304159", "5b779b", 8))
-	t.set_stylebox("pressed", "Button", _surface("304a65", "6d92ba", 8))
-	t.set_stylebox("disabled", "Button", _surface("1b2230", "2c3543", 8))
-	t.set_stylebox("panel", "ItemList", _surface("171e2a", "2c3747", 8))
-	t.set_stylebox("selected", "ItemList", _surface("2b425c", "476b8c", 6))
-	t.set_stylebox("selected_focus", "ItemList", _surface("2b425c", "638bb3", 6))
+	# Flat surfaces: an outline appears only on hover and focus.
+	t.set_stylebox("normal", "Button", _surface("222b3a", "222b3a", 8))
+	t.set_stylebox("hover", "Button", _surface("2b3a50", "4d6788", 8))
+	t.set_stylebox("pressed", "Button", _surface("2b425c", "2b425c", 8))
+	t.set_stylebox("disabled", "Button", _surface("1a202c", "1a202c", 8))
+	t.set_stylebox("panel", "ItemList", _surface("171c27", "171c27", 6))
+	t.set_stylebox("selected", "ItemList", _surface("26384f", "26384f", 6))
+	t.set_stylebox("selected_focus", "ItemList", _surface("26384f", "4d6788", 6))
 
 	t.set_color("font_color", "Label", Color("b9bdca"))
 	t.set_color("font_color", "Button", text)
@@ -202,8 +240,8 @@ static func _soft_theme(base: Theme) -> Theme:
 	t.set_color("font_placeholder_color", "LineEdit", Color("6c7183"))
 	t.set_color("font_color", "TextEdit", text)
 	var box := StyleBoxFlat.new()
-	box.bg_color = Color("1f2230")
-	box.border_color = Color("343849")
+	box.bg_color = Color("131822")
+	box.border_color = Color("2a3140")
 	box.set_border_width_all(1)
 	box.set_corner_radius_all(3)
 	box.content_margin_left = 6
@@ -416,6 +454,7 @@ func _update_feedback() -> void:
 	feedback.text = invalid if not invalid.is_empty() else ("Unsaved draft" if dirty else "CSV loaded")
 	feedback.tooltip_text = catalog.range_warnings()
 	if invalid.is_empty() and not feedback.tooltip_text.is_empty(): feedback.text += " · Overlapping ranges (hover for details)"
+	feedback.visible = feedback.text != "CSV loaded"  # nothing to report: no line
 	save_button.disabled = not writable or not dirty or not invalid.is_empty()
 
 func _save() -> void:
@@ -530,7 +569,10 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 	var k := ordered.find(row)
 	var selected_count := ordered.size()
 	if phased:
-		binding_line.add_child(Game.label("Phase %s · #%d" % ["1" if row.phase == "normal" else "2", k + 1], 12))
+		var phase_tag := _tag("Phase %s · #%d" % ["1" if row.phase == "normal" else "2", k + 1])
+		phase_tag.custom_minimum_size.x = 84  # one column, so both phases' boxes line up
+		phase_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		binding_line.add_child(phase_tag)
 	for column in ["max_range_units", "skip_chance"]:
 		var edit := _small_edit(writable)
 		edit.text = _shown(column, str(row.get(column, "0")))
@@ -540,11 +582,11 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 		if catalog.error_at.table == "ranges" and catalog.assignments.find(row) == catalog.error_at.index and catalog.error_at.field == column:
 			edit.add_theme_color_override("font_color", Color("ff7070"))
 		edit.text_changed.connect(func(v): _binding_change(row, column, v))
-		var label := Game.label({"max_range_units": "Range", "skip_chance": "Skip %"}[column], 12)
+		var label := _tag({"max_range_units": "Range", "skip_chance": "Skip %"}[column])
 		binding_line.add_child(label)
 		binding_line.add_child(edit)
 	if Catalog.condition_choices(row.enemy_id).size()>1:
-		binding_line.add_child(Game.label("Trigger",12))
+		binding_line.add_child(_tag("Trigger"))
 		binding_line.add_child(_attack_trigger_picker(row))
 	for b in [["up", -1, k == 0], ["down", 1, k == selected_count - 1], ["cross", 0, false]]:
 		var btn := Game.button("", (func(): _move(row, b[1])) if b[1] != 0 else (func(): _remove_binding(row)))
@@ -552,6 +594,7 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		btn.add_theme_font_size_override("font_size", 12)
 		btn.custom_minimum_size = Vector2(widths[5], 0)
+		btn.flat = true
 		btn.disabled = not writable or b[2]
 		btn.tooltip_text = {-1: "Raise priority", 1: "Lower priority", 0: "Remove this attack from the enemy"}[b[1]]
 		binding_line.add_child(btn)
@@ -578,22 +621,24 @@ func _select_enemy(i: int) -> void:
 	data.x = 0
 	data.y = 0
 	var ent = load("res://scripts/entities.gd").make(null, data)  # for its family's health and coverage fields
+	stats = HFlowContainer.new()
+	stats.add_theme_constant_override("h_separation", 18)
+	stats.add_theme_constant_override("v_separation", 6)
 	if e[0] == "boss_ape": _ape_profile_fields()
 	elif ent != null and ent.has_method("variant_hp"):
 		_family_health_fields(ent.family())
 		if not Catalog.coverage_attacks(ent.family()).is_empty():
-			var coverage := HBoxContainer.new()
-			coverage.add_child(Game.label("Cornered coverage",12))
-			coverage.add_child(_cornered_coverage_picker(ent.family()))
-			form.add_child(coverage)
+			_stat(stats, "Cornered coverage", _cornered_coverage_picker(ent.family()))
+	if stats.get_child_count() > 0:
+		form.add_child(_caption("STATS"))
+		form.add_child(stats)
+	else: stats.free()
 	if e[1] == "":  # attacks in the game code: what it is and does, read-only
 		_code_enemy_info(e, ent)
 		return
 	# one block per attack: its binding line (rank, name, ranges, skip, order, score), its mechanics, its notes
 	var widths := [22, 190, 48, 48, 48, 26, 26, 26, 56]
-	var caption := Game.label("ATTACK ORDER", 12)
-	caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	caption.modulate = Color("91b2d3")
+	var caption := _caption("ATTACK ORDER")
 	caption.tooltip_text = "The first eligible attack executes. Use the arrows to change priority."
 	form.add_child(caption)
 	var rows: Array = _enemy_rows(e)
@@ -602,7 +647,7 @@ func _select_enemy(i: int) -> void:
 		var row: Dictionary = rows[k]
 		if catalog.triggered(row) and not effects_heading:
 			effects_heading = true
-			var label := Game.label("TRIGGERED EFFECTS", 12)
+			var label := _caption("TRIGGERED EFFECTS")
 			label.tooltip_text = _effect_help(e)
 			effect_hints.append({"control": label, "effect": ""})
 			form.add_child(label)
@@ -610,7 +655,7 @@ func _select_enemy(i: int) -> void:
 		var block := _card(form)
 		var line := HBoxContainer.new()
 		block.add_child(line)
-		var rank := Game.label(str(k + 1), 13)
+		var rank := _tag(str(k + 1))
 		rank.text = "FX" if catalog.triggered(row) else str(k + 1)
 		rank.custom_minimum_size.x = widths[0]
 		line.add_child(rank)
@@ -619,6 +664,8 @@ func _select_enemy(i: int) -> void:
 		var is_effect: bool = catalog.triggered(row)
 		title.custom_minimum_size.x = 150
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title.add_theme_font_size_override("font_size", 15)  # reads as the block's title; a box appears on focus
+		for state in ["normal", "read_only"]: title.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 		title.tooltip_text = "%s (%s, %s)\n%s" % [row.attack_name, attack.get("type", ""), attack.get("status", ""), attack.get("notes", "")]
 		if is_effect:
 			title.tooltip_text = _effect_help(e, row.attack_name) + "\n\n" + squarish(title.tooltip_text)
@@ -626,6 +673,7 @@ func _select_enemy(i: int) -> void:
 		var info := Game.button("i", func(): _edit_notes(attack, title))  # notes: in the tooltip; click to edit
 		info.add_theme_font_size_override("font_size", 12)
 		info.custom_minimum_size.x = 22
+		info.flat = true
 		info.tooltip_text = str(attack.get("notes", "")) if str(attack.get("notes", "")) != "" else "No notes yet: click to add"
 		info.disabled = not writable and str(attack.get("notes", "")) == ""
 		line.add_child(info)
@@ -638,6 +686,8 @@ func _select_enemy(i: int) -> void:
 			for binding in row.get("_bindings", [row]):
 				_binding_controls(block, binding, e[0] == "boss_ape")
 		score.custom_minimum_size.x = widths[8]
+		score.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		score.tooltip_text = "Score"
 		line.add_child(score)
 		_show_score(score, attack)
 		if "follow_up" in _applicable(attack):  # its follow-up stays visible without opening Edit
@@ -645,7 +695,7 @@ func _select_enemy(i: int) -> void:
 			follow.add_theme_constant_override("separation", 6)
 			block.add_child(follow)
 			for column in ["follow_up", "follow_up_count", "follow_up_gap_s"]:  # same look as Min / Max / Skip above
-				var tag := Game.label(TAGS.get(column, column), 12)
+				var tag := _tag(TAGS.get(column, column))
 				tag.tooltip_text = _help(column)
 				follow.add_child(tag)
 				if column == "follow_up":
@@ -660,6 +710,7 @@ func _select_enemy(i: int) -> void:
 		var expand := Game.button("Close" if details.visible else "Edit", func(): pass)
 		expand.tooltip_text = "Show or hide this attack's mechanics and follow-up settings."
 		expand.add_theme_font_size_override("font_size", 12)
+		expand.flat = true
 		expand.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		expand.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		line.add_child(expand)
@@ -696,9 +747,8 @@ func _select_enemy(i: int) -> void:
 		var pick := OptionButton.new()
 		pick.fit_to_longest_item = false  # long attack names must not widen the page
 		pick.clip_text = true
-		pick.custom_minimum_size = Vector2(260, ROW_H)
+		pick.custom_minimum_size = Vector2(320, ROW_H)
 		pick.add_theme_font_size_override("font_size", 12)
-		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		for a in free:
 			pick.add_item("%s · %s%s" % [a, catalog.attack(a).get("codex_online_name", ""), "" if catalog.performs(e[0], a) else "  (not in game yet)"])
 			pick.set_item_metadata(pick.item_count - 1, a)
@@ -723,17 +773,14 @@ func _select_enemy(i: int) -> void:
 
 # Enemy stats and phase entry are a separate authored definition, shared by both phases.
 func _family_health_fields(family: String) -> void:
-	var card := _card(form)
-	var line := HBoxContainer.new()
-	card.add_child(line)
-	line.add_child(Game.label("Base health", 13))
 	var edit := _small_edit(writable)
 	edit.name = "FamilyHealth"
 	edit.placeholder_text = "default"
 	var profile: Dictionary = catalog.enemy_profile(family)
 	edit.text = str(int(profile.max_hp)) if Catalog.EnemyHealth.valid(profile.get("max_hp")) else ""
 	edit.tooltip_text = "Shared by this family. Variants apply their health modifiers afterwards. Clear to restore the original family or movement default. New enemies use saved changes."
-	line.add_child(edit)
+	edit.custom_minimum_size.x = 64
+	_stat(stats, "Base health", edit)
 	edit.text_changed.connect(func(value):
 		if not catalog.enemy_profiles.has(family): catalog.enemy_profiles[family] = {}
 		var target: Dictionary = catalog.enemy_profiles[family]
@@ -746,21 +793,13 @@ func _family_health_fields(family: String) -> void:
 func _ape_profile_fields() -> void:
 	var profile: Dictionary = catalog.enemy_profile("boss_ape")
 	if profile.is_empty(): return
-	var block := _card(form)
-	block.add_child(Game.label("Health & phase entry", 13))
-	var grid := GridContainer.new()
-	grid.columns = 6
-	grid.add_theme_constant_override("h_separation", 8)
-	block.add_child(grid)
 	for field in ["max_hp", "phase2_hp", "phase2_wave_scales"]:
-		var label := Game.label({"max_hp": "Health", "phase2_hp": "Phase 2 at HP", "phase2_wave_scales": "Hop wave scales"}[field], 12)
-		grid.add_child(label)
 		var edit := _small_edit(writable)
 		edit.name = field
 		edit.text = ", ".join(profile[field].map(func(v): return str(v))) if field == "phase2_wave_scales" else str(int(profile[field]))
 		edit.tooltip_text = "Once at phase-two entry; one in-place leap per scale (comma separated)." if field == "phase2_wave_scales" else "Shared by both Ape phases. New encounters use the saved values."
 		edit.custom_minimum_size.x = 115 if field == "phase2_wave_scales" else 56
-		grid.add_child(edit)
+		_stat(stats, {"max_hp": "Health", "phase2_hp": "Phase 2 at HP", "phase2_wave_scales": "Hop wave scales"}[field], edit)
 		edit.text_changed.connect(func(v):
 			if field == "phase2_wave_scales":
 				var values: Array = []
@@ -772,10 +811,7 @@ func _ape_profile_fields() -> void:
 			dirty = true
 			dirty_changed.emit()
 			_update_feedback())
-	var coverage := HBoxContainer.new()
-	coverage.add_child(Game.label("Cornered coverage",12))
-	coverage.add_child(_cornered_coverage_picker("boss_ape"))
-	block.add_child(coverage)
+	_stat(stats, "Cornered coverage", _cornered_coverage_picker("boss_ape"))
 
 func _cornered_coverage_picker(enemy_id: String) -> OptionButton:
 	var profile: Dictionary = catalog.enemy_profile(enemy_id)
@@ -816,7 +852,7 @@ func _build_grouped_values(parent: Control, attack: Dictionary, score: Label) ->
 		var panel := PanelContainer.new()
 		panel.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-		panel.add_theme_stylebox_override("panel", _surface("18202b", "2c3b4e", 6))
+		panel.add_theme_stylebox_override("panel", _surface("151a24", "151a24", 8))
 		groups.add_child(panel)
 		var content := VBoxContainer.new()
 		content.add_theme_constant_override("separation", 3)
