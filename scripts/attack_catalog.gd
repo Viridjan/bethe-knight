@@ -29,6 +29,7 @@ const NUMERIC := ["windup_s", "animation_s", "base_weight", "coverage_area_units
 static var _shared = null
 var attack_path := "res://data/attacks.csv"
 var assignment_path := "res://data/enemy_attacks.csv"
+var standalone := false  # a catalogue the game does not run (Monster Lab): the built-in attacks may be absent
 var attacks: Array = []
 var assignments: Array = []
 var attack_columns := PackedStringArray()
@@ -251,6 +252,7 @@ func validate() -> String:
 		if float(row.max_range_units) != 0 and float(row.max_range_units) <= float(row.min_range_units): return _fail("ranges", i, "max_range_units", "Range maximum must exceed minimum (0 = no maximum): " + key)
 		var skip := str(row.get("skip_chance", ""))
 		if skip != "" and (not skip.is_valid_float() or float(skip) < 0 or float(skip) > 100): return _fail("ranges", i, "skip_chance", "Skip chance must be 0-100 %: " + key)
+	if standalone: return ""
 	for enemy_id in EXECUTABLE:
 		for id in EXECUTABLE[enemy_id]:
 			if not ids.has(id): return "Missing implemented attack: " + id

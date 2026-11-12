@@ -270,6 +270,11 @@ func _ready() -> void:
 	var clock: float = lab.time
 	await _frames(5)
 	if lab.time != clock: _fail("Monster Lab room keeps running under its editor")
+	var lab_editor = lab.lab_panel.find_children("", "VBoxContainer", true, false).filter(func(n): return n.has_method("_show_enemies"))[0]
+	lab_editor._show_table(false)
+	lab_editor._show_enemies()
+	if not lab_editor.catalog.attack_path.begins_with("user://monster_lab/") or not lab_editor.ENEMIES.is_empty() or not lab_editor.catalog.validate().is_empty():
+		_fail("Monster Lab editor is not the Monster Editor on its own, valid, enemy-free catalogue")
 	Game.lab_enemy = ""
 	Game.settings.invincible = previous_invincible
 	Game.adv = {}
