@@ -111,6 +111,7 @@ var level: Dictionary = {}
 var playtest := false
 var lab := false  # Monster Lab: the dummy room, running on the lab's own attack catalogue
 var lab_enemy := ""  # the enemy chosen for the lab room ("" = none yet)
+var lab_at := Vector2.INF  # where it was dropped in the room, top left in px (INF = the default spot)
 var editor_level: Dictionary = {}
 var editor_resize_resume: Dictionary = {}  # transient resize/undo state while playtesting
 var editor_dir := LEVEL_DIR  # where the level editor saves (the world folder when editing a world room)
@@ -195,11 +196,12 @@ func play(level_data: Dictionary, from_editor: bool) -> void:
 
 # Monster Lab: an empty room, with the chosen enemy once there is one, running on the lab's own attack catalogue
 # (reread from disk on every start). Its editor opens over the room (world.gd _toggle_lab).
-func play_lab(enemy_id := "") -> void:
+func play_lab(enemy_id := "", at := Vector2.INF) -> void:
 	var lab_editor = load("res://scripts/monster_lab_editor.gd")
 	load("res://scripts/attack_catalog.gd").use(lab_editor.lab_catalog())
 	adv = {}
-	level = lab_editor.test_room(enemy_id)
+	level = lab_editor.test_room(enemy_id, at)
+	lab_at = at
 	playtest = false
 	lab = true  # before the world is built: it reads these
 	lab_enemy = enemy_id

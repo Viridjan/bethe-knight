@@ -246,6 +246,7 @@ var parts: Array = []   # [pos, vel, life, color]
 var trails: Array = []  # [Rect2, color, life]
 var snow: Array = []
 var paused := false
+var lab_carry := false  # Monster Lab: the left button is held, carrying the enemy
 var lab_panel: ColorRect  # Monster Lab: the Monster Editor over the dummy room (_toggle_lab)
 var done := false
 
@@ -1171,6 +1172,12 @@ func _unhandled_input(event: InputEvent) -> void:
 			_toggle_lab()
 			return
 		if lab_open(): return
+		# Hold the left button to carry the enemy, release to drop it there (the room restarts with it placed).
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and Game.lab_enemy != "":
+			get_viewport().set_input_as_handled()
+			lab_carry = event.pressed
+			if not event.pressed: Game.play_lab(Game.lab_enemy, _lab_drop().position)
+			return
 	if done or paused:
 		pass
 	elif event.is_action_pressed("map") or (map_view != null and event.is_action_pressed("pause")):
@@ -1504,6 +1511,7 @@ func _draw() -> void:
 		draw_rect(Rect2(pt[0].floor(), Vector2.ONE), Color(pt[3], clampf(pt[2] * 3, 0, 1)))
 	if Game.settings.hitboxes:
 		_draw_hitboxes(cull)
+	if lab_carry: draw_rect(_lab_drop(), Color(1, 1, 1, 0.8), false, -1)
 
 # Debug overlay (Options / F1 "Hitboxes"): the rects collision and touches actually use.
 # Thin lines (-1: one screen pixel at any zoom), colours from HITBOX_KEY.
@@ -1563,6 +1571,13 @@ func _panel(title: String) -> VBoxContainer:
 	center.add_child(box)
 	box.add_child(Game.label(title, 44))
 	return box
+
+# Where the carried enemy would land: its box centred on the mouse, kept inside the room's walls.
+func _lab_drop() -> Rect2:
+	var bodies: Array = ents.filter(func(e): return e.d.get("t", "") == Game.lab_enemy)
+	var box := Vector2(bodies[0].rect.size) if not bodies.is_empty() else Vector2(12, 12)
+	var at: Vector2 = (get_global_mouse_position() - box / 2.0).round()
+	return Rect2(at.clamp(Vector2(8, 8), Vector2(data.w * 8 - 8, data.h * 8 - 16) - box), box)
 
 # Monster Lab: the dummy room started by Game.play_lab.
 func lab() -> bool:

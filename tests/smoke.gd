@@ -276,6 +276,8 @@ func _ready() -> void:
 	lab_editor._show_enemies()
 	if not lab_editor.catalog.attack_path.begins_with("user://monster_lab/") or not lab_editor.catalog.validate().is_empty():
 		_fail("Monster Lab editor is not on its own valid catalogue")
+	if lab_editor.catalog.attacks.is_empty() or not lab_editor.catalog.assignments.all(func(row): return row.enemy_id in lab_editor.ENEMIES.map(func(listed): return listed[0])):
+		_fail("Monster Lab editor has no attacks to choose from")
 	var lab_ids: Array = lab_editor.ENEMIES.map(func(listed): return listed[0])
 	lab_editor._select_enemy(lab_ids.find("enemy_hornback"))
 	lab_editor._test()
@@ -287,6 +289,20 @@ func _ready() -> void:
 		await _frames(90)
 		if not get_child(-1).ents.any(func(ent): return ent.d.get("t", "") == lab_id):
 			_fail("Monster Lab room has no %s" % lab_id)
+	Game.play_lab("enemy_hornback", Vector2(100, 120))  # dropped by hand: it starts there
+	await _frames(1)
+	if not get_child(-1).ents.any(func(ent): return ent.d.get("t", "") == "enemy_hornback" and ent.d.x == 100 and ent.d.y == 120):
+		_fail("Monster Lab enemy is not placed where it was dropped")
+	if get_child(-1)._lab_drop().size != Vector2(12, 10): _fail("Monster Lab carry outline is not the enemy's size")
+	for held in [true, false]:  # a real click in the room: press carries, release drops
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = held
+		click.position = Vector2(640, 360)
+		Input.parse_input_event(click)
+		await _frames(2)
+		if held and not get_child(-1).lab_carry: _fail("Monster Lab: pressing in the room does not pick the enemy up")
+	if Game.lab_at == Vector2(100, 120) or Game.lab_at == Vector2.INF: _fail("Monster Lab: releasing in the room does not drop the enemy there")
 	Game.goto("menu")
 	await _frames(2)
 	if Game.lab or load("res://scripts/attack_catalog.gd").shared().attack_path != "res://data/attacks.csv":
