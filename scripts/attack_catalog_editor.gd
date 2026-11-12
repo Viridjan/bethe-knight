@@ -82,9 +82,6 @@ func _ready() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.add_child(spacer)
-	var location := Game.label("Tiles · seconds" if writable else "Read only · tiles · seconds", 12)
-	location.tooltip_text = "Source: data/attacks.csv and data/enemy_attacks.csv. One tile = 8 pixels."
-	tabs.add_child(location)
 	var panes := HSplitContainer.new()
 	panes.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panes.split_offset = 230
@@ -473,7 +470,7 @@ func _reload() -> bool:
 	else: _show_table(ranges)
 	return true
 
-# ---- Enemies tab: pick an enemy; its sprite, its attacks in priority order (move up / down, skip chance), scores ----
+# ---- Enemies tab: pick an enemy; its attacks in priority order (move up / down, skip chance), scores ----
 func _show_enemies() -> void:
 	view = "enemies"
 	ranges = true
@@ -481,25 +478,6 @@ func _show_enemies() -> void:
 	_filter_list()
 	_select_enemy(enemy_index)
 	_update_feedback()
-
-class SpritePreview extends Control:  # the enemy drawn 5x, animated (through a scaled node: some draws set their own transform)
-	var ent = null
-	var canvas := Sprite.new()
-	func _ready() -> void:
-		add_child(canvas)
-	func _process(dt: float) -> void:
-		if ent == null: return
-		if "clock" in ent:
-			ent.clock += dt
-		var k := minf(3.0, (size.y - 12.0) / maxf(ent.rect.size.x, ent.rect.size.y))
-		canvas.ent = ent
-		canvas.scale = Vector2(k, k)
-		canvas.position = size / 2.0 - Vector2(ent.rect.get_center()) * k
-		canvas.queue_redraw()
-	class Sprite extends Node2D:
-		var ent = null
-		func _draw() -> void:
-			if ent != null: ent.draw(self)
 
 # Projection only: shared mechanics appear once; phase bindings remain independent CSV rows.
 func _enemy_rows(e: Array) -> Array:
@@ -594,42 +572,22 @@ func _select_enemy(i: int) -> void:
 	enemy_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	form.add_child(enemy_title)
 	var e: Array = ENEMIES[i]
-	var preview := SpritePreview.new()
-	preview.custom_minimum_size = Vector2(0, 70)
-	preview.clip_contents = true
 	var data: Dictionary = {"t": e[0]}
 	if e[0] == "boss_guardian":
 		data.merge({"w": 96, "h": 64})
 	data.x = 0
 	data.y = 0
-	preview.ent = load("res://scripts/entities.gd").make(null, data)
-	form.add_child(preview)
+	var ent = load("res://scripts/entities.gd").make(null, data)  # for its family's health and coverage fields
 	if e[0] == "boss_ape": _ape_profile_fields()
-	elif preview.ent != null and preview.ent.has_method("variant_hp"):
-		_family_health_fields(preview.ent.family())
-		if not Catalog.coverage_attacks(preview.ent.family()).is_empty():
+	elif ent != null and ent.has_method("variant_hp"):
+		_family_health_fields(ent.family())
+		if not Catalog.coverage_attacks(ent.family()).is_empty():
 			var coverage := HBoxContainer.new()
 			coverage.add_child(Game.label("Cornered coverage",12))
-			coverage.add_child(_cornered_coverage_picker(preview.ent.family()))
+			coverage.add_child(_cornered_coverage_picker(ent.family()))
 			form.add_child(coverage)
-	var own: Array = (_look_frames(e[0]) if e[0].begins_with("enemy_") else (_ape_frames(["idle", "run", "crouch", "air"]) if e[0] in ["boss_ape", "ape_chase"] else []))
-	if not own.is_empty():
-		var own_row := HBoxContainer.new()
-		own_row.alignment = BoxContainer.ALIGNMENT_CENTER
-		own_row.visible = false
-		var gallery := Game.button("+ Animation reference", func(): pass)
-		gallery.pressed.connect(func():
-			if own_row.get_child_count() == 0: own_row.add_child(_frame_strip(own, 2.0))  # built when first opened
-			own_row.visible = not own_row.visible
-			gallery.text = ("− " if own_row.visible else "+ ") + "Animation reference")
-		gallery.flat = true
-		gallery.add_theme_font_size_override("font_size", 14)
-		gallery.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		gallery.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		form.add_child(gallery)
-		form.add_child(own_row)
 	if e[1] == "":  # attacks in the game code: what it is and does, read-only
-		_code_enemy_info(e, preview.ent)
+		_code_enemy_info(e, ent)
 		return
 	# one block per attack: its binding line (rank, name, ranges, skip, order, score), its mechanics, its notes
 	var widths := [22, 190, 48, 48, 48, 26, 26, 26, 56]
@@ -700,7 +658,7 @@ func _select_enemy(i: int) -> void:
 		var details := VBoxContainer.new()
 		details.visible = expanded_attacks.get(detail_key, false)
 		var expand := Game.button("Close" if details.visible else "Edit", func(): pass)
-		expand.tooltip_text = "Show or hide this attack's mechanics, animation frames, and follow-up settings."
+		expand.tooltip_text = "Show or hide this attack's mechanics and follow-up settings."
 		expand.add_theme_font_size_override("font_size", 12)
 		expand.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		expand.alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -713,15 +671,6 @@ func _select_enemy(i: int) -> void:
 			var inner := VBoxContainer.new()
 			inner.add_theme_constant_override("separation", 3)
 			margin.add_child(inner)
-			var shown: Array = _attack_frames(e, attack)
-			if not shown[0].is_empty():
-				var anim := HBoxContainer.new()
-				anim.add_child(_frame_strip(shown[0], 1.5))
-				if shown[1] != "":
-					var cap := Game.label(shown[1], 11)
-					cap.modulate = Color(1, 1, 1, 0.5)
-					anim.add_child(cap)
-				inner.add_child(anim)
 			_build_grouped_values(inner, attack, score)
 			if writable and not "follow_up" in _applicable(attack):  # no follow-up yet: one click adds one (in Edit)
 				var add_then := Game.button("+ Then…", func():
@@ -1042,56 +991,6 @@ func _wrap_tips(node: Node) -> void:
 		node.tooltip_text = squarish(node.tooltip_text)
 	for child in node.get_children():
 		_wrap_tips(child)
-
-# ---- sprite frames: the enemy's own, and each attack's animation ----
-const APE_POSES := {"ape_throw": ["crouch", "throw"], "ape_leap": ["crouch", "launch", "rise", "apex", "fall", "land"],
-	"ape_retreat": ["crouch", "launch", "rise", "apex", "fall", "land"],
-	"ape_scream": ["crouch", "scream"]}
-
-func _frame_strip(textures: Array, k: float) -> HBoxContainer:
-	var strip := HBoxContainer.new()
-	strip.add_theme_constant_override("separation", 4)
-	for t in textures:
-		var pic := TextureRect.new()
-		pic.texture = t
-		pic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		pic.custom_minimum_size = Vector2(t.get_width(), t.get_height()) * k
-		strip.add_child(pic)
-	return strip
-
-func _look_frames(kind: String) -> Array:  # an enemy family's 4 walk frames (EnemyArt atlas row)
-	var art = load("res://scripts/enemy_art.gd")
-	var row: int = art.KINDS.find(kind)
-	if row < 0: return []
-	var out: Array = []
-	for f in 4:
-		var at := AtlasTexture.new()
-		at.atlas = art.texture()
-		at.region = Rect2(f * art.SIZE, row * art.SIZE, art.SIZE, art.SIZE)
-		out.append(at)
-	return out
-
-func _ape_frames(poses: Array) -> Array:
-	var art = load("res://scripts/ape_art.gd")
-	return poses.map(func(p): return art.texture(p, 0))
-
-# What an attack looks like: the Ape's poses / shockwave, a projectile, or (library monsters, which have only walk
-# frames) the walk frames. Returns [textures, caption].
-func _attack_frames(e: Array, attack: Dictionary) -> Array:
-	var id: String = attack.get("name", "")
-	if APE_POSES.has(id): return [_ape_frames(APE_POSES[id]), ""]
-	if id == "ape_slam":
-		var art = load("res://scripts/ape_art.gd")
-		return [[0, 1, 2, 3].map(func(f): return art.impact_texture(24, 8, f)), "shockwave"]
-	if attack.get("type", "") == "ranged":
-		var img := Image.create(5, 5, false, Image.FORMAT_RGBA8)  # (a placeholder dot: projectiles are drawn in code)
-		img.fill_rect(Rect2i(1, 1, 3, 3), Color("8a7a6a"))
-		return [[ImageTexture.create_from_image(img)], "projectile"]
-	if e[0].begins_with("enemy_"):
-		return [_look_frames(e[0]), "walk frames (no attack art yet)"]
-	return [[], ""]
 
 func _show_score(label: Label, attack: Dictionary) -> void:
 	var sc: Dictionary = catalog.score_attack(attack) if catalog.validate().is_empty() else {"valid": false}

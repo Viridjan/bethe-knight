@@ -8,10 +8,10 @@ view also provides access to the catalogue.
 - **Attack library**: search by name, ID, or type. Common settings are grouped in
   cards; Trajectory and Advanced settings expand when needed. The selected
   attack's score is shown beside its name, with the calculation in hover help.
-- **Enemy loadouts**: search enemies, inspect their preview, and review attacks
+- **Enemy loadouts**: search enemies and review attacks
   in priority order. Range, skip chance, and ordering controls remain visible.
-  Use its **Edit** button for mechanics, frames, and follow-up settings.
-  Animation reference sheets expand separately.
+  Use its **Edit** button for mechanics and follow-up settings.
+  The page shows no images (removed 2026-11-12 until real attack animations exist).
 - **Save changes** and **Reload** stay at the top right. Save validates the draft;
   saving/reloading preserves the selected enemy view. Long score explanations
   are available on hover.

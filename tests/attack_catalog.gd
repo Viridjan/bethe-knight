@@ -26,7 +26,7 @@ func _ready() -> void:
 			var n := 1 if node is TextureRect and node.texture != null else 0
 			for c in node.get_children(): n += f.call(c, f)
 			return n
-		check(pics.call(editors[0].form, pics) >= 10, "Enemies tab shows the Ape's frames and its attacks' animation frames")
+		check(pics.call(editors[0].form, pics) == 0, "Enemies tab shows no images until real attack animations exist")
 	menu.queue_free()
 	await get_tree().process_frame
 	var catalog = load(path).new()
@@ -187,8 +187,8 @@ func _ready() -> void:
 		editor._show_table(true)
 		check(editor.table.item_count == catalog.assignments.size(), "Monsters CSV editor lists range assignments")
 		editor._show_enemies()
-		check(editor.table.item_count == editor.ENEMIES.size() + 1 and editor.ENEMIES.size() > 30 and editor.ENEMIES.any(func(x): return x[0] == "enemy_monster") and editor.form.get_children().any(func(n): return n.get("ent") != null),
-			"Enemy loadouts include library monsters, code-driven attack families and a sprite preview")
+		check(editor.table.item_count == editor.ENEMIES.size() + 1 and editor.ENEMIES.size() > 30 and editor.ENEMIES.any(func(x): return x[0] == "enemy_monster"),
+			"Enemy loadouts include library monsters and code-driven attack families")
 		var first: String = catalog.ordered_attacks("enemy_monster", "default")[0].attack_name
 		editor._move(catalog.ordered_attacks("enemy_monster", "default")[0], 1)
 		check(catalog.ordered_attacks("enemy_monster", "default")[1].attack_name == first and editor.dirty, "The lower-priority button moves an attack down the list")
@@ -289,7 +289,7 @@ func _ready() -> void:
 		check(hb >= 0 and editor.ENEMIES[hb][1] == "default" and catalog.ordered_attacks("enemy_hornback", "default").size() == 1, "Enemy families' attacks are in the CSV and editable (Hornback charge)")
 		editor._select_enemy(0)
 		await get_tree().process_frame
-		check(editor.form.get_children().any(func(n): return n.get("ent") != null) and editor.summary.text.begins_with("Selected attacks"),
+		check(editor.summary.text.begins_with("Selected attacks"),
 			"Enemies tab shows the Ape phases with its repertoire score")
 		editor._save()
 		check(editor.view == "enemies" and editor.enemy_index == 0 and not editor.dirty, "Save preserves the active enemy loadout view")
