@@ -95,7 +95,7 @@ func _rounded_profiles() -> Dictionary:
 	return result
 
 # Decision conditions are separate from automatic impact/landing effects.
-const ATTACK_CONDITIONS := {"default":"Normal rules", "player_cornered":"Player cornered", "player_vertical":"Player above/below", "player_near":"Player nearby", "player_far":"Player far away", "always":"Always"}
+const ATTACK_CONDITIONS := {"default":"Normal rules", "player_cornered":"Player cornered", "player_vertical":"Player above/below", "always":"Always"}
 
 # Only attacks with an accurate runtime coverage adapter may be selected.
 static func coverage_attacks(enemy_id: String) -> Array:
@@ -107,6 +107,7 @@ static func condition_choices(enemy_id: String) -> Array:
 
 static func attack_condition(row: Dictionary) -> String:
 	var condition := str(row.get("trigger_condition",""))
+	if condition in ["player_near","player_far"]: return "default"  # removed: a binding's own range says this
 	if not condition.is_empty(): return condition
 	return "player_cornered" if row.get("enemy_id","") == "boss_ape" and row.get("attack_name","") == "ape_retreat" else "default"
 

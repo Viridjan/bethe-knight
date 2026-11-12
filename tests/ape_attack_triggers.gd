@@ -60,10 +60,10 @@ func check_saved_conditions(source) -> void:
 	var enraged: Dictionary = saved.ordered_attacks("boss_ape","enraged",["ape_retreat"])[0]
 	saved.enemy_profiles.boss_ape.cornered_coverage_attack = ""
 	normal.trigger_condition = "always"
-	enraged.trigger_condition = "player_far"
+	enraged.trigger_condition = "player_vertical"
 	check(saved.save_all().is_empty() and saved.reload(),"Trigger choices save and reload with catalogue")
 	check(saved.enemy_profile("boss_ape").cornered_coverage_attack == "","Separate coverage choice survives profile save/reload")
-	check(saved.attack_condition(saved.ordered_attacks("boss_ape","normal",["ape_retreat"])[0]) == "always" and saved.attack_condition(saved.ordered_attacks("boss_ape","enraged",["ape_retreat"])[0]) == "player_far","Each phase keeps its own attack trigger")
+	check(saved.attack_condition(saved.ordered_attacks("boss_ape","normal",["ape_retreat"])[0]) == "always" and saved.attack_condition(saved.ordered_attacks("boss_ape","enraged",["ape_retreat"])[0]) == "player_vertical","Each phase keeps its own attack trigger")
 	# Legacy files gain the field using the same cornered-retreat default.
 	var lines := FileAccess.get_file_as_string(saved.assignment_path).strip_edges().split("\n")
 	var legacy := PackedStringArray()

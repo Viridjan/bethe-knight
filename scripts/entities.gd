@@ -3169,7 +3169,7 @@ class Ape extends Ent:
 		var phase_name := "enraged" if enraged() else "normal"
 		var near_rules: Array = AttackCatalog.shared().ordered_attacks("boss_ape", phase_name, ["ape_scream"])
 		var near_limit: float = AttackCatalog.max_range(near_rules[0]) if not near_rules.is_empty() else NEAR / T
-		var conditions := {"player_cornered":corner, "player_vertical":above, "player_near":distance_units < near_limit, "player_far":distance_units >= near_limit}
+		var conditions := {"player_cornered":corner, "player_vertical":above}
 		var bindings := {}
 		for row in AttackCatalog.shared().ordered_attacks("boss_ape",phase_name): bindings[row.attack_name] = row
 
