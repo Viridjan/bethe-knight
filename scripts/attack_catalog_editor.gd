@@ -258,14 +258,14 @@ func _select_row(index: int) -> void:
 		score_value.modulate = Color("a4d4df")
 		hero.add_child(score_value)
 	var groups: Array = [
-		["Definition", ["codex_online_name", "type"], false],
+		["Definition", ["codex_online_name", "type", "behavior"], false],
 		["Timing", ["windup_s", "animation_s", "recovery_s"], false],
 		["Attack shape", ["coverage_area_units2", "initial_speed_units_s", "multishot", "aimed_shot", "spread_deg", "max_distance_units", "shockwave_s"], false],
 		["Trajectory", ["flight_time_s", "horizontal_speed_units_s", "vertical_speed_units_s", "gravity_units_s2"], true],
 		["Advanced", ["name", "base_weight"], true]
 	]
 	if ranges: groups = [["Assignment", ["enemy_id", "phase", "attack_name"], false], ["Distance", ["max_range_units", "priority"], false]]
-	var keep: Array = _applicable(row) + ["codex_online_name", "name", "type", "base_weight"] if not ranges else []
+	var keep: Array = _applicable(row) + ["codex_online_name", "name", "type", "behavior", "base_weight"] if not ranges else []
 	for group in groups:
 		var columns: Array = group[1].filter(func(column): return row.has(column) and (ranges or column in keep))
 		if columns.is_empty(): continue
@@ -311,11 +311,12 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	label.tooltip_text = _help(column)
 	cell.add_child(label)
-	if column == "type" and not ranges:  # a choice, not free text
+	if column in ["type", "behavior"] and not ranges:  # a choice, not free text
 		var pick := OptionButton.new()
-		for t in catalog.TYPES:
-			pick.add_item(t)
-		pick.select(catalog.TYPES.find(str(_rows()[index].get("type", ""))))
+		var choices: Array = catalog.TYPES if column == "type" else catalog.BEHAVIORS.keys()
+		for t in choices:
+			pick.add_item(t if column == "type" else catalog.BEHAVIORS[t])
+		pick.select(choices.find(str(_rows()[index].get(column, ""))))
 		pick.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		pick.custom_minimum_size.y = ROW_H
 		pick.add_theme_constant_override("arrow_margin", 6)
@@ -323,10 +324,12 @@ func _add_field(grid: GridContainer, column: String, index: int) -> void:
 		flat.content_margin_top = 2
 		flat.content_margin_bottom = 2
 		for state in ["normal", "hover", "pressed", "focus", "disabled"]: pick.add_theme_stylebox_override(state, flat)
-		pick.disabled = not writable
-		pick.tooltip_text = _help("type")
+		# built-in rows keep their behavior: code, levels and tests name them
+		pick.disabled = not writable or (column == "behavior" and catalog.runtime_used(str(_rows()[index].get("name", ""))))
+		pick.tooltip_text = _help(column)
 		pick.item_selected.connect(func(i):
-			_change("type", catalog.TYPES[i])
+			if column == "behavior": _rows()[index].status = "implemented" if choices[i] != "" else "planned"
+			_change(column, choices[i])
 			_select_row(index))  # its type's boxes
 		cell.add_child(pick)
 		return
@@ -1166,7 +1169,7 @@ func _new_attack() -> String:
 		row[column] = ""
 	row.merge({"name": "new_attack_%d" % n, "codex_online_name": "New attack %d" % n, "type": "melee", "status": "planned", "windup_s": "0.50",
 		"animation_s": "0.30", "recovery_s": "0.50", "coverage_area_units2": "1.00", "base_weight": "1.00", "multishot": "1", "aimed_shot": "0",
-		"spread_deg": "0.00", "notes": "Added in the Monster Editor: needs its gameplay written before enemies can use it."}, true)
+		"spread_deg": "0.00", "notes": "Added in the Monster Editor: pick a Behavior so enemies can use it."}, true)
 	catalog.attacks.append(row)
 	return row.name
 
@@ -1235,7 +1238,8 @@ func _score_text(e: Array) -> String:
 
 func _help(field: String) -> String:
 	match field:
-		"type": return "What kind of attack it is: it decides which values it has and how it's scored (body movement, melee, ranged, area, movement). What the game does is still up to the enemy's code."
+		"type": return "What kind of attack it is: it decides which values it has and how it's scored (body movement, melee, ranged, area, movement). What the game does is set by Behavior."
+		"behavior": return "What the attack does in game: charge, leap, straight shot, lobbed shot, ceiling dive. An enemy can use any attack whose behavior it supports, with that attack's own numbers. None: data only, no enemy performs it."
 		"name": return "The attack's ID. The game code refers to some attacks by ID: those can't be renamed. Renaming another one updates every enemy and follow-up that uses it."
 		"codex_online_name": return "The attack's name, as shown in the Enemies tab."
 		"score": return "Derived reference score; recalculated when saved. Not editable."

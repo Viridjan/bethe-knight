@@ -2354,6 +2354,35 @@ func check_monster_library() -> void:
 	var aim: Vector2 = (p().center() - shooter.center()).normalized()
 	check(dirs.size() == 3 and dirs[1].distance_to(aim) < 0.2 and dirs[0].y > dirs[1].y and dirs[2].y < dirs[1].y,
 		"multishot: 3 shots, shot 1 aimed at the player, shot 0 the lowest (%s)" % [dirs])
+	# a new catalogue row needs no script of its own: its behavior kind is enough
+	var cat2 = E.AttackCatalog.shared()
+	var made: Dictionary = shoot_row.duplicate(true)
+	made.merge({"name": "test_fast_shot", "multishot": "1", "aimed_shot": "0", "spread_deg": "0", "initial_speed_units_s": "30"}, true)
+	var keep_bindings: Array = cat2.assignments
+	var shoot_rule: Dictionary = cat2.ordered_attacks("enemy_monster", "default", ["shoot"])[0]
+	var murk_rule: Dictionary = cat2.ordered_attacks("enemy_murkspore", "default")[0]
+	var monster_rule: Dictionary = shoot_rule.duplicate(true)
+	monster_rule.attack_name = "test_fast_shot"
+	var swapped: Dictionary = murk_rule.duplicate(true)
+	swapped.attack_name = "test_fast_shot"
+	cat2.attacks.append(made)
+	cat2.assignments = keep_bindings.filter(func(b): return b != murk_rule) + [monster_rule, swapped]
+	check(cat2.validate() == "" and cat2.performs("enemy_monster", "test_fast_shot") and not cat2.performs("enemy_skree", "test_fast_shot"), "an enemy performs any attack whose behavior it supports (%s)" % cat2.validate())
+	make_world([{"t": "enemy_monster", "x": 170, "y": floor_y - 2, "move": "patrol", "attacks": ["test_fast_shot"], "traits": [], "tier": 0, "look": "enemy_skeleton", "facing": -1}, {"t": "enemy_murkspore", "x": 300, "y": floor_y - 2}])
+	Game.settings.invincible = true
+	shooter = w.ents.filter(func(e): return e.d.t == "enemy_monster")[0]
+	for k in 120:
+		step()
+		if not shooter.orbs.is_empty():
+			break
+	Game.settings.invincible = false
+	var murk = w.ents.filter(func(e): return e.d.t == "enemy_murkspore")[0]
+	check(shooter.orbs.size() == 1 and absf(shooter.orbs[0][1].length() - 240.0) < 1.0, "a new straight-shot row fires with its own speed, without code of its own")
+	check(murk.attack_id() == "test_fast_shot", "a fixed enemy takes the bound attack of its behavior kind from the Monster Editor")
+	made.behavior = ""
+	check(not cat2.performs("enemy_monster", "test_fast_shot") and murk.attack_id() == "", "an attack without a behavior is data only: nobody performs it")
+	cat2.attacks.erase(made)
+	cat2.assignments = keep_bindings
 	shoot_row.merge({"multishot": keep_shot[0], "aimed_shot": keep_shot[1], "spread_deg": keep_shot[2]}, true)
 	var charge_row: Dictionary = E.AttackCatalog.shared().attack("charge")
 	var keep_dist: String = charge_row.max_distance_units

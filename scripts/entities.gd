@@ -890,7 +890,14 @@ class CombatEnemy extends Ent:
 		return variant == t
 
 	# The family's attack in data/attacks.csv ("" = none: it only hurts on touch). Variants share their family's.
+	# The bound attack this family can perform, by priority: the Monster Editor decides it. None bound: it never attacks.
 	func attack_id() -> String:
+		var catalog = AttackCatalog.shared()
+		if not catalog.loaded: return default_attack()
+		for row in catalog.ordered_attacks(family(), "default"):
+			if not AttackCatalog.triggered(row) and catalog.performs(family(), row.attack_name): return row.attack_name
+		return ""
+	func default_attack() -> String:  # only when the catalogue failed to load
 		return ""
 	var skip_cd := 0.0  # a skipped attack (its skip chance) waits this long before the next try
 	var skip_waits := {}  # attack -> clock time a skipped attack may be rolled again
@@ -1172,7 +1179,7 @@ class CombatEnemy extends Ent:
 # Ceiling ambusher: warn, dive, rest on impact and return toward its starting height.
 class SkreeEnemy extends CombatEnemy:
 	var vertical_speed := 0.0
-	func attack_id() -> String: return "dropwing_dive"
+	func default_attack() -> String: return "dropwing_dive"
 	# Advance SkreeEnemy timers and behavior for dt seconds; this is called by World, not by Godot automatically.
 	func update(dt: float) -> void:
 		if not active(dt): return
@@ -1210,7 +1217,7 @@ class SkreeEnemy extends CombatEnemy:
 class BatEnemy extends CombatEnemy:
 	var velocity := Vector2.ZERO
 	var swooped := 0.0  # px flown in the current swoop
-	func attack_id() -> String: return "charge"  # shared: a flyer's charge is its swoop
+	func default_attack() -> String: return "charge"  # shared: a flyer's charge is its swoop
 	# Initialize BatEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1248,7 +1255,7 @@ class BatEnemy extends CombatEnemy:
 # Ground patrol that warns and throws bone projectiles toward a visible player.
 class SkeletonEnemy extends CombatEnemy:
 	var gravity_speed := 0.0
-	func attack_id() -> String: return "ossling_bone_throw"
+	func default_attack() -> String: return "ossling_bone_throw"
 	var bones: Array = []  # owned projectiles (see update_shots)
 	# Initialize SkeletonEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
@@ -1366,7 +1373,7 @@ class HornbackEnemy extends CombatEnemy:
 	# Walks its floor. A player at its height in sight gets a warning, then a fast charge that stops at walls and ledges.
 	var gravity_speed := 0.0
 	var charged := 0.0  # px run in the current charge
-	func attack_id() -> String: return "charge"
+	func default_attack() -> String: return "charge"
 	func floor_charge_available() -> bool: return true
 	# Initialize HornbackEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
@@ -1419,6 +1426,10 @@ class ActionMonster extends CombatEnemy:
 	var attack_data: Dictionary = {}  # snapshot: edits do not change an attack already winding up
 	var hop_t := 0.0
 	var travelled := 0.0  # px moved by the current charge / dive
+	func attack_id() -> String:  # it chooses among its own loadout each time (select_attack), not one family attack
+		return ""
+	func kind() -> String:  # the behavior of the attack under way
+		return str(attack_data.get("behavior", ""))
 	func describe() -> String:
 		return super.describe() + " - " + MonsterLib.describe(d)
 	func setup() -> void:
@@ -1452,14 +1463,14 @@ class ActionMonster extends CombatEnemy:
 		return MonsterLib.MOVES[d.move].ground
 
 	func floor_charge_available() -> bool:
-		return ground() and "charge" in d.attacks
+		return ground() and d.attacks.any(func(a): return AttackCatalog.shared().behavior(a) == "charge")
 
 	func update(dt: float) -> void:
 		if w != null and w.player != null:
 			update_shots(orbs, dt, 0.0)
 			update_shots(bones, dt, 240.0)
 		if not active(dt): return
-		if ground() and not (phase == "attack" and attack == "leap"):
+		if ground() and not (phase == "attack" and kind() == "leap"):
 			velocity.y = minf(140, velocity.y + 400 * dt)
 			on_floor = move_enemy(Vector2(0, velocity.y * dt)) and velocity.y > 0
 			if on_floor:
@@ -1469,7 +1480,7 @@ class ActionMonster extends CombatEnemy:
 			"windup":
 				if timer <= 0:
 					Game.play_sfx("enemy_attack")
-					_start(attack)
+					_start()
 			"attack":
 				if _attack(dt):
 					phase = "rest"
@@ -1488,7 +1499,7 @@ class ActionMonster extends CombatEnemy:
 				var chosen: String = catalog.select_attack("enemy_monster", "default", d.attacks, center().distance_to(w.player.center()) / T,
 					func(a):
 						var row: Dictionary = catalog.ordered_attacks("enemy_monster", "default", [a])[0]
-						return sees_player(catalog.max_range(row) * T * scale) and (a != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale, skip_waits, clock, attack_context())
+						return sees_player(catalog.max_range(row) * T * scale) and (catalog.behavior(a) != "charge" or not ground() or absf(w.player.center().y - center().y) < 12 * scale), scale, skip_waits, clock, attack_context())
 				if not chosen.is_empty():
 					facing = -1 if w.player.center().x < center().x else 1
 					Game.play_sfx("enemy_alert")
@@ -1518,20 +1529,20 @@ class ActionMonster extends CombatEnemy:
 			"hover":
 				var goal := home + Vector2(sin(clock * 0.8) * 12, sin(clock * 1.6) * 4)
 				move_enemy((goal - Vector2(rect.position)).limit_length(30 * speed_multiplier * dt))
-	func _start(a: String) -> void:
+	func _start() -> void:
 		phase = "attack"
 		var to: Vector2 = w.player.center() - center()
-		match a:
+		match kind():
 			"charge":  # walkers run along the floor; flyers fly straight at the player
 				travelled = 0.0
 				if not ground():
 					velocity = to.normalized() * _param("initial_speed_units_s", 13.75) * T * speed_multiplier
 			"leap": velocity = Vector2(clampf(to.x / _param("flight_time_s", 0.6), -_param("horizontal_speed_units_s", 15) * T, _param("horizontal_speed_units_s", 15) * T), -_param("vertical_speed_units_s", 21.25) * T)
-			"shoot":
+			"straight_shot":
 				timer = _param("animation_s", 1.0 / 60.0)
 				for v in _fan(to.normalized() * _param("initial_speed_units_s", 12.5) * T):
 					orbs.append([center(), v, 2.5])
-			"lob":
+			"lobbed_shot":
 				timer = _param("animation_s", 1.0 / 60.0)
 				for v in _fan(Vector2(to.x / _param("flight_time_s", 1.0), -_param("vertical_speed_units_s", 15) * T)):
 					bones.append([center(), v, 2.5, _param("gravity_units_s2", 30) * T])
@@ -1540,7 +1551,7 @@ class ActionMonster extends CombatEnemy:
 		var up := -1.0 if v.x >= 0 else 1.0  # a negative angle turns a rightward vector up (screen y points down)
 		return AttackCatalog.shot_angles(attack_data).map(func(a): return v.rotated(deg_to_rad(a) * up))
 	func _attack(dt: float) -> bool:  # true when the attack is over
-		match attack:
+		match kind():
 			"charge":  # until a wall, a ledge or anything it hits, or its maximum distance
 				if not ground():
 					travelled += velocity.length() * dt
@@ -1613,7 +1624,7 @@ class FuzzbobEnemy extends CombatEnemy:
 class CragjawEnemy extends CombatEnemy:
 	# Big brute: plods along its floor; a player in reach gets a warning, then a leap that slams down near them.
 	var velocity := Vector2.ZERO
-	func attack_id() -> String: return "leap"  # shared with library monsters
+	func default_attack() -> String: return "leap"  # shared with library monsters
 	# Initialize CragjawEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()
@@ -1661,7 +1672,7 @@ class MurksporeEnemy extends CombatEnemy:
 	# Big hovering spore: keeps its distance, bobs, and spits a three-orb spread at a visible player.
 	var orbs: Array = []  # owned projectiles (see update_shots)
 	var bob := 0.0
-	func attack_id() -> String: return "shoot"
+	func default_attack() -> String: return "shoot"
 	# Initialize MurksporeEnemy dimensions, collision flags and starting data before World uses the object.
 	func setup() -> void:
 		super.setup()

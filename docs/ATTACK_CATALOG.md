@@ -132,6 +132,18 @@ Regression scene: `godot --headless --path . res://tests/ape_composition.tscn`.
 
 ## What currently controls gameplay
 
+### Behavior kinds (2026-11-12)
+
+Each attack row has a `behavior`: `charge`, `leap`, `straight_shot`, `lobbed_shot`, `dive`, or one of the Ape's four
+scripted kinds. Enemy code implements kinds, never single attacks (`AttackCatalog.SUPPORTED`): a library monster
+performs any bound row with one of its four kinds, and each fixed family (Dropwing, bat, Ossling, Hornback, Cragjaw,
+Murkspore) uses the highest-priority bound row of its own kind, with that row's numbers. A new row therefore works in
+game as soon as it has a behavior and a binding; choosing a behavior in the Attack library marks it implemented. An
+empty behavior means data only. Built-in rows keep their behavior, because code, levels and tests name them.
+
+Still scripted, not data: the Ape's choice rules and its four kinds, follow-up chains other than retreat then throw,
+split/spike/slam effects, projectile size and lifetime, and the non-Ape enemies' bodies and movement.
+
 Library monsters read CSV wind-up and recovery. Charge reads speed and max distance (walkers along the floor, flyers
 straight at the player); straight shots read speed and execution duration. Leaps read initial
 horizontal/vertical components and gravity, ending on landing. Lobbed shots read

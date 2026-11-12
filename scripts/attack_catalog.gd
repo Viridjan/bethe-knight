@@ -8,6 +8,16 @@ const REFERENCE_DISTANCE := 20.0
 # compare with area attacks, which count their whole area. 15 keeps the Ape's scream, leap, throw and slam within ~4x.
 const SWEEP_LENGTH := 15.0
 const TYPES := ["body movement", "melee", "ranged", "area", "movement"]  # movement: the move decides how long it lasts (charge, leaps, dive, slam)
+# What an attack does in game. Enemy code implements kinds, never single attacks: a new row that picks a kind an enemy
+# supports works at once, with its own numbers. The Ape's four kinds are still scripted for it alone.
+const BEHAVIORS := {"": "None (data only)", "charge": "Charge", "leap": "Leap", "straight_shot": "Straight shot", "lobbed_shot": "Lobbed shot",
+	"dive": "Ceiling dive", "ape_retreat": "Ape: retreat leap", "ape_throw": "Ape: log throw", "ape_leap": "Ape: leap", "ape_scream": "Ape: scream"}
+const SUPPORTED := {"enemy_monster": ["charge", "leap", "straight_shot", "lobbed_shot"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
+	"enemy_skree": ["dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["lobbed_shot"],
+	"enemy_hornback": ["charge"], "enemy_cragjaw": ["leap"], "enemy_murkspore": ["straight_shot"]}
+# Kinds of the built-in rows, for a catalogue saved before the behavior column existed.
+const LEGACY_BEHAVIOR := {"shoot": "straight_shot", "lob": "lobbed_shot", "dropwing_dive": "dive", "ossling_bone_throw": "lobbed_shot"}
+# Built-in rows that code, levels and tests name directly: they can't be renamed or deleted.
 const EXECUTABLE := {"enemy_monster": ["charge", "leap", "shoot", "lob"], "boss_ape": ["ape_retreat", "ape_throw", "ape_leap", "ape_scream"],
 	"enemy_skree": ["dropwing_dive"], "enemy_bat": ["charge"], "enemy_skeleton": ["ossling_bone_throw"],
 	"enemy_hornback": ["charge"], "enemy_cragjaw": ["leap"], "enemy_murkspore": ["shoot"]}
@@ -149,6 +159,9 @@ func reload() -> bool:
 	attack_columns = a.columns
 	assignment_columns = b.columns
 	if "trigger_condition" not in assignment_columns: assignment_columns.append("trigger_condition")
+	if "behavior" not in attack_columns:
+		attack_columns.insert(attack_columns.find("type") + 1, "behavior")
+		for row in attacks: row.behavior = LEGACY_BEHAVIOR.get(row.name, row.name if BEHAVIORS.has(row.name) else "")
 	for row in assignments: row.trigger_condition = attack_condition(row)
 	error = validate()
 	if not error.is_empty():
@@ -181,6 +194,7 @@ func validate() -> String:
 		if id.is_empty() or ids.has(id): return _fail("attacks", i, "name", "Empty or duplicate attack name: " + id)
 		ids[id] = true
 		if row.get("type", "") not in TYPES: return _fail("attacks", i, "type", "Invalid type for " + id)
+		if not BEHAVIORS.has(row.get("behavior", "")): return _fail("attacks", i, "behavior", "Unknown behavior for " + id)
 		if row.get("status", "") == "implemented":
 			var required := ["windup_s", "base_weight", "multishot", "recovery_s"]
 			if row.type not in ["body movement", "movement"]: required.append("coverage_area_units2")  # body / movement attacks: the enemy's body
@@ -219,7 +233,7 @@ func validate() -> String:
 		if str(row.get("enemy_id", "")).is_empty(): return _fail("ranges", i, "enemy_id", "Range requires enemy and phase")
 		if str(row.get("phase", "")).is_empty(): return _fail("ranges", i, "phase", "Range requires enemy and phase")
 		if not ids.has(row.get("attack_name", "")): return _fail("ranges", i, "attack_name", "Unknown attack binding: " + str(row.get("attack_name", "")))
-		if not EXECUTABLE.has(row.enemy_id): return _fail("ranges", i, "enemy_id", "Attack has no implementation for " + str(row.enemy_id) + ": " + str(row.attack_name))
+		if not SUPPORTED.has(row.enemy_id): return _fail("ranges", i, "enemy_id", "Attack has no implementation for " + str(row.enemy_id) + ": " + str(row.attack_name))
 		if row.phase not in (["normal", "enraged"] if row.enemy_id == "boss_ape" else ["default"]): return _fail("ranges", i, "phase", "Unknown phase for " + str(row.enemy_id))
 		var key := "%s/%s/%s" % [row.enemy_id, row.phase, row.attack_name]
 		if row.get("activation_mode", "selected") not in ["", "selected", "triggered"]: return _fail("ranges", i, "activation_mode", "Activation must be selected or triggered: " + key)
@@ -364,8 +378,13 @@ static func shot_angles(row: Dictionary) -> Array:
 	return out
 
 # Whether the enemy's code can do this attack (bindings to others are plans: kept, shown, skipped in play).
-static func performs(enemy_id: String, attack_name: String) -> bool:
-	return attack_name in EXECUTABLE.get(enemy_id, [])
+func behavior(id: String) -> String:
+	return str(attack(id).get("behavior", ""))
+
+# Whether this enemy's code implements the attack's behavior kind.
+func performs(enemy_id: String, attack_name: String) -> bool:
+	var kind := behavior(attack_name)
+	return kind != "" and kind in SUPPORTED.get(enemy_id, [])
 
 # A binding's maximum range in tiles; 0 in the CSV means there's no maximum.
 static func max_range(row: Dictionary) -> float:
@@ -399,7 +418,7 @@ func select_attack(enemy_id: String, phase: String, available: Array, distance: 
 	for row in ordered_attacks(enemy_id, phase, available):
 		if triggered(row) or not attack_trigger_matches(row,context): continue
 		if distance < float(row.min_range_units) * range_scale or distance >= max_range(row) * range_scale: continue
-		if not performs(enemy_id, row.attack_name): continue  # added in the editor, not in its code yet
+		if not performs(enemy_id, row.attack_name): continue  # a behavior this enemy has no code for
 		if eligible.is_valid() and not eligible.call(row.attack_name): continue
 		if float(waits.get(row.attack_name, -1.0)) > now: continue  # skipped a moment ago
 		var skip := str(row.get("skip_chance", ""))
