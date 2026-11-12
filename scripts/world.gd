@@ -1585,7 +1585,7 @@ func _toggle_lab() -> void:
 		lab_panel.add_child(center)
 		var box := VBoxContainer.new()
 		center.add_child(box)
-		var editor = load("res://scripts/attack_catalog_editor.gd").new()
+		var editor = load("res://scripts/monster_lab_editor.gd").new()
 		var room := get_viewport().get_visible_rect().size
 		editor.custom_minimum_size = Vector2(minf(1140, room.x - 48), minf(760, room.y - 110))
 		editor.theme = Game.theme.duplicate()
