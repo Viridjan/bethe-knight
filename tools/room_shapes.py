@@ -84,6 +84,24 @@ class Shape:
         for i, y in enumerate(stand):
             self.box(1 + i, 1 + i, 1, y)
 
+    # Break the box outline: a rock ceiling of uneven depth and side walls that bulge in. The ceiling stays
+    # 4 rows clear of the ground and platforms under it; doors are cut back through afterwards.
+    def overgrow(self):
+        w, h, rng = self.w, self.h, self.rng
+        plat = {(x, y) for x0, x1, y in self.plats for x in range(x0, x1)}
+        d = rng.randint(0, h // 4)
+        for x in range(1, w - 1):
+            if x % 2 == 0:
+                d = max(0, min(h // 3, d + rng.choice([-2, -1, 0, 0, 1, 2])))
+            top = next(y for y in range(1, h) if not self.open(x, y) or (x, y) in plat)
+            self.box(x, x, 1, min(d, top - 5), "1")
+        for side in (0, 1):
+            d = rng.randint(0, w // 8)
+            for y in range(1, h - 1):
+                if y % 2 == 0:
+                    d = max(0, min(w // 6, d + rng.choice([-2, -1, 0, 1, 2])))
+                self.box(1, d, y, y, "1") if side == 0 else self.box(w - 1 - d, w - 2, y, y, "1")
+
     def plat(self, x0, x1, y):
         x0, x1 = max(1, x0), min(self.w - 1, x1)
         if x1 > x0:
@@ -171,7 +189,7 @@ def city(s):
 
 def forest(s):
     w, h, rng = s.w, s.h, s.rng
-    stand = s.walk(w - 2, s.sill("L", h - 4), s.sill("R", h - 4), h - 8, h - 3, 3, 7)
+    stand = s.walk(w - 2, s.sill("L", h - 4), s.sill("R", h - 4), h // 2, h - 3, 2, 5)
     s.land(stand)
     x = rng.randint(6, 9)
     while x < w - 7:
@@ -187,6 +205,7 @@ def forest(s):
             s.plat(x - n, x, g - 3 * k + 1)
             s.plat(x + 2, x + 2 + n, g - 3 * k + 1)
         x += rng.randint(7, 12)
+    s.overgrow()
 
 
 def house(s):
@@ -255,6 +274,19 @@ def build(kind, w, h, doors, seed, name, env, border=None):
                 for x in range(w):
                     if x in (0, w - 1) or y in (0, h - 1):
                         s.t[y][x] = border[y][x]
+        seen = todo = [(x, y) for y in range(h) for x in range(w) if (x in (0, w - 1) or y in (0, h - 1)) and s.open(x, y)]
+        seen = set(seen)
+        while todo:  # air sealed off from every door becomes rock
+            x, y = todo.pop()
+            for c in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                if c not in seen and s.open(*c):
+                    seen.add(c)
+                    todo.append(c)
+        if seen:
+            for y in range(1, h - 1):
+                for x in range(1, w - 1):
+                    if (x, y) not in seen:
+                        s.t[y][x] = "1"
         plats = [p for p in s.plats if all(s.open(x, p[2]) for x in range(p[0], p[1]))]
         ents = [{"t": "jumpthru", "x": x0 * T, "y": y * T, "w": (x1 - x0) * T, "h": T} for x0, x1, y in plats]
         room = {"name": name, "w": w, "h": h, "environment": env, "tiles": ["".join(r) for r in s.t], "entities": ents}
