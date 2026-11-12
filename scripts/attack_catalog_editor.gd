@@ -27,7 +27,6 @@ var enemy_index := 0
 var form_scroll: ScrollContainer
 var world_cache := {}
 var stats: HFlowContainer  # the selected enemy's health and coverage fields
-var page_title := "Monster Editor"
 var effect_hints: Array = []  # visible effect controls and the profile effect IDs they describe
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["enemy_monster", "default", "Library monster"],
@@ -60,7 +59,7 @@ func _ready() -> void:
 	var heading := HBoxContainer.new()
 	heading.add_theme_constant_override("separation", 12)
 	add_child(heading)
-	var title := Game.label(page_title, 25)
+	var title := Game.label("Monster Editor", 25)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	heading.add_child(title)

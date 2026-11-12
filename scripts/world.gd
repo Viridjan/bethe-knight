@@ -337,7 +337,7 @@ func _ready() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(hud)
 	if lab():
-		var hint := Game.button("Monster Editor (Tab)", _toggle_lab)
+		var hint := Game.button("Monster Lab (Tab)", _toggle_lab)
 		hint.add_theme_font_size_override("font_size", 16)
 		hint.focus_mode = Control.FOCUS_NONE  # never takes the gameplay keys
 		hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -1572,7 +1572,7 @@ func lab_open() -> bool:
 	return lab_panel != null and lab_panel.visible
 
 # Show or hide the Monster Editor over the room. It is built once, so drafts survive closing it; the room is
-# frozen while it is open. Its Test button restarts the room with the selected enemy.
+# frozen while it is open.
 func _toggle_lab() -> void:
 	if lab_panel == null:
 		lab_panel = ColorRect.new()
@@ -1590,9 +1590,7 @@ func _toggle_lab() -> void:
 		editor.custom_minimum_size = Vector2(minf(1140, room.x - 48), minf(760, room.y - 110))
 		editor.theme = Game.theme.duplicate()
 		editor.theme.default_font_size = 15
-		editor.on_test = Game.play_lab
 		box.add_child(editor)
-		editor._select_enemy(maxi(0, editor.ENEMIES.map(func(e): return e[0]).find(Game.lab_enemy)))
 		var close := Game.button("Back to the room (Esc)", _toggle_lab)
 		close.add_theme_font_size_override("font_size", 16)
 		close.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
