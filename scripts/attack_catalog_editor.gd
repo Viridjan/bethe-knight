@@ -601,8 +601,9 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 
 # An empty walled room holding the player and one enemy, for trying its attacks.
 static func test_room(enemy_id: String) -> Dictionary:
-	var room: Dictionary = Game.new_level("Test: " + enemy_id)
+	var room: Dictionary = Game.new_level("Monster Lab" if enemy_id == "" else "Test: " + enemy_id)
 	room.tiles[0] = "1".repeat(room.w)
+	if enemy_id == "": return room
 	var enemy := {"t": enemy_id, "x": (room.w - 12) * 8, "y": (room.h - 3) * 8}
 	if enemy_id == "boss_guardian": enemy.merge({"w": 96, "h": 64, "y": (room.h - 10) * 8})
 	room.entities.append(enemy)

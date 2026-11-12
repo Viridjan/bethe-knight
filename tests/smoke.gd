@@ -257,8 +257,9 @@ func _ready() -> void:
 		if not room.ents.any(func(ent): return ent.d.get("t", "") == listed[0]):
 			_fail("test room has no %s" % listed[0])
 	monster_editor.free()
-	# Monster Lab: Tab opens its (blank) editor over the room and freezes it.
-	Game.play_lab("enemy_cragjaw")
+	# Monster Lab: an empty room; Tab opens its editor (own catalogue) and freezes the room; picking an enemy
+	# and pressing Test restarts the room with it. Every enemy it lists runs on the lab catalogue.
+	Game.play_lab()
 	await _frames(5)
 	var lab = get_child(-1)
 	var tab_key := InputEventKey.new()
@@ -270,12 +271,26 @@ func _ready() -> void:
 	var clock: float = lab.time
 	await _frames(5)
 	if lab.time != clock: _fail("Monster Lab room keeps running under its editor")
-	var lab_editor = lab.lab_panel.find_children("", "VBoxContainer", true, false).filter(func(n): return n.has_method("_show_enemies"))[0]
+	var lab_editor = lab.lab_panel.find_children("", "VBoxContainer", true, false).filter(func(n): return n.has_method("_test"))[0]
 	lab_editor._show_table(false)
 	lab_editor._show_enemies()
-	if not lab_editor.catalog.attack_path.begins_with("user://monster_lab/") or not lab_editor.ENEMIES.is_empty() or not lab_editor.catalog.validate().is_empty():
-		_fail("Monster Lab editor is not the Monster Editor on its own, valid, enemy-free catalogue")
-	Game.lab_enemy = ""
+	if not lab_editor.catalog.attack_path.begins_with("user://monster_lab/") or not lab_editor.catalog.validate().is_empty():
+		_fail("Monster Lab editor is not on its own valid catalogue")
+	var lab_ids: Array = lab_editor.ENEMIES.map(func(listed): return listed[0])
+	lab_editor._select_enemy(lab_ids.find("enemy_hornback"))
+	lab_editor._test()
+	await _frames(5)
+	if load("res://scripts/attack_catalog.gd").shared().attack_path != "user://monster_lab/attacks.csv":
+		_fail("Monster Lab room does not run on the lab catalogue")
+	for lab_id in lab_ids:
+		Game.play_lab(lab_id)
+		await _frames(90)
+		if not get_child(-1).ents.any(func(ent): return ent.d.get("t", "") == lab_id):
+			_fail("Monster Lab room has no %s" % lab_id)
+	Game.goto("menu")
+	await _frames(2)
+	if Game.lab or load("res://scripts/attack_catalog.gd").shared().attack_path != "res://data/attacks.csv":
+		_fail("leaving the Monster Lab does not restore the game's attacks")
 	Game.settings.invincible = previous_invincible
 	Game.adv = {}
 	Game.adv_world = {}

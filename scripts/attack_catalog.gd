@@ -119,6 +119,10 @@ static func attack_trigger_matches(row: Dictionary, context: Dictionary) -> bool
 static func triggered(row: Dictionary) -> bool:
 	return row.get("activation_mode", "selected") == "triggered"
 
+# Run the game on another catalogue (Monster Lab); null goes back to the game's own, reloaded on next use.
+static func use(catalog) -> void:
+	_shared = catalog
+
 static func shared():
 	if _shared == null:
 		_shared = load("res://scripts/attack_catalog.gd").new()

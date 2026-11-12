@@ -50,7 +50,7 @@ func _main() -> void:
 			body.add_child(Game.button("World Editor", func(): Game.goto("world_editor")))
 		if OS.has_feature("editor"):
 			body.add_child(Game.button("Monster Editor", _monster_editor))
-			body.add_child(Game.button("Monster Lab", func(): Game.play_lab("enemy_hornback")))
+			body.add_child(Game.button("Monster Lab", func(): Game.play_lab()))
 		body.add_child(Game.button("Art", _art))
 		body.add_child(Game.button("Music Studio", func(): Game.goto("music_studio")))
 	body.add_child(Game.button("Options", _options))

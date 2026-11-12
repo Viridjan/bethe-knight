@@ -109,7 +109,8 @@ var tuning: Dictionary = {}
 # Level being played. playtest = launched from the editor (exit goes back there).
 var level: Dictionary = {}
 var playtest := false
-var lab_enemy := ""  # Monster Lab: the enemy in its dummy room ("" = not in the lab)
+var lab := false  # Monster Lab: the dummy room, running on the lab's own attack catalogue
+var lab_enemy := ""  # the enemy chosen for the lab room ("" = none yet)
 var editor_level: Dictionary = {}
 var editor_resize_resume: Dictionary = {}  # transient resize/undo state while playtesting
 var editor_dir := LEVEL_DIR  # where the level editor saves (the world folder when editing a world room)
@@ -173,6 +174,9 @@ func get_music_engine() -> Node:
 func goto(screen: String) -> void:
 	if OS.has_feature("web") and screen in ["world_editor", "music_studio", "art_gallery"]:
 		screen = "menu"
+	if lab and screen != "world":  # leaving the Monster Lab: back to the game's attacks
+		lab = false
+		load("res://scripts/attack_catalog.gd").use(null)
 	if is_instance_valid(music_engine):
 		music_engine.stop()
 	for c in main.get_children():
@@ -184,15 +188,21 @@ func play(level_data: Dictionary, from_editor: bool) -> void:
 	adv = {}
 	level = level_data
 	playtest = from_editor
-	lab_enemy = ""
+	if lab:
+		lab = false
+		load("res://scripts/attack_catalog.gd").use(null)
 	goto("world")
 
-# Monster Lab: an empty room with one enemy; the Monster Editor opens over it (world.gd _toggle_lab).
-func play_lab(enemy_id: String) -> void:
+# Monster Lab: an empty room, with the chosen enemy once there is one, running on the lab's own attack catalogue
+# (reread from disk on every start). Its editor opens over the room (world.gd _toggle_lab).
+func play_lab(enemy_id := "") -> void:
+	var lab_editor = load("res://scripts/monster_lab_editor.gd")
+	load("res://scripts/attack_catalog.gd").use(lab_editor.lab_catalog())
 	adv = {}
-	level = load("res://scripts/attack_catalog_editor.gd").test_room(enemy_id)
+	level = lab_editor.test_room(enemy_id)
 	playtest = false
-	lab_enemy = enemy_id  # before the world is built: it reads this
+	lab = true  # before the world is built: it reads these
+	lab_enemy = enemy_id
 	goto("world")
 
 # ---------- crash-safe files ----------

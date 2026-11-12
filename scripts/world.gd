@@ -1566,7 +1566,7 @@ func _panel(title: String) -> VBoxContainer:
 
 # Monster Lab: the dummy room started by Game.play_lab.
 func lab() -> bool:
-	return Game.lab_enemy != "" and not adventure()
+	return Game.lab and not adventure()
 
 func lab_open() -> bool:
 	return lab_panel != null and lab_panel.visible
@@ -1591,6 +1591,7 @@ func _toggle_lab() -> void:
 		editor.theme = Game.theme.duplicate()
 		editor.theme.default_font_size = 15
 		box.add_child(editor)
+		editor._select_enemy(maxi(0, editor.ENEMIES.map(func(e): return e[0]).find(Game.lab_enemy)))
 		var close := Game.button("Back to the room (Esc)", _toggle_lab)
 		close.add_theme_font_size_override("font_size", 16)
 		close.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
