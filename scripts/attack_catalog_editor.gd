@@ -456,6 +456,8 @@ func _update_feedback() -> void:
 	if invalid.is_empty() and not feedback.tooltip_text.is_empty(): feedback.text += " · Overlapping ranges (hover for details)"
 	feedback.visible = feedback.text != "CSV loaded"  # nothing to report: no line
 	save_button.disabled = not writable or not dirty or not invalid.is_empty()
+	var test: Node = form.find_child("TestEnemy", true, false)
+	if test != null: test.disabled = dirty
 
 func _save() -> void:
 	if not writable: return
@@ -599,6 +601,15 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 		btn.tooltip_text = {-1: "Raise priority", 1: "Lower priority", 0: "Remove this attack from the enemy"}[b[1]]
 		binding_line.add_child(btn)
 
+# An empty walled room holding the player and one enemy, for trying its attacks.
+static func test_room(enemy_id: String) -> Dictionary:
+	var room: Dictionary = Game.new_level("Test: " + enemy_id)
+	room.tiles[0] = "1".repeat(room.w)
+	var enemy := {"t": enemy_id, "x": (room.w - 12) * 8, "y": (room.h - 3) * 8}
+	if enemy_id == "boss_guardian": enemy.merge({"w": 96, "h": 64, "y": (room.h - 10) * 8})
+	room.entities.append(enemy)
+	return room
+
 func _select_enemy(i: int) -> void:
 	if i != enemy_index and is_instance_valid(form_scroll): form_scroll.scroll_vertical = 0  # a new enemy starts at its top
 	enemy_index = i
@@ -613,8 +624,18 @@ func _select_enemy(i: int) -> void:
 	score_value = null
 	var enemy_title := Game.label(str(ENEMIES[i][2]), 24)
 	enemy_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	form.add_child(enemy_title)
+	enemy_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var e: Array = ENEMIES[i]
+	var heading := HBoxContainer.new()
+	form.add_child(heading)
+	heading.add_child(enemy_title)
+	var test := Game.button("Test", func(): Game.play(test_room(str(e[0])), false))
+	test.name = "TestEnemy"
+	test.add_theme_font_size_override("font_size", 12)
+	test.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	test.disabled = dirty
+	test.tooltip_text = "Fight this enemy alone in an empty room. Uses the saved values: save first."
+	heading.add_child(test)
 	var data: Dictionary = {"t": e[0]}
 	if e[0] == "boss_guardian":
 		data.merge({"w": 96, "h": 64})

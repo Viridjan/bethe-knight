@@ -247,6 +247,16 @@ func _ready() -> void:
 			if themed_world.near_layers[neighbour].chunks[0].environment != expected:
 				_fail("neighbour terrain lost its own environment")
 		await _shot("environment_"+environment)
+	# Monster Editor "Test": every listed enemy loads alone in the empty room.
+	var monster_editor = load("res://scripts/attack_catalog_editor.gd").new()
+	Game.settings.invincible = true
+	for listed in monster_editor._all_enemies():
+		Game.play(monster_editor.test_room(str(listed[0])), false)
+		await _frames(30)
+		var room = get_child(-1)
+		if not room.ents.any(func(ent): return ent.d.get("t", "") == listed[0]):
+			_fail("test room has no %s" % listed[0])
+	monster_editor.free()
 	Game.settings.invincible = previous_invincible
 	Game.adv = {}
 	Game.adv_world = {}
