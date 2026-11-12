@@ -246,6 +246,7 @@ var parts: Array = []   # [pos, vel, life, color]
 var trails: Array = []  # [Rect2, color, life]
 var snow: Array = []
 var paused := false
+var lab_panel: ColorRect  # Monster Lab: the Monster Editor over the dummy room (_toggle_lab)
 var done := false
 
 var ui: CanvasLayer
@@ -335,6 +336,13 @@ func _ready() -> void:
 	hud.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(hud)
+	if lab():
+		var hint := Game.label("Tab: Monster Editor", 16)
+		hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+		hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+		hint.offset_top = 56  # under the room title
+		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ui.add_child(hint)
 	if TouchControls.wanted():
 		touch = TouchControls.new()
 		ui.add_child(touch)
@@ -1150,6 +1158,13 @@ func complete() -> void:
 # Handle gameplay shortcuts only after interface controls had a chance to consume the event.
 func _unhandled_input(event: InputEvent) -> void:
 	if dialogue != null or crossing != null: return
+	if lab() and not done and not paused:
+		var tab: bool = event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB
+		if tab or (lab_open() and event.is_action_pressed("pause")):
+			get_viewport().set_input_as_handled()
+			_toggle_lab()
+			return
+		if lab_open(): return
 	if done or paused:
 		pass
 	elif event.is_action_pressed("map") or (map_view != null and event.is_action_pressed("pause")):
@@ -1198,7 +1213,7 @@ func _tick_entity(entity, dt: float) -> void:
 func _physics_process(_delta: float) -> void:
 	cam_prev = cam_now  # no tick (paused, frozen) = no motion to interpolate
 	player.prev_pos = player.pos
-	if not layer_active or paused or done or map_view != null or dialogue != null or crossing != null:
+	if not layer_active or paused or done or map_view != null or dialogue != null or crossing != null or lab_open():
 		return
 	if debug_panel != null and (debug_panel.typing() or debug_panel.sim_paused):
 		if debug_panel.typing() or debug_panel.step_frames == 0:
@@ -1542,6 +1557,41 @@ func _panel(title: String) -> VBoxContainer:
 	center.add_child(box)
 	box.add_child(Game.label(title, 44))
 	return box
+
+# Monster Lab: the dummy room started by Game.play_lab.
+func lab() -> bool:
+	return Game.lab_enemy != "" and not adventure()
+
+func lab_open() -> bool:
+	return lab_panel != null and lab_panel.visible
+
+# Show or hide the Monster Editor over the room. It is built once, so drafts survive closing it; the room is
+# frozen while it is open. Its Test button restarts the room with the selected enemy.
+func _toggle_lab() -> void:
+	if lab_panel == null:
+		lab_panel = ColorRect.new()
+		lab_panel.color = Color(0.05, 0.06, 0.1, 0.94)
+		lab_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		lab_panel.visible = false
+		ui.add_child(lab_panel)
+		var center := CenterContainer.new()
+		center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		lab_panel.add_child(center)
+		var box := VBoxContainer.new()
+		center.add_child(box)
+		var editor = load("res://scripts/attack_catalog_editor.gd").new()
+		var room := get_viewport().get_visible_rect().size
+		editor.custom_minimum_size = Vector2(minf(1140, room.x - 48), minf(760, room.y - 110))
+		editor.theme = Game.theme.duplicate()
+		editor.theme.default_font_size = 15
+		editor.on_test = Game.play_lab
+		box.add_child(editor)
+		editor._select_enemy(maxi(0, editor.ENEMIES.map(func(e): return e[0]).find(Game.lab_enemy)))
+		var close := Game.button("Back to the room (Esc)", _toggle_lab)
+		close.add_theme_font_size_override("font_size", 16)
+		close.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		box.add_child(close)
+	lab_panel.visible = not lab_panel.visible
 
 # Toggle simulation pause and construct or remove the pause menu.
 func _set_paused(v: bool) -> void:

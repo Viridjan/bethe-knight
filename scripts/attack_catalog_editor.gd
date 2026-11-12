@@ -27,6 +27,7 @@ var enemy_index := 0
 var form_scroll: ScrollContainer
 var world_cache := {}
 var stats: HFlowContainer  # the selected enemy's health and coverage fields
+var on_test: Callable  # set by the Monster Lab: called with the enemy id to fight
 var effect_hints: Array = []  # visible effect controls and the profile effect IDs they describe
 # The enemies whose attacks come from the CSV: [enemy id, phase, name in the list]
 const CSV_ENEMIES := [["boss_ape", "normal", "Ape"], ["enemy_monster", "default", "Library monster"],
@@ -457,7 +458,7 @@ func _update_feedback() -> void:
 	feedback.visible = feedback.text != "CSV loaded"  # nothing to report: no line
 	save_button.disabled = not writable or not dirty or not invalid.is_empty()
 	var test: Node = form.find_child("TestEnemy", true, false)
-	if test != null: test.disabled = dirty
+	if test != null: test.text = "Save & test" if dirty else "Test"
 
 func _save() -> void:
 	if not writable: return
@@ -601,6 +602,11 @@ func _binding_controls(block: VBoxContainer, row: Dictionary, phased: bool) -> v
 		btn.tooltip_text = {-1: "Raise priority", 1: "Lower priority", 0: "Remove this attack from the enemy"}[b[1]]
 		binding_line.add_child(btn)
 
+# Monster Lab: save pending edits, then restart the room with the selected enemy. A failed save stays here.
+func _test() -> void:
+	if dirty: _save()
+	if not dirty: on_test.call(str(ENEMIES[enemy_index][0]))
+
 # An empty walled room holding the player and one enemy, for trying its attacks.
 static func test_room(enemy_id: String) -> Dictionary:
 	var room: Dictionary = Game.new_level("Test: " + enemy_id)
@@ -629,13 +635,13 @@ func _select_enemy(i: int) -> void:
 	var heading := HBoxContainer.new()
 	form.add_child(heading)
 	heading.add_child(enemy_title)
-	var test := Game.button("Test", func(): Game.play(test_room(str(e[0])), false))
-	test.name = "TestEnemy"
-	test.add_theme_font_size_override("font_size", 12)
-	test.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	test.disabled = dirty
-	test.tooltip_text = "Fight this enemy alone in an empty room. Uses the saved values: save first."
-	heading.add_child(test)
+	if on_test.is_valid():  # Monster Lab only
+		var test := Game.button("Save & test" if dirty else "Test", _test)
+		test.name = "TestEnemy"
+		test.add_theme_font_size_override("font_size", 12)
+		test.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		test.tooltip_text = "Fight this enemy alone in the room behind. Unsaved edits are saved first."
+		heading.add_child(test)
 	var data: Dictionary = {"t": e[0]}
 	if e[0] == "boss_guardian":
 		data.merge({"w": 96, "h": 64})
@@ -776,7 +782,7 @@ func _select_enemy(i: int) -> void:
 		pick.add_item("+ New attack…")
 		pick.set_item_metadata(pick.item_count - 1, "")
 		add_row.add_child(pick)
-		var phase_pick := OptionButton.new()
+		var phase_pick: OptionButton = OptionButton.new() if e[0] == "boss_ape" else null  # unparented nodes leak
 		if e[0] == "boss_ape":
 			for phase_name in ["Both phases", "Phase 1", "Phase 2"]: phase_pick.add_item(phase_name)
 			add_row.add_child(phase_pick)

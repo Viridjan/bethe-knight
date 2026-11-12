@@ -257,6 +257,23 @@ func _ready() -> void:
 		if not room.ents.any(func(ent): return ent.d.get("t", "") == listed[0]):
 			_fail("test room has no %s" % listed[0])
 	monster_editor.free()
+	# Monster Lab: the editor opens over the room on the room's enemy, freezes it, and Test swaps the enemy.
+	Game.play_lab("enemy_cragjaw")
+	await _frames(5)
+	var lab = get_child(-1)
+	lab._toggle_lab()
+	var lab_editor = lab.lab_panel.find_children("", "VBoxContainer", true, false).filter(func(n): return n.has_method("_test"))[0]
+	var clock: float = lab.time
+	await _frames(5)
+	if not lab.lab_open() or lab.time != clock or lab_editor.ENEMIES[lab_editor.enemy_index][0] != "enemy_cragjaw":
+		_fail("Monster Lab editor does not open frozen on the room's enemy")
+	lab_editor._select_enemy(lab_editor.ENEMIES.map(func(listed): return listed[0]).find("enemy_hornback"))
+	lab_editor._test()
+	await _frames(5)
+	lab = get_child(-1)
+	if Game.lab_enemy != "enemy_hornback" or lab.lab_open() or not lab.ents.any(func(ent): return ent.d.get("t", "") == "enemy_hornback"):
+		_fail("Monster Lab Test does not restart the room with the selected enemy")
+	Game.lab_enemy = ""
 	Game.settings.invincible = previous_invincible
 	Game.adv = {}
 	Game.adv_world = {}

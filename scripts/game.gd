@@ -109,6 +109,7 @@ var tuning: Dictionary = {}
 # Level being played. playtest = launched from the editor (exit goes back there).
 var level: Dictionary = {}
 var playtest := false
+var lab_enemy := ""  # Monster Lab: the enemy in its dummy room ("" = not in the lab)
 var editor_level: Dictionary = {}
 var editor_resize_resume: Dictionary = {}  # transient resize/undo state while playtesting
 var editor_dir := LEVEL_DIR  # where the level editor saves (the world folder when editing a world room)
@@ -183,6 +184,15 @@ func play(level_data: Dictionary, from_editor: bool) -> void:
 	adv = {}
 	level = level_data
 	playtest = from_editor
+	lab_enemy = ""
+	goto("world")
+
+# Monster Lab: an empty room with one enemy; the Monster Editor opens over it (world.gd _toggle_lab).
+func play_lab(enemy_id: String) -> void:
+	adv = {}
+	level = load("res://scripts/attack_catalog_editor.gd").test_room(enemy_id)
+	playtest = false
+	lab_enemy = enemy_id  # before the world is built: it reads this
 	goto("world")
 
 # ---------- crash-safe files ----------
