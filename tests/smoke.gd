@@ -261,7 +261,12 @@ func _ready() -> void:
 	Game.play_lab("enemy_cragjaw")
 	await _frames(5)
 	var lab = get_child(-1)
-	lab._toggle_lab()
+	var tab_key := InputEventKey.new()
+	tab_key.keycode = KEY_TAB
+	tab_key.pressed = true
+	Input.parse_input_event(tab_key)
+	await _frames(3)
+	if not lab.lab_open(): _fail("Tab does not open the Monster Lab editor")
 	var lab_editor = lab.lab_panel.find_children("", "VBoxContainer", true, false).filter(func(n): return n.has_method("_test"))[0]
 	var clock: float = lab.time
 	await _frames(5)

@@ -337,11 +337,12 @@ func _ready() -> void:
 	hud.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	ui.add_child(hud)
 	if lab():
-		var hint := Game.label("Tab: Monster Editor", 16)
+		var hint := Game.button("Monster Editor (Tab)", _toggle_lab)
+		hint.add_theme_font_size_override("font_size", 16)
+		hint.focus_mode = Control.FOCUS_NONE  # never takes the gameplay keys
 		hint.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 		hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
 		hint.offset_top = 56  # under the room title
-		hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ui.add_child(hint)
 	if TouchControls.wanted():
 		touch = TouchControls.new()
@@ -1156,11 +1157,16 @@ func complete() -> void:
 
 # ---------------- loop ----------------
 # Handle gameplay shortcuts only after interface controls had a chance to consume the event.
+# Monster Lab: Tab opens the editor. Read here because the GUI takes Tab (focus change) before _unhandled_input.
+func _input(event: InputEvent) -> void:
+	if lab() and not lab_open() and not done and not paused and event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB:
+		get_viewport().set_input_as_handled()
+		_toggle_lab()
+
 func _unhandled_input(event: InputEvent) -> void:
 	if dialogue != null or crossing != null: return
 	if lab() and not done and not paused:
-		var tab: bool = event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_TAB
-		if tab or (lab_open() and event.is_action_pressed("pause")):
+		if lab_open() and event.is_action_pressed("pause"):
 			get_viewport().set_input_as_handled()
 			_toggle_lab()
 			return
