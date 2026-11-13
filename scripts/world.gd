@@ -1473,6 +1473,13 @@ func _draw_background(ci: CanvasItem) -> void:
 		ci.draw_rect(Rect2((view.position + s).floor(), Vector2.ONE), Color(1, 1, 1, 0.35))
 
 # Draw active and leaving-room objects, movement trails and particles over retained terrain.
+# Draw one entity, its image raised by its ground distance (the boxes it collides with stay put).
+func _draw_ent(e) -> void:
+	var lift: int = e.ground_distance()
+	e.rect.position.y -= lift
+	e.draw(self)
+	e.rect.position.y += lift
+
 func _draw() -> void:
 	# Also follow redraws requested directly by tools or benchmark subclasses.
 	background.queue_redraw()
@@ -1481,7 +1488,7 @@ func _draw() -> void:
 	var over: Array = []  # water and waterfalls draw over the player
 	for e in ents:  # buildings first: they are backdrops, whatever their order in the level file
 		if e is E.Building and e.vis_rect().intersects(cull):
-			e.draw(self)
+			_draw_ent(e)
 	for e in ents:
 		if e is E.Building:
 			continue
@@ -1489,7 +1496,7 @@ func _draw() -> void:
 			if e.d.t in ["water","waterfall","thick_water"]:
 				over.append(e)
 			else:
-				e.draw(self)
+				_draw_ent(e)
 	if not leaving_ents.is_empty():
 		if not leaving_rect.intersects(view):  # the transition is over
 			leaving_ents = []
@@ -1498,7 +1505,7 @@ func _draw() -> void:
 		E.Ent.draw_peers = leaving_ents  # its blocks join among themselves, not with the new room's
 		for e in leaving_ents:
 			if e.vis_rect().intersects(old_cull):
-				e.draw(self)
+				_draw_ent(e)
 		E.Ent.draw_peers = null
 		draw_set_transform(Vector2.ZERO)
 	_draw_floor_gaps()
@@ -1506,7 +1513,7 @@ func _draw() -> void:
 		draw_rect(t[0], Color(t[1], minf(t[2] * 1.5, 0.6)))
 	if layer_active:player.draw(self)
 	for e in over:
-		e.draw(self)
+		_draw_ent(e)
 	for pt in parts:
 		draw_rect(Rect2(pt[0].floor(), Vector2.ONE), Color(pt[3], clampf(pt[2] * 3, 0, 1)))
 	if Game.settings.hitboxes:

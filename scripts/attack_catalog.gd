@@ -264,6 +264,10 @@ func validate() -> String:
 		if not ids.has(id): return "Missing attack the game uses: " + id
 	return ""
 
+static func _ground_distance_ok(profile: Dictionary) -> bool:
+	var value: Variant = profile.get("ground_distance", 0)
+	return (value is int or value is float) and is_finite(float(value)) and float(value) == floorf(float(value)) and absf(float(value)) <= 1000
+
 func _validate_profiles() -> String:
 	if enemy_profiles.get("version", 1) != 1: return "Unsupported enemy profile version"
 	for family in enemy_profiles:
@@ -272,10 +276,12 @@ func _validate_profiles() -> String:
 		var profile = enemy_profiles[family]
 		if not profile is Dictionary: return str(family) + " profile must be an object"
 		if profile.has("max_hp") and not EnemyHealth.valid(profile.max_hp): return str(family) + " health must be a whole number from 1 to 10000"
+		if not _ground_distance_ok(profile): return str(family) + " ground distance must be a whole number from -1000 to 1000"
 		if profile.get("cornered_coverage_attack","") not in [""]+coverage_attacks(family): return "Unsupported cornered coverage attack for " + str(family)
 	if not enemy_profiles.has("boss_ape"): return ""  # legacy CSV-only fixtures/world tooling
 	var p: Variant = enemy_profiles.boss_ape
 	if not p is Dictionary: return "Ape profile must be an object"
+	if not _ground_distance_ok(p): return "Ape ground distance must be a whole number from -1000 to 1000"
 	if p.get("cornered_coverage_attack","ape_scream") not in [""]+coverage_attacks("boss_ape"): return "Unsupported Ape cornered coverage attack"
 	for field in ["max_hp", "phase2_hp"]:
 		var value: Variant = p.get(field, null)

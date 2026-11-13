@@ -256,7 +256,19 @@ func _ready() -> void:
 		var room = get_child(-1)
 		if not room.ents.any(func(ent): return ent.d.get("t", "") == listed[0]):
 			_fail("test room has no %s" % listed[0])
+	var monster_editor_room: Dictionary = monster_editor.test_room("enemy_hornback")
 	monster_editor.free()
+	# Ground distance: read from the family profile, whole numbers only, and it moves the image, not the body.
+	var profiles = load("res://scripts/attack_catalog.gd").shared()
+	profiles.enemy_profiles["enemy_hornback"] = {"ground_distance": 6}
+	Game.play(monster_editor_room, false)
+	await _frames(20)
+	var lifted = get_child(-1).ents.filter(func(ent): return ent.d.get("t", "") == "enemy_hornback")[0]
+	if lifted.ground_distance() != 6 or not profiles.validate().is_empty():
+		_fail("ground distance is not read from the family profile")
+	profiles.enemy_profiles["enemy_hornback"] = {"ground_distance": 1.5}
+	if profiles.validate().is_empty(): _fail("a fractional ground distance is accepted")
+	profiles.enemy_profiles.erase("enemy_hornback")
 	# Monster Lab: an empty room; Tab opens its editor (own catalogue) and freezes the room; picking an enemy
 	# and pressing Test restarts the room with it. Every enemy it lists runs on the lab catalogue.
 	Game.play_lab()

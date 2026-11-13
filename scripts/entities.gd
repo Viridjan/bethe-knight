@@ -175,6 +175,11 @@ static func make(w, d: Dictionary):
 # Base contract shared by all placed objects. Flags choose which World collision lists contain it.
 # These objects are not Nodes: World must call update(), touch() and draw() itself.
 class Ent extends RefCounted:
+	# Pixels its image is drawn above where it stands: 0 on the ground, positive floats, negative sinks in.
+	# The image only: collision and damage boxes stay where they are. Enemies read it from their profile.
+	func ground_distance() -> int:
+		return 0
+
 	var w
 	var d: Dictionary
 	var rect: Rect2i
@@ -947,6 +952,9 @@ class CombatEnemy extends Ent:
 		var rows: Array = AttackCatalog.shared().ordered_attacks(family(),"default")
 		if not rows.any(func(row): return AttackCatalog.attack_condition(row)=="player_cornered"): return {}
 		return {"player_cornered":_cornered(w.player)}
+
+	func ground_distance() -> int:
+		return int(AttackCatalog.shared().enemy_profile(family()).get("ground_distance", 0))
 
 	# Return the base family ID so variants can share art and common metadata.
 	func family() -> String:
@@ -2923,6 +2931,8 @@ class AutoWalk extends Ent:
 # an stamina orb appears (d.orb).
 # Arena boss: choose a stone throw, leap/slam or scream according to player distance and fight state.
 class Ape extends Ent:
+	func ground_distance() -> int:
+		return int(AttackCatalog.shared().enemy_profile("boss_ape").get("ground_distance", 0))
 	const PHASE_HELP := {"sleep": "asleep; wakes when you come near", "idle": "pausing before its next attack",
 		"throw": "about to throw a log at you", "crouch": "winding up a leap: it lands past you", "air": "leaping; the landing shockwave hurts",
 		"scream": "screaming: the circle around it is deadly", "hurt": "landed on spikes: hurt", "dying": "beaten", "gone": "gone",

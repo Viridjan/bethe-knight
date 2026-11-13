@@ -638,9 +638,12 @@ func _select_enemy(i: int) -> void:
 	stats = HFlowContainer.new()
 	stats.add_theme_constant_override("h_separation", 18)
 	stats.add_theme_constant_override("v_separation", 6)
-	if e[0] == "boss_ape": _ape_profile_fields()
+	if e[0] == "boss_ape":
+		_ape_profile_fields()
+		if not catalog.enemy_profile("boss_ape").is_empty(): _ground_distance_field("boss_ape")
 	elif ent != null and ent.has_method("variant_hp"):
 		_family_health_fields(ent.family())
+		_ground_distance_field(ent.family())
 		if not Catalog.coverage_attacks(ent.family()).is_empty():
 			_stat(stats, "Cornered coverage", _cornered_coverage_picker(ent.family()))
 	if stats.get_child_count() > 0:
@@ -800,6 +803,24 @@ func _family_health_fields(family: String) -> void:
 		var target: Dictionary = catalog.enemy_profiles[family]
 		if value.strip_edges().is_empty(): target.erase("max_hp")
 		else: target.max_hp = int(value) if value.is_valid_int() else null
+		dirty = true
+		dirty_changed.emit()
+		_update_feedback())
+
+func _ground_distance_field(family: String) -> void:
+	var edit := _small_edit(writable)
+	edit.name = "GroundDistance"
+	edit.placeholder_text = "0"
+	var stored: Variant = catalog.enemy_profile(family).get("ground_distance", 0)
+	var held: int = int(stored) if stored is int or stored is float else 0
+	edit.text = str(held) if held != 0 else ""
+	edit.tooltip_text = "Pixels between the ground and the enemy's image. 0: it rests on the ground; positive: it floats; negative: it sits partly underground. The image only: where it collides and hurts does not move."
+	_stat(stats, "Ground distance", edit)
+	edit.text_changed.connect(func(value):
+		if not catalog.enemy_profiles.has(family): catalog.enemy_profiles[family] = {}
+		var target: Dictionary = catalog.enemy_profiles[family]
+		if value.strip_edges().is_empty() or value.strip_edges() == "0": target.erase("ground_distance")
+		else: target.ground_distance = int(value) if value.is_valid_int() else null
 		dirty = true
 		dirty_changed.emit()
 		_update_feedback())
