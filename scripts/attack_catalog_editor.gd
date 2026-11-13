@@ -605,7 +605,9 @@ static func test_room(enemy_id: String, at := Vector2.INF) -> Dictionary:
 	room.tiles[0] = "1".repeat(room.w)
 	if enemy_id == "": return room
 	var enemy := {"t": enemy_id, "x": (room.w - 12) * 8, "y": (room.h - 3) * 8}
-	if enemy_id == "boss_guardian": enemy.merge({"w": 96, "h": 64, "y": (room.h - 10) * 8})
+	if enemy_id == "boss_guardian": enemy.merge({"w": 96, "h": 64})
+	var body = load("res://scripts/entities.gd").make(null, enemy)  # its real size: big enemies stand on the floor too
+	if body != null: enemy.merge({"x": mini(enemy.x, (room.w - 2) * 8 - body.rect.size.x), "y": (room.h - 2) * 8 - body.rect.size.y}, true)
 	if at != Vector2.INF: enemy.merge({"x": int(at.x), "y": int(at.y)}, true)
 	room.entities.append(enemy)
 	return room

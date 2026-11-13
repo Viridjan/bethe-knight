@@ -301,6 +301,9 @@ func _ready() -> void:
 		await _frames(90)
 		if not get_child(-1).ents.any(func(ent): return ent.d.get("t", "") == lab_id):
 			_fail("Monster Lab room has no %s" % lab_id)
+		var placed: Dictionary = Game.level.entities.filter(func(entry): return entry.t == lab_id)[0]
+		if load("res://scripts/entities.gd").make(null, placed).rect.end.y != (Game.level.h - 2) * 8:
+			_fail("Monster Lab: %s does not start standing on the floor" % lab_id)
 	Game.play_lab("enemy_hornback", Vector2(100, 120))  # dropped by hand: it starts there
 	await _frames(1)
 	if not get_child(-1).ents.any(func(ent): return ent.d.get("t", "") == "enemy_hornback" and ent.d.x == 100 and ent.d.y == 120):
